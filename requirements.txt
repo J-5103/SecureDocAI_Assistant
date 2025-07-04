@@ -12,6 +12,7 @@ transformers         # For using pretrained models like BERT, DistilBERT, etc.
 torch                # Required for model inference
 langchain            # For RAG pipelines and retrieval
 langchain-community
+langchain-huggingface
 faiss-cpu            # Vector database (local retrieval)
 
 matplotlib           # For static plots
