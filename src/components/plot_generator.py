@@ -54,7 +54,7 @@ class PlotGenerator :
         plt.figure(figsize=(10,6))
         sns.barplot(data=self.df,x=x,y=y)
         plt.title(f"Bar plot of {y} by {x}")
-        plt.show() 
+        # plt.show() 
         return self._save_plot_to_base64()
     
     def _generate_line_plot(self,question : str) -> str:
@@ -86,14 +86,14 @@ class PlotGenerator :
         return self._save_plot_to_base64()
     
 
-df_sample = pd.DataFrame({
-    "year": [2020, 2021, 2022, 2023],
-    "revenue": [100, 150, 200, 250]
-})
+# df_sample = pd.DataFrame({
+#     "year": [2020, 2021, 2022, 2023],
+#     "revenue": [100, 150, 200, 250]
+# })
 
-plotter = PlotGenerator(df_sample)
-question = "Generate a bar chart of year and revenue"
-image_base64 = plotter.generate_plot(question)    
+# plotter = PlotGenerator(df_sample)
+# question = "Generate a bar chart of year and revenue"
+# image_base64 = plotter.generate_plot(question)    
 
 
 
