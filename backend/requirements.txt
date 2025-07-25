@@ -1,6 +1,13 @@
 fastapi
 uvicorn
 
+pandas
+openpyxl
+seaborn
+matplotlib
+langchain
+openai
+
 pdfplumber           # Extract text from PDFs
 tabula-py            # Extract tables from PDFs
 python-docx          # Read .docx files

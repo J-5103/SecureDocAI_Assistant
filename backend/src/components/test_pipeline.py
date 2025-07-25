@@ -1,65 +1,86 @@
-# src/components/test_pipeline.py
-
+import requests
+import json
+import os
 import time
-import difflib
-from src.pipeline.question_answer_pipeline import QuestionAnswerPipeline
-from src.pipeline.plot_pipeline import PlotGenerationPipeline
-PDF_FILE = "test_files/sample.pdf"
 
-# Expected answers (customize based on your PDF content!)
-expected_answers = {
-    "What is machine learning?": "Machine learning is a subset of AI that enables systems to learn from data.",
-    "Give me the summary of the document": "This document contains machine learning concepts, algorithms, and examples."
-}
+BASE_URL = "http://192.168.0.109:8000"
+PDF_FOLDER = "test_files"
 
-# ⏳ Total start time
-start_time = time.time()
 
-# 1️⃣ Initialize Pipelines
-qa_pipeline = QuestionAnswerPipeline()
-# plot_pipeline = PlotGenerationPipeline()
+def upload_pdf(pdf_path):
+    url = f"{BASE_URL}/upload_pdf"
+    with open(pdf_path, "rb") as f:
+        files = {"file": (os.path.basename(pdf_path), f, "application/pdf")}
+        response = requests.post(url, files=files)
 
-correct = 0
-total = 0
+    if response.status_code == 200:
+        print(f"✅ Uploaded {pdf_path}: {response.json()}")
+    else:
+        print(f"❌ Upload Failed for {pdf_path}: {response.text}")
+    return response.json()
 
-for question, expected in expected_answers.items():
-    print(f"\n❓ Question: {question}")
-    q_start = time.time()
-    try:
-        answer = qa_pipeline.run(question)
-        print(f"✅ Answer: {answer}")
+def list_documents():
+    url = f"{BASE_URL}/list_documents"
+    response = requests.get(url)
 
-        # 🎯 Similarity using difflib
-        similarity = difflib.SequenceMatcher(None, answer.lower(), expected.lower()).ratio()
-        percentage = similarity * 100
-        print(f"🔍 Similarity: {percentage:.2f}%")
+    if response.status_code == 200:
+        docs = response.json()["documents"]
+        print("📄 Available Documents:", docs)
+        return docs
+    else:
+        print("❌ Document Listing Failed:", response.text)
+        return []
 
-        if percentage >= 80:
-            print("✅ Correct Answer")
-            correct += 1
-        else:
-            print("❌ Incorrect Answer")
+def ask_question(chat_id, document_id, question):
+    url = f"{BASE_URL}/document-chat"
 
-        total += 1
+    payload = {
+        "chat_id": chat_id,
+        "document_id": document_id,
+        "question": question
+    }
 
-    except Exception as e:
-        print(f"❌ Error: {str(e)}")
+    headers = {"Content-Type": "application/json"}
 
-    print(f"⏱️ Time Taken: {time.time() - q_start:.4f} sec")
+    start_time = time.time()
+    response = requests.post(url, data=json.dumps(payload), headers=headers)
+    end_time = time.time()
+    elapsed = end_time - start_time
 
-# # 2️⃣ Plot Generation
-# print("\n📊 Generating Plot...")
+    if response.status_code == 200:
+        answer = response.json().get("answer", "")
+        print(f"🧠 AI Response ({document_id}):\n{answer}")
+        print(f"⏱️ Time taken: {elapsed:.2f} seconds\n")
 
-# try:
-#     plot_path = plot_pipeline.generate_plot("Generate a bar chart of algorithms used in machine learning")
-#     print(f"✅ Plot saved at: {plot_path}")
-# except Exception as e:
-#     print(f"❌ Plot generation failed: {str(e)}")
+        
+    else:
+        print(f"❌ Chat Failed for {document_id}: {response.text}")
 
-# 3️⃣ Report Accuracy
-if total > 0:
-    accuracy = (correct / total) * 100
-    print(f"\n🎯 Accuracy: {accuracy:.2f}% ({correct}/{total})")
 
-# ⏳ Total time
-print(f"\n🚀 Test pipeline completed in {time.time() - start_time:.4f} sec")
+
+if __name__ == "__main__":
+    print("🚀 Starting Multi-Doc Test Pipeline...\n")
+
+    # 1️⃣ Upload PDFs
+    pdf_files = [f for f in os.listdir(PDF_FOLDER) if f.endswith(".pdf")]
+    for pdf in pdf_files:
+        pdf_path = os.path.join(PDF_FOLDER, pdf)
+        upload_pdf(pdf_path)
+
+    # 2️⃣ Wait briefly
+    time.sleep(2)
+
+    # 3️⃣ List available documents
+    documents = list_documents()
+
+    # 4️⃣ Ask per-document question
+    question = "📌 Summarize this document with an emphasis on key insights, use-cases, and unique takeaways."
+    for doc in documents:
+        chat_id = f"chat_{doc.replace('.pdf', '')}"
+        print(f"\n📘 Asking Question for: {doc}")
+        ask_question(chat_id, doc, question)
+
+    # 5️⃣ Ask multi-doc question
+    multi_question = "📌 Provide a consolidated summary of all uploaded documents with key patterns and also draw a trend plot."
+    print("\n📚 Asking Question for All Documents Together:")
+    ask_question("multi_chat_001", "all", multi_question)

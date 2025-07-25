@@ -25,12 +25,14 @@ class FileLoader:
             raise Exception(f"Failed to load DOCX file: {e}")
 
     @staticmethod
-    def load_excel_data(file_path):  #  Load Excel/CSV
+    def load_excel_data(file_path:str)-> pd.DataFrame:  #  Load Excel/CSV
         try:
             if file_path.endswith('.csv'):
                 df = pd.read_csv(file_path)
+            elif file_path.endswith(".xlsx"):
+                df = pd.read_excel(file_path, engine='openpyxl')    
             else:
-                df = pd.read_excel(file_path, engine="openpyxl")
+                raise ValueError("unsupported file formate.")
             return df
         except Exception as e:
             raise Exception(f"Failed to load Excel file: {e}")

@@ -25,19 +25,31 @@ class PlotGenerator:
         else:
             raise ValueError("Unsupported plot type in question")
         
-    def _extract_columns(self,question: str)->tuple:
-        tokens = re.findall(r'\b[a-zA-Z_]+\b',question)
+    def _extract_columns(self, question: str) -> tuple:
+
+        # Step 1: Extract columns from question text
+        tokens = re.findall(r'\b[a-zA-Z_]+\b', question)
         cols = [col for col in tokens if col in self.df.columns]
+
+        # Step 2: If at least 2 valid columns found in question, return them
         if len(cols) >= 2:
-            return cols[0] , cols[1]
-        raise ValueError("Could not extract two valid columns.")
+            return cols[0], cols[1]
+
+        # Step 3: Fallback — auto-select first 2 numeric columns
+        numeric_cols = self.df.select_dtypes(include='number').columns.tolist()
+        if len(numeric_cols) >= 2:
+            return numeric_cols[0], numeric_cols[1]
+
+        # Step 4: Raise error if not enough valid columns
+        raise ValueError("Could not extract two valid columns from question or data.")
+
     
-    def _extract_single_column(self,question:str) -> str:
-        tokens= re.findall(r'\b[a-zA-Z_]+\b',question)
+    def _extract_single_column(self, question: str) -> str:
+        tokens = re.findall(r'\b[a-zA-Z_]+\b', question)
         for col in tokens:
             if col in self.df.columns:
                 return col
-            raise ValueError("Could not extract one valid column.")
+        raise ValueError("Could not extract one valid column.")
         
     def _save_plot_to_base64(self) -> str:
         buf = io.BytesIO()

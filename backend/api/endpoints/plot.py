@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Query
-from src.pipeline.plot_pipeline import PlotPipeline
+from src.pipeline.plot_pipeline import PlotGenerationPipeline
 
 router = APIRouter()
-plot_pipeline = PlotPipeline()
+plot_pipeline = PlotGenerationPipeline()
 
-@router.get("/plot/")
+@router.get("/")
 def generate_plot(question: str = Query(...)):
     try:
         image_base64 = plot_pipeline.generate_plot(question)
