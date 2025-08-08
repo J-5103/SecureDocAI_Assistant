@@ -1,0 +1,37 @@
+fastapi
+uvicorn
+
+pandas
+openpyxl
+seaborn
+matplotlib
+langchain
+openai
+
+pdfplumber           # Extract text from PDFs
+tabula-py            # Extract tables from PDFs
+python-docx          # Read .docx files
+openpyxl             # Read Excel (.xlsx)
+pandas               # For data manipulation
+numpy
+gpt4all
+
+transformers         # For using pretrained models like BERT, DistilBERT, etc.
+torch                # Required for model inference
+langchain            # For RAG pipelines and retrieval
+langchain-community
+langchain-huggingface
+langchain-groq
+faiss-cpu            # Vector database (local retrieval)
+
+matplotlib           # For static plots
+seaborn              # For statistical plotting
+plotly               # For interactive plotting
+
+python-multipart     # For file uploads
+aiofiles             # For async file handling
+
+psycopg2-binary
+pypdf
+
+#-e .
