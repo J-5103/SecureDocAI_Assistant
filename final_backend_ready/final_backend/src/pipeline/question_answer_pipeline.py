@@ -1,14 +1,68 @@
+# src/pipeline/question_answer_pipeline.py
 import os
 import requests
 from typing import List, Optional
 
-from src.components.rag_pipeline import RAGPipeline
 from langchain_community.vectorstores import FAISS
+
+from src.components.rag_pipeline import RAGPipeline
 from src.utils.synonym_expander import SynonymExpander
+
+# Directories (match main.py usage)
+UPLOAD_BASE = os.path.abspath(os.path.join(os.getcwd(), "uploaded_docs"))
+VSTORE_BASE = os.path.abspath(os.path.join(os.getcwd(), "vectorstores"))
+
+
+def _safe_filename(name: str) -> str:
+    """Strip any client path/backslashes and return just the filename."""
+    return os.path.basename((name or "").replace("\\", "/"))
+
+
+def _resolve_pdf_path(chat_id: str, document_id: str) -> str:
+    """
+    Build a safe absolute path to the uploaded PDF. We try both:
+      1) the exact filename provided
+      2) the same stem forced to `.pdf` (guards against ext/case mismatches)
+    """
+    fname = _safe_filename(document_id)
+    cand1 = os.path.join(UPLOAD_BASE, chat_id, fname)
+
+    stem, ext = os.path.splitext(fname)
+    cand2 = os.path.join(UPLOAD_BASE, chat_id, f"{stem}.pdf")
+
+    if os.path.exists(cand1):
+        return cand1
+    if os.path.exists(cand2):
+        return cand2
+    # Return the "expected" path to help error messages upstream
+    return cand2 if ext.lower() != ".pdf" else cand1
+
+
+def _is_valid_pdf(path: str) -> bool:
+    """
+    Quick sanity check: header must be %PDF- and file should end with %%EOF (within last 2KB).
+    Prevents trying to index Excel/CSV/images as PDFs.
+    """
+    try:
+        with open(path, "rb") as f:
+            header = f.read(5)
+        if header != b"%PDF-":
+            return False
+        size = os.path.getsize(path)
+        tail_len = min(2048, size)
+        if tail_len <= 0:
+            return False
+        with open(path, "rb") as f:
+            f.seek(-tail_len, os.SEEK_END)
+            tail = f.read()
+        return b"%%EOF" in tail
+    except Exception:
+        return False
 
 
 class QuestionAnswerPipeline:
     def __init__(self):
+        # Keep a single RAG pipeline instance so we share embeddings + Ollama config
         self.rag = RAGPipeline()
 
     def sanitize_text(self, text: str) -> str:
@@ -26,12 +80,10 @@ class QuestionAnswerPipeline:
             # --------- validate & normalize question ----------
             if not question:
                 raise ValueError("No question provided.")
-
             if isinstance(question, list):
                 question = " ".join(str(q) for q in question)
             elif not isinstance(question, str):
                 raise TypeError("Invalid input: 'question' must be a string.")
-
             question = question.strip()
             if not question:
                 raise ValueError("Question is empty after stripping.")
@@ -40,7 +92,6 @@ class QuestionAnswerPipeline:
             expander = SynonymExpander()
             expanded_question = expander.find_similar_words(question)
 
-            # classify lightweight
             ql = question.lower()
             is_cost_question = any(
                 kw in ql for kw in ["cost", "price", "charges", "amount", "budget"]
@@ -54,57 +105,66 @@ class QuestionAnswerPipeline:
                     chat_id=chat_id,
                     document_id=None,
                     combine_docs=combine_docs,
-                    k=8,  # tighter & faster
+                    k=8,
                 )
-
                 if not context.strip():
                     raise RuntimeError("No relevant content found in the selected documents.")
 
                 combined_contexts = self.sanitize_text(context)
-
-                if is_cost_question:
-                    prompt = self.build_cost_compare_prompt(question, combined_contexts)
-                else:
-                    prompt = self.build_multi_doc_compare_prompt(question, combined_contexts)
-
+                prompt = (
+                    self.build_cost_compare_prompt(question, combined_contexts)
+                    if is_cost_question
+                    else self.build_multi_doc_compare_prompt(question, combined_contexts)
+                )
                 print(f"📄 Context from {len(used_docs)} selected documents being sent to model.")
                 answer = self.call_ollama(prompt)
                 return (answer, used_docs) if return_sources else answer
 
             # =================== SINGLE DOCUMENT MODE ===================
             if document_id:
-                # normalize document id and pathing
-                filename_wo_ext = os.path.splitext(os.path.basename(str(document_id)))[0]
-                pdf_path = os.path.join("uploaded_docs", chat_id, f"{filename_wo_ext}.pdf")
-                vs_folder = os.path.join("vectorstores", chat_id, filename_wo_ext)
-                index_file = os.path.join(vs_folder, "index.faiss")
+                safe_name = _safe_filename(str(document_id))
+                stem = os.path.splitext(safe_name)[0]
 
+                pdf_path = _resolve_pdf_path(chat_id, safe_name)
                 if not os.path.exists(pdf_path):
                     raise FileNotFoundError(f"Document not found at {pdf_path}")
 
-                # if vectorstore missing, build it in the chat/doc folder
+                # ❗ Guard: only real PDFs are allowed in the QA pipeline
+                if not _is_valid_pdf(pdf_path):
+                    return (
+                        "❌ The selected file isn't a valid PDF (or it's corrupted). "
+                        "If this is Excel/CSV data, use the Excel plot endpoints "
+                        "(/api/excel/upload and /api/excel/plot) to generate charts."
+                    )
+
+                vs_folder = os.path.join(VSTORE_BASE, chat_id, stem)
+                index_file = os.path.join(vs_folder, "index.faiss")
+
+                # Check if vectorstore exists; if not, inform user to re-upload or wait
                 if not os.path.exists(index_file):
-                    print("⚙️ Vectorstore missing. Attempting regeneration...")
-                    self.rag.create_vectorstore(pdf_path=pdf_path, vector_store_path=vs_folder)
+                    return (
+                        f"❌ Vectorstore for {stem} is missing or not yet processed. "
+                        "Please re-upload the document or wait for background processing to complete."
+                    )
 
                 # fetch context for the selected single doc
                 context, used_docs = self.rag.get_context(
                     question=expanded_question,
                     chat_id=chat_id,
-                    document_id=filename_wo_ext,  # pass document id (folder name), not a path
+                    document_id=stem,  # pass folder/doc key (stem)
                     combine_docs=None,
-                    k=8,  # tighter & faster
+                    k=8,
                 )
-
                 if not context or not context.strip():
                     raise RuntimeError("No relevant content found in the document.")
 
                 sanitized_context = self.sanitize_text(context)
                 prompt = self.build_single_doc_prompt(question, sanitized_context)
-                print(f"📄 Sending prompt to model from single document: {filename_wo_ext}")
+                print(f"📄 Sending prompt to model from single document: {stem}")
                 answer = self.call_ollama(prompt)
 
                 if return_sources:
+                    # langchain_community 0.2+: load_local(path, embeddings, allow_dangerous_deserialization=...)
                     vectorstore = FAISS.load_local(
                         vs_folder,
                         self.rag.embedding_model,
@@ -116,13 +176,12 @@ class QuestionAnswerPipeline:
                 return answer
 
             # =================== NO SELECTION ===================
-            # Fallback: multi-doc across all PDFs in the chat
             print("ℹ️ No document selected; using all chat documents.")
             context, used_docs = self.rag.get_context(
                 question=expanded_question,
                 chat_id=chat_id,
                 document_id=None,
-                combine_docs=[],  # None/[] means "all docs"
+                combine_docs=[],  # [] => "all docs"
                 k=8,
             )
             if not context.strip():
@@ -138,7 +197,6 @@ class QuestionAnswerPipeline:
             return (answer, used_docs) if return_sources else answer
 
         except Exception as e:
-            # Return a plain string so main.py can wrap it consistently
             print(f"❌ Pipeline Error: {str(e)}")
             return (f"❌ Backend Error: {str(e)}", []) if return_sources else f"❌ Backend Error: {str(e)}"
 
@@ -165,7 +223,6 @@ Instructions:
 """
 
     def build_multi_doc_compare_prompt(self, question, combined_contexts):
-        """General comparison format for combined PDFs."""
         return f"""
 You are comparing multiple PDFs. Produce a concise, decision-ready answer in this exact format:
 
@@ -201,7 +258,6 @@ User Question:
 """
 
     def build_cost_compare_prompt(self, question, combined_contexts):
-        """Cost-focused comparison for combined PDFs."""
         return f"""
 You are a finance assistant extracting and comparing costs from multiple PDFs.
 
@@ -234,33 +290,35 @@ User Question:
 
     # ---------------- llm call ----------------
 
-    def call_ollama(self, prompt):
-        # Faster defaults; tweak as needed
-        url = "http://192.168.0.88:11434/api/generate"
+    def call_ollama(self, prompt: str) -> str:
+        """
+        Calls Ollama with the same base URL/model configured in RAGPipeline so
+        your environment variables / settings apply everywhere consistently.
+        """
+        url = self.rag.ollama_url or "http://localhost:11434/api/generate"
+        model = getattr(self.rag, "model_name", None) or "llama3:8b"
+
         try:
             safe_prompt = self.sanitize_text(prompt)
-
             payload = {
-                "model": "llama3:8b",   # faster, quantized
+                "model": model,
                 "system": "You are a helpful assistant. Only use the provided content.",
                 "prompt": safe_prompt,
-                "stream": False,                 # set True if you wire up streaming
-                "keep_alive": "10m",             # avoid cold starts
+                "stream": False,
+                "keep_alive": "10m",
                 "options": {
                     "temperature": 0.2,
-                    "num_predict": 400,         # was 1000; faster
-                    "num_ctx": 3072             # keep reasonable to avoid huge prompt latency
+                    "num_predict": 400,
+                    "num_ctx": 3072,
                 },
             }
-
-            print("📡 Sending prompt to Ollama...")
+            print(f"📡 Sending prompt to Ollama at {url} with model '{model}' ...")
             response = requests.post(url, json=payload, timeout=200)
             response.raise_for_status()
 
             result = (response.json().get("response") or "").strip()
             if not result:
                 raise RuntimeError("Received empty response from Ollama.")
-
             return result
 
         except requests.exceptions.ConnectionError:

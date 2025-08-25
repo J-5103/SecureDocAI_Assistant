@@ -1,15 +1,28 @@
+# src/components/rag_pipeline.py
 import os
-import pdfplumber
+import time
 from typing import List, Tuple, Optional
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+import pdfplumber
+import pandas as pd
+import docx  # python-docx
+from PIL import Image
+import requests
+
+# Optional torch (don't crash if it's not installed)
+try:
+    import torch  # type: ignore
+    _TORCH_AVAILABLE = True
+except Exception:
+    torch = None  # type: ignore
+    _TORCH_AVAILABLE = False
+
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 
 from src.utils.synonym_expander import SynonymExpander
-import requests
-
 
 DEFAULT_K = 8
 CHUNK_SIZE = 700
@@ -19,12 +32,17 @@ CHUNK_OVERLAP = 100
 class RAGPipeline:
     def __init__(
         self,
-        vector_store_path: str = "vectorstores",
+        vector_store_path: str = "vectorstores",  # plural to match main.py
         ollama_url: str = "http://192.168.0.88:11434/api/generate",
-        model_name: str = "llama3:8b",  # faster quantized default
+        model_name: str = "llama3:8b",
     ):
+        # Choose device only if torch is present
+        device = "cuda" if (_TORCH_AVAILABLE and torch.cuda.is_available()) else "cpu"  # type: ignore[attr-defined]
+        print(f"Initializing RAGPipeline with device: {device}")
+
         self.embedding_model = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            model_kwargs={"device": device},
         )
         self.vector_store_path = vector_store_path
         self.ollama_url = ollama_url
@@ -36,7 +54,6 @@ class RAGPipeline:
         return os.path.join(self.vector_store_path, chat_id)
 
     def _doc_folder(self, chat_id: str, doc_name_or_file: str) -> str:
-        # accept "MyDoc.pdf" or "MyDoc"
         base = os.path.splitext(doc_name_or_file)[0]
         return os.path.join(self._chat_folder(chat_id), base)
 
@@ -44,61 +61,97 @@ class RAGPipeline:
         index_file = os.path.join(folder_path, "index.faiss")
         if not os.path.exists(index_file):
             return None
+        # langchain_community 0.2+: load_local(path, embeddings, allow_dangerous_deserialization=...)
         return FAISS.load_local(
-            folder_path, self.embedding_model, allow_dangerous_deserialization=True
+            folder_path,
+            self.embedding_model,
+            allow_dangerous_deserialization=True,
         )
 
     def sanitize_text(self, text: str) -> str:
         return text.encode("utf-8", "replace").decode("utf-8")
 
     def detect_question_type(self, question: str) -> str:
-        q = question.lower()
+        q = (question or "").lower()
         if any(k in q for k in ["cost", "price", "budget", "amount", "charges"]):
             return "cost"
         if any(k in q for k in ["summary", "tell me about", "describe", "overview"]):
             return "summary"
         return "default"
 
-    # -------------------- building VS --------------------
+    # -------------------- document extraction --------------------
 
-    def extract_pdf_with_tables(self, pdf_path: str) -> List[Document]:
-        documents = []
-        filename = os.path.basename(pdf_path).replace(".pdf", "")
+    def extract_text_from_doc(self, file_path: str) -> List[Document]:
+        """Extract text from various document types with progress logging."""
+        filename = os.path.basename(file_path).replace(os.path.splitext(file_path)[1], "")
+        documents: List[Document] = []
         try:
-            with pdfplumber.open(pdf_path) as pdf:
-                for i, page in enumerate(pdf.pages):
-                    text = page.extract_text() or ""
-                    tables = page.extract_tables()
-                    for table in tables or []:
-                        table_text = "\n".join(
-                            [
-                                " | ".join((cell.strip() if cell else "") for cell in row)
-                                for row in table
-                                if any(row)
-                            ]
-                        )
-                        if table_text.strip():
-                            text += f"\n[Extracted Table - Page {i + 1}]\n{table_text}"
+            lower = file_path.lower()
+            if lower.endswith(".pdf"):
+                print(f"Starting PDF text extraction from: {filename}")
+                with pdfplumber.open(file_path) as pdf:
+                    for i, page in enumerate(pdf.pages):
+                        text = page.extract_text() or ""
+                        tables = page.extract_tables()
+                        for table in tables or []:
+                            table_text = "\n".join(
+                                [
+                                    " | ".join((cell.strip() if cell else "") for cell in row)
+                                    for row in table
+                                    if any(row)
+                                ]
+                            )
+                            if table_text.strip():
+                                text += f"\n[Extracted Table - Page {i + 1}]\n{table_text}"
+                        if text.strip():
+                            safe_text = self.sanitize_text(text)
+                            documents.append(
+                                Document(
+                                    page_content=safe_text,
+                                    metadata={"source": filename, "page": i + 1},
+                                )
+                            )
+                        print(f"Extracted text from page {i + 1} of {len(pdf.pages)}")
+            elif lower.endswith((".docx", ".doc")):
+                print(f"Starting DOCX text extraction from: {filename}")
+                d = docx.Document(file_path)
+                full_text = [para.text.strip() for para in d.paragraphs if para.text.strip()]
+                if full_text:
+                    safe_text = self.sanitize_text("\n".join(full_text))
+                    documents.append(Document(page_content=safe_text, metadata={"source": filename}))
+                print(f"Extracted {len(full_text)} paragraphs")
+            elif lower.endswith((".xlsx", ".xls", ".csv")):
+                print(f"Starting Excel/CSV text extraction from: {filename}")
+                if lower.endswith((".xlsx", ".xls")):
+                    df = pd.read_excel(file_path)
+                else:
+                    df = pd.read_csv(file_path)
+                text = df.to_string(index=False)
+                if text.strip():
+                    safe_text = self.sanitize_text(text)
+                    documents.append(Document(page_content=safe_text, metadata={"source": filename}))
+                print(f"Extracted {len(df)} rows")
+            elif lower.endswith((".png", ".jpg", ".jpeg")):
+                print(f"Starting image text extraction from: {filename}")
+                # Placeholder (OCR not implemented here)
+                with Image.open(file_path):
+                    text = "Image content (OCR required)"
                     if text.strip():
                         safe_text = self.sanitize_text(text)
-                        documents.append(
-                            Document(
-                                page_content=safe_text,
-                                metadata={"source": filename, "page": i + 1},
-                            )
-                        )
+                        documents.append(Document(page_content=safe_text, metadata={"source": filename}))
+                print("Image extraction completed (OCR placeholder)")
+            else:
+                raise ValueError(f"Unsupported file type: {file_path}")
         except Exception as e:
-            print(f"❌ Error reading PDF: {e}")
+            print(f"❌ Error reading {filename}: {e}")
             raise
+        print(f"Text extraction complete for {filename}. Total documents: {len(documents)}")
         return documents
 
-    def _infer_chat_id_from_pdf_path(self, pdf_path: Optional[str]) -> Optional[str]:
-        """
-        Try to infer chat_id from a path like: uploaded_docs/<chat_id>/<file>.pdf
-        """
-        if not pdf_path:
+    def _infer_chat_id_from_pdf_path(self, file_path: Optional[str]) -> Optional[str]:
+        if not file_path:
             return None
-        parts = os.path.normpath(pdf_path).split(os.sep)
+        parts = os.path.normpath(file_path).split(os.sep)
         try:
             up_idx = parts.index("uploaded_docs")
             return parts[up_idx + 1] if up_idx + 1 < len(parts) else None
@@ -107,18 +160,20 @@ class RAGPipeline:
 
     def create_vectorstore(
         self,
-        pdf_path: Optional[str] = None,
+        file_path: Optional[str] = None,
         combined_text: Optional[str] = None,
         vector_store_path: Optional[str] = None,
         metadata: Optional[dict] = None,
     ):
+        """Create vectorstore with batch processing and progress logging."""
+        filename = os.path.basename(file_path or "manual_input").replace(
+            os.path.splitext(file_path or "")[1], ""
+        )
         try:
-            if not combined_text and not pdf_path:
-                raise ValueError("Either 'pdf_path' or 'combined_text' must be provided.")
+            if not combined_text and not file_path:
+                raise ValueError("Either 'file_path' or 'combined_text' must be provided.")
 
-            filename = os.path.basename(pdf_path or "manual_input").replace(".pdf", "")
-            # If a VS path isn't provided, infer chat_id from uploaded_docs/<chat_id>/...
-            inferred_chat = self._infer_chat_id_from_pdf_path(pdf_path)
+            inferred_chat = self._infer_chat_id_from_pdf_path(file_path)
             default_folder = (
                 os.path.join(self.vector_store_path, inferred_chat, filename)
                 if inferred_chat
@@ -127,23 +182,53 @@ class RAGPipeline:
             vectorstore_folder = vector_store_path or default_folder
             os.makedirs(vectorstore_folder, exist_ok=True)
 
+            print(f"Starting vectorstore creation for: {filename} at {vectorstore_folder}")
+            start_time = time.time()
+
             if combined_text:
                 safe_text = self.sanitize_text(combined_text)
                 docs = [Document(page_content=safe_text, metadata={"source": filename})]
             else:
-                docs = self.extract_pdf_with_tables(pdf_path)
+                docs = self.extract_text_from_doc(file_path)  # type: ignore[arg-type]
 
             splitter = RecursiveCharacterTextSplitter(
                 chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP
             )
             chunks = splitter.split_documents(docs)
+            print(f"Text splitting complete. Total chunks: {len(chunks)}")
 
-            vectorstore = FAISS.from_documents(chunks, self.embedding_model)
+            # Batch embedding
+            batch_size = 100
+            all_embeddings = []
+            for i in range(0, len(chunks), batch_size):
+                batch = chunks[i : i + batch_size]
+                embeddings = self.embedding_model.embed_documents([c.page_content for c in batch])
+                all_embeddings.extend(embeddings)
+                print(f"Embedded batch {i // batch_size + 1} of {(len(chunks) + batch_size - 1) // batch_size}")
+                time.sleep(0.05)  # slight yield; remove in production
+
+            # Create FAISS vectorstore with (text, embedding) pairs
+            texts = [c.page_content for c in chunks]
+            text_embeddings = list(zip(texts, all_embeddings))
+            metadatas = [{"source": filename, "page": c.metadata.get("page", 1)} for c in chunks]
+
+            vectorstore = FAISS.from_embeddings(
+                text_embeddings=text_embeddings,
+                embedding=self.embedding_model,
+                metadatas=metadatas,
+            )
             vectorstore.save_local(vectorstore_folder)
-            print(f"✅ Vectorstore created at: {vectorstore_folder}")
 
+            elapsed = time.time() - start_time
+            print(f"✅ Vectorstore created at: {vectorstore_folder} in {elapsed:.2f} seconds")
+
+            return {
+                "status": "ready",
+                "document_id": os.path.splitext(filename)[0],
+                "vectorstore_path": vectorstore_folder,
+            }
         except Exception as e:
-            print(f"❌ create_vectorstore failed: {e}")
+            print(f"❌ create_vectorstore failed for {filename}: {e}")
             raise
 
     # -------------------- context retrieval --------------------
@@ -155,7 +240,6 @@ class RAGPipeline:
         document_id: str,
         top_k: int = DEFAULT_K,
     ) -> Tuple[str, List[str], str]:
-        """Return (context, used_docs, question_type) for a single document."""
         question_type = self.detect_question_type(question)
         expander = SynonymExpander()
         expanded_query = expander.find_similar_words(question)
@@ -189,7 +273,6 @@ class RAGPipeline:
         document_names: Optional[List[str]] = None,
         top_k: int = DEFAULT_K,
     ) -> Tuple[str, List[str], str]:
-        """Return (context, used_docs, question_type) from multiple (or all) docs in a chat."""
         print("🔍 Loading vectorstores...")
         question_type = self.detect_question_type(question)
         base_folder = self._chat_folder(chat_id)
@@ -204,8 +287,7 @@ class RAGPipeline:
         used_docs: List[str] = []
         contexts: List[str] = []
 
-        # If list provided -> restrict to those docs; else use all folders
-        target_folders = []
+        target_folders: List[str] = []
         if document_names:
             for name in document_names:
                 target_folders.append(self._doc_folder(chat_id, name))
@@ -217,7 +299,6 @@ class RAGPipeline:
             vs = self._load_vs(folder_path)
             if not vs:
                 continue
-
             try:
                 docs_with_scores = vs.similarity_search_with_score(expanded_query, k=top_k)
                 top_docs = [doc for doc, score in docs_with_scores if score < 1.0] or [
@@ -238,7 +319,6 @@ class RAGPipeline:
         merged_context = "\n\n".join(contexts)
         return merged_context, used_docs, question_type
 
-    # ✅ Backward‑compatible wrapper expected by QuestionAnswerPipeline
     def get_context(
         self,
         question: str,
@@ -247,10 +327,6 @@ class RAGPipeline:
         combine_docs: Optional[List[str]] = None,
         k: int = DEFAULT_K,
     ) -> Tuple[str, List[str]]:
-        """
-        Returns (context, used_docs). Kept minimal so callers that don't need
-        question_type won't break.
-        """
         if document_id:
             ctx, used, _ = self.get_context_from_single_doc(
                 question, chat_id, document_id, top_k=k
@@ -261,8 +337,6 @@ class RAGPipeline:
         )
         return ctx, used
 
-    # -------------------- LLM call --------------------
-
     def answer_question(
         self,
         question: str,
@@ -270,11 +344,7 @@ class RAGPipeline:
         document_id: Optional[str] = None,
         combine_docs: Optional[List[str]] = None,
     ) -> str:
-        """
-        Unified answer function that picks single vs multi based on args.
-        """
         try:
-            # get context
             context, used_docs = self.get_context(
                 question=question,
                 chat_id=chat_id,
@@ -286,7 +356,6 @@ class RAGPipeline:
             if not context:
                 raise Exception("No relevant context retrieved for the selected documents.")
 
-            qtype = self.detect_question_type(question)
             prompt = (
                 "You are a helpful assistant. Answer strictly from the context. "
                 "If the answer is not present, say you don't know.\n\n"

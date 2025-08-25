@@ -16,7 +16,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 @router.post("/upload_file")  # Final endpoint: /api/upload/upload_file
 async def upload_file(chat_id: str = Form(...), file: UploadFile = File(...)):
     try:
-        if not file.filename.endswith(".pdf"):
+        if not file.filename.endswith(".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".png", ".jpg", ".jpeg"):
             raise HTTPException(status_code=400, detail="Only PDF files allowed.")
 
         # Normalize filename

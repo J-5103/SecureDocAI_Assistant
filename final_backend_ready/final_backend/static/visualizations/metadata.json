@@ -1,0 +1,526 @@
+[
+  {
+    "id": "034de90b62294a7e8c4e25d71ae108db",
+    "title": "Pie • State",
+    "kind": "pie",
+    "x": "State",
+    "y": "Sales",
+    "image_url": "/api/visualizations/034de90b62294a7e8c4e25d71ae108db/image",
+    "thumb_url": "/api/visualizations/034de90b62294a7e8c4e25d71ae108db/thumb",
+    "created_at": "2025-08-25T12:00:42.898212Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "7cfacb17b6f54333bb80e705e6a4b722",
+    "title": "Pie • State",
+    "kind": "pie",
+    "x": "State",
+    "y": "Sales",
+    "image_url": "/api/visualizations/7cfacb17b6f54333bb80e705e6a4b722/image",
+    "thumb_url": "/api/visualizations/7cfacb17b6f54333bb80e705e6a4b722/thumb",
+    "created_at": "2025-08-25T10:27:41.988394Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "bd6f5d8128f547a5bc240dd4823fb154",
+    "title": "Pie • State",
+    "kind": "pie",
+    "x": "State",
+    "y": "Sales",
+    "image_url": "/api/visualizations/bd6f5d8128f547a5bc240dd4823fb154/image",
+    "thumb_url": "/api/visualizations/bd6f5d8128f547a5bc240dd4823fb154/thumb",
+    "created_at": "2025-08-25T10:13:01.523335Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "b7c9e651ac3c4d9ba3946524d0c890a6",
+    "title": "Pie • State",
+    "kind": "pie",
+    "x": "State",
+    "y": "Sales",
+    "image_url": "/api/visualizations/b7c9e651ac3c4d9ba3946524d0c890a6/image",
+    "thumb_url": "/api/visualizations/b7c9e651ac3c4d9ba3946524d0c890a6/thumb",
+    "created_at": "2025-08-25T10:12:57.481905Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "fbfd3257d7734687be90408c9327a1c4",
+    "title": "Pie • Payment Mode",
+    "kind": "pie",
+    "x": "Payment Mode",
+    "y": "Sales",
+    "image_url": "/api/visualizations/fbfd3257d7734687be90408c9327a1c4/image",
+    "thumb_url": "/api/visualizations/fbfd3257d7734687be90408c9327a1c4/thumb",
+    "created_at": "2025-08-23T18:18:07.904745Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755972916717"
+  },
+  {
+    "id": "e650dc2a158544be9291a24decc609c3",
+    "title": "Box • Payment Mode",
+    "kind": "box",
+    "x": "Payment Mode",
+    "y": "Sales",
+    "image_url": "/api/visualizations/e650dc2a158544be9291a24decc609c3/image",
+    "thumb_url": "/api/visualizations/e650dc2a158544be9291a24decc609c3/thumb",
+    "created_at": "2025-08-23T18:17:44.782180Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755972916717"
+  },
+  {
+    "id": "a57de5aa76c645afb586baaaf1c31781",
+    "title": "Bar • Sales,Profit vs Payment Mode",
+    "kind": "bar",
+    "x": "Payment Mode",
+    "y": "Sales,Profit",
+    "image_url": "/api/visualizations/a57de5aa76c645afb586baaaf1c31781/image",
+    "thumb_url": "/api/visualizations/a57de5aa76c645afb586baaaf1c31781/thumb",
+    "created_at": "2025-08-23T18:16:52.973357Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755972916717"
+  },
+  {
+    "id": "1bc79a4f08544713813fb4be1a81b231",
+    "title": "Pie • Region",
+    "kind": "pie",
+    "x": "Region",
+    "y": "Sales",
+    "image_url": "/api/visualizations/1bc79a4f08544713813fb4be1a81b231/image",
+    "thumb_url": "/api/visualizations/1bc79a4f08544713813fb4be1a81b231/thumb",
+    "created_at": "2025-08-22T11:55:14.881131Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422"
+  },
+  {
+    "id": "b58c63586fc44682a1f1f6d0cfd90788",
+    "title": "Pie • State",
+    "kind": "pie",
+    "x": "State",
+    "y": "Sales",
+    "image_url": "/api/visualizations/b58c63586fc44682a1f1f6d0cfd90788/image",
+    "thumb_url": "/api/visualizations/b58c63586fc44682a1f1f6d0cfd90788/thumb",
+    "created_at": "2025-08-22T11:03:19.864096Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "e72644c412764c9fbef2341283cef5bf",
+    "title": "Pie • State",
+    "kind": "pie",
+    "x": "State",
+    "y": "Sales",
+    "image_url": "/api/visualizations/e72644c412764c9fbef2341283cef5bf/image",
+    "thumb_url": "/api/visualizations/e72644c412764c9fbef2341283cef5bf/thumb",
+    "created_at": "2025-08-22T10:52:38.334358Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "d7d049882ca44aa9b7ad9b4528ca2f27",
+    "title": "Pie • Year",
+    "kind": "pie",
+    "x": "Year",
+    "y": "Sales",
+    "image_url": "/api/visualizations/d7d049882ca44aa9b7ad9b4528ca2f27/image",
+    "thumb_url": "/api/visualizations/d7d049882ca44aa9b7ad9b4528ca2f27/thumb",
+    "created_at": "2025-08-22T10:51:15.505541Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "b6b7541e8aa1444695c004c94d2c6635",
+    "title": "Pie • State",
+    "kind": "pie",
+    "x": "State",
+    "y": "Sales",
+    "image_url": "/api/visualizations/b6b7541e8aa1444695c004c94d2c6635/image",
+    "thumb_url": "/api/visualizations/b6b7541e8aa1444695c004c94d2c6635/thumb",
+    "created_at": "2025-08-22T10:30:56.751363Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "4fc4875ad4054270a54c74924dc47277",
+    "title": "Pie • Payment Mode",
+    "kind": "pie",
+    "x": "Payment Mode",
+    "y": "Sales",
+    "image_url": "/api/visualizations/4fc4875ad4054270a54c74924dc47277/image",
+    "thumb_url": "/api/visualizations/4fc4875ad4054270a54c74924dc47277/thumb",
+    "created_at": "2025-08-22T10:30:26.181064Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "d970102c08dd4e349251446fa055e844",
+    "title": "Pie • State",
+    "kind": "pie",
+    "x": "State",
+    "y": "Sales",
+    "image_url": "/api/visualizations/d970102c08dd4e349251446fa055e844/image",
+    "thumb_url": "/api/visualizations/d970102c08dd4e349251446fa055e844/thumb",
+    "created_at": "2025-08-22T10:21:49.435022Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "4639e49ea2c24fb68b676981ad826c4a",
+    "title": "Pie • State",
+    "kind": "pie",
+    "x": "State",
+    "y": "Sales",
+    "image_url": "/api/visualizations/4639e49ea2c24fb68b676981ad826c4a/image",
+    "thumb_url": "/api/visualizations/4639e49ea2c24fb68b676981ad826c4a/thumb",
+    "created_at": "2025-08-22T10:19:22.369303Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "72a0de722d674d78a9684164159e1555",
+    "title": "Pie • Region",
+    "kind": "pie",
+    "x": "Region",
+    "y": "Sales",
+    "image_url": "/api/visualizations/72a0de722d674d78a9684164159e1555/image",
+    "thumb_url": "/api/visualizations/72a0de722d674d78a9684164159e1555/thumb",
+    "created_at": "2025-08-22T10:10:48.441807Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "6c9f7b44a67d41669d38ae22b8d65b4f",
+    "title": "Box • Region",
+    "kind": "box",
+    "x": "Region",
+    "y": "Sales",
+    "image_url": "/api/visualizations/6c9f7b44a67d41669d38ae22b8d65b4f/image",
+    "thumb_url": "/api/visualizations/6c9f7b44a67d41669d38ae22b8d65b4f/thumb",
+    "created_at": "2025-08-22T10:10:18.250832Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "dffd2e5a5a3b411eae982a720ea549c0",
+    "title": "Line • Sales vs Region",
+    "kind": "line",
+    "x": "Region",
+    "y": "Sales",
+    "image_url": "/api/visualizations/dffd2e5a5a3b411eae982a720ea549c0/image",
+    "thumb_url": "/api/visualizations/dffd2e5a5a3b411eae982a720ea549c0/thumb",
+    "created_at": "2025-08-22T10:09:32.457452Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "7b95be8b957c4e57882f3f8d093ef47b",
+    "title": "Bar • Sales,Profit vs Region",
+    "kind": "bar",
+    "x": "Region",
+    "y": "Sales,Profit",
+    "image_url": "/api/visualizations/7b95be8b957c4e57882f3f8d093ef47b/image",
+    "thumb_url": "/api/visualizations/7b95be8b957c4e57882f3f8d093ef47b/thumb",
+    "created_at": "2025-08-22T07:24:36.968972Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "1d7c72dfaca04e8c87b6fc4b966c190c",
+    "title": "Hist • Price",
+    "kind": "hist",
+    "x": "Price",
+    "y": "frequency",
+    "image_url": "/api/visualizations/1d7c72dfaca04e8c87b6fc4b966c190c/image",
+    "thumb_url": "/api/visualizations/1d7c72dfaca04e8c87b6fc4b966c190c/thumb",
+    "created_at": "2025-08-22T07:20:41.685192Z",
+    "source_file": "Updated_SuperStore_Sales_with_Price.xlsx",
+    "source_files": [
+      "Updated_SuperStore_Sales_with_Price.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422"
+  },
+  {
+    "id": "2ea785169c604c459694d249b8bdf9f0",
+    "title": "Bar • Sales,Price vs Region",
+    "kind": "bar",
+    "x": "Region",
+    "y": "Sales,Price",
+    "image_url": "/api/visualizations/2ea785169c604c459694d249b8bdf9f0/image",
+    "thumb_url": "/api/visualizations/2ea785169c604c459694d249b8bdf9f0/thumb",
+    "created_at": "2025-08-22T07:14:48.801611Z",
+    "source_file": "Updated_SuperStore_Sales_with_Price.xlsx",
+    "source_files": [
+      "Updated_SuperStore_Sales_with_Price.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422"
+  },
+  {
+    "id": "493fca2d407d44878a57789dbd7ef895",
+    "title": "Bar • Sales,Price vs Region",
+    "kind": "bar",
+    "x": "Region",
+    "y": "Sales,Price",
+    "image_url": "/api/visualizations/493fca2d407d44878a57789dbd7ef895/image",
+    "thumb_url": "/api/visualizations/493fca2d407d44878a57789dbd7ef895/thumb",
+    "created_at": "2025-08-22T06:56:15.643252Z",
+    "source_file": "Updated_SuperStore_Sales_with_Price.xlsx",
+    "source_files": [
+      "Updated_SuperStore_Sales_with_Price.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422"
+  },
+  {
+    "id": "98dd21c906d04e0fb2866fc9324e68ee",
+    "title": "Bar • Sales,Profit vs Region",
+    "kind": "bar",
+    "x": "Region",
+    "y": "Sales,Profit",
+    "image_url": "/api/visualizations/98dd21c906d04e0fb2866fc9324e68ee/image",
+    "thumb_url": "/api/visualizations/98dd21c906d04e0fb2866fc9324e68ee/thumb",
+    "created_at": "2025-08-22T06:55:24.390678Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422"
+  },
+  {
+    "id": "ad2486efad184adb9b3f1167db796d54",
+    "title": "Bar • Price,Sales vs Region",
+    "kind": "bar",
+    "x": "Region",
+    "y": "Price,Sales",
+    "image_url": "/api/visualizations/ad2486efad184adb9b3f1167db796d54/image",
+    "thumb_url": "/api/visualizations/ad2486efad184adb9b3f1167db796d54/thumb",
+    "created_at": "2025-08-22T06:40:38.554834Z",
+    "source_file": "Updated_SuperStore_Sales_with_Price.xlsx",
+    "source_files": [
+      "Updated_SuperStore_Sales_with_Price.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422"
+  },
+  {
+    "id": "74290eb3ff43466c9ea6fbe5ce0de887",
+    "title": "Donut • Sales,Profit vs Region",
+    "kind": "donut",
+    "x": "Region",
+    "y": "Sales,Profit",
+    "image_url": "/api/visualizations/74290eb3ff43466c9ea6fbe5ce0de887/image",
+    "thumb_url": "/api/visualizations/74290eb3ff43466c9ea6fbe5ce0de887/thumb",
+    "created_at": "2025-08-22T06:37:24.396482Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422"
+  },
+  {
+    "id": "c10ef7527e66434e9490d2d69f1d24fd",
+    "title": "Donut • Sales,Profit vs Region",
+    "kind": "donut",
+    "x": "Region",
+    "y": "Sales,Profit",
+    "image_url": "/api/visualizations/c10ef7527e66434e9490d2d69f1d24fd/image",
+    "thumb_url": "/api/visualizations/c10ef7527e66434e9490d2d69f1d24fd/thumb",
+    "created_at": "2025-08-22T06:22:10.331619Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422"
+  },
+  {
+    "id": "3333b51f51894e67982418509053972a",
+    "title": "Donut • Sales,Profit vs Region",
+    "kind": "donut",
+    "x": "Region",
+    "y": "Sales,Profit",
+    "image_url": "/api/visualizations/3333b51f51894e67982418509053972a/image",
+    "thumb_url": "/api/visualizations/3333b51f51894e67982418509053972a/thumb",
+    "created_at": "2025-08-22T06:11:42.447032Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422"
+  },
+  {
+    "id": "9c2eb2de140f44029ddabbc566b68b9b",
+    "title": "Donut • Sales,Profit vs Region",
+    "kind": "donut",
+    "x": "Region",
+    "y": "Sales,Profit",
+    "image_url": "/api/visualizations/9c2eb2de140f44029ddabbc566b68b9b/image",
+    "thumb_url": "/api/visualizations/9c2eb2de140f44029ddabbc566b68b9b/thumb",
+    "created_at": "2025-08-22T05:58:01.173889Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422"
+  },
+  {
+    "id": "06b88c81293741599b65f454fae18995",
+    "title": "Box • Sales",
+    "kind": "box",
+    "x": "Sales",
+    "y": null,
+    "image_url": "/api/visualizations/06b88c81293741599b65f454fae18995/image",
+    "thumb_url": "/api/visualizations/06b88c81293741599b65f454fae18995/thumb",
+    "created_at": "2025-08-21T11:52:10.096906Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422"
+  },
+  {
+    "id": "7701d17243f443669efbccfba766d7f2",
+    "title": "Bar • Profit vs Sales",
+    "kind": "bar",
+    "x": "Sales",
+    "y": "Profit",
+    "image_url": "/api/visualizations/7701d17243f443669efbccfba766d7f2/image",
+    "thumb_url": "/api/visualizations/7701d17243f443669efbccfba766d7f2/thumb",
+    "created_at": "2025-08-21T11:51:50.617058Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422"
+  },
+  {
+    "id": "606cd64bdb1e429eab6f9364d444fad0",
+    "title": "Line • Profit vs Sales",
+    "kind": "line",
+    "x": "Sales",
+    "y": "Profit",
+    "image_url": "/api/visualizations/606cd64bdb1e429eab6f9364d444fad0/image",
+    "thumb_url": "/api/visualizations/606cd64bdb1e429eab6f9364d444fad0/thumb",
+    "created_at": "2025-08-21T11:51:24.588958Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422"
+  },
+  {
+    "id": "9369b56d308d4201be4e11de120bd193",
+    "title": "Pie • Sales",
+    "kind": "pie",
+    "x": "Sales",
+    "y": null,
+    "image_url": "/api/visualizations/9369b56d308d4201be4e11de120bd193/image",
+    "thumb_url": "/api/visualizations/9369b56d308d4201be4e11de120bd193/thumb",
+    "created_at": "2025-08-21T11:49:21.023577Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422"
+  },
+  {
+    "id": "bf6bba0e0e50416087b65dbb846edc20",
+    "title": "Bar • Profit vs Sales",
+    "kind": "bar",
+    "x": "Sales",
+    "y": "Profit",
+    "image_url": "/api/visualizations/bf6bba0e0e50416087b65dbb846edc20/image",
+    "thumb_url": "/api/visualizations/bf6bba0e0e50416087b65dbb846edc20/thumb",
+    "created_at": "2025-08-11T12:27:49.369393Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "chat_id": "me732iy6n7xaqyzlgk"
+  }
+]

@@ -1,108 +1,82 @@
+# src/pipeline/document_pipeline.py
 import os
-import sys
-import pandas as pd
-import pdfplumber
-from langchain_core.documents import Document
-from src.components.file_loader import FileLoader
-from src.components.data_extractor import DataExtractor
-from src.components.data_cleaner import Datacleaner
-from src.components.db_handler import DBHandler
+from typing import Optional
+
 from src.components.rag_pipeline import RAGPipeline
-from src.logger import logging
-from src.exception import CustomException
+
+UPLOAD_BASE = os.path.abspath(os.path.join(os.getcwd(), "uploaded_docs"))
+VSTORE_BASE = os.path.abspath(os.path.join(os.getcwd(), "vectorstores"))
+
+
+def _safe_filename(name: str) -> str:
+    """Return just the filename (strip any client-side paths/backslashes)."""
+    return os.path.basename((name or "").replace("\\", "/"))
+
+
+def _resolve_pdf_path(chat_id: str, pdf_path: str, document_id: Optional[str]) -> str:
+    """
+    Resolve the absolute path to the uploaded PDF.
+    Tries:
+      1) given absolute path (if exists)
+      2) uploaded_docs/<chat_id>/<document_id>
+      3) uploaded_docs/<chat_id>/<stem>.pdf
+    """
+    # 1) absolute path already correct?
+    if pdf_path and os.path.isabs(pdf_path) and os.path.exists(pdf_path):
+        return pdf_path
+
+    # 2) try exact filename under chat folder
+    filename = _safe_filename(document_id or os.path.basename(pdf_path))
+    cand1 = os.path.join(UPLOAD_BASE, chat_id, filename)
+
+    # 3) fallback to <stem>.pdf
+    stem, ext = os.path.splitext(filename)
+    cand2 = os.path.join(UPLOAD_BASE, chat_id, f"{stem}.pdf")
+
+    if os.path.exists(cand1):
+        return os.path.abspath(cand1)
+    if os.path.exists(cand2):
+        return os.path.abspath(cand2)
+
+    # last resort: return most likely (cand2 if ext != .pdf)
+    return os.path.abspath(cand2 if ext.lower() != ".pdf" else cand1)
 
 
 class DocumentPipeline:
     def __init__(self):
-        try:
-            self.extractor = DataExtractor()
-            self.cleaner = Datacleaner()
-            self.db = DBHandler()
-            self.rag_pipeline = RAGPipeline()
-            logging.info("✅ Document Pipeline initialized.")
-        except Exception as e:
-            raise CustomException(e, sys)
+        self.rag = RAGPipeline()
 
-    def create_vectorstore_for_pdf(self, pdf_path: str, combined_text: str, chat_id: str, document_id: str):
-        try:
-            # Use exact document_id (already includes .pdf)
-            file_name = document_id.replace(".pdf", "")
+    def run(self, pdf_path: str, document_id: Optional[str], chat_id: str):
+        """
+        Build/refresh the vectorstore for a single PDF inside
+        vectorstores/<chat_id>/<doc-stem>.
 
-            vectorstore_path = os.path.join("vectorstores", chat_id, file_name)
-            os.makedirs(vectorstore_path, exist_ok=True)
+        Args:
+            pdf_path: path from upload handler (may be relative)
+            document_id: original filename (used to derive stem)
+            chat_id: per-chat namespace
 
-            logging.info("📖 Extracting individual page text with metadata using pdfplumber...")
-            documents = []
+        Returns:
+            dict with vectorstore_path and document_key (stem)
+        """
+        if not chat_id:
+            raise ValueError("chat_id is required")
 
-            with pdfplumber.open(pdf_path) as pdf:
-                for i, page in enumerate(pdf.pages):
-                    text = page.extract_text()
-                    if text and text.strip():
-                        doc = Document(
-                            page_content=text.strip(),
-                            metadata={
-                                "source": file_name,
-                                "page_number": i + 1,
-                                "chat_id": chat_id
-                            }
-                        )
-                        documents.append(doc)
+        safe_name = _safe_filename(document_id or os.path.basename(pdf_path))
+        stem, _ = os.path.splitext(safe_name)
 
-            if not documents:
-                raise Exception("No extractable text found in any PDF pages.")
+        pdf_abs = _resolve_pdf_path(chat_id, pdf_path, safe_name)
+        if not os.path.exists(pdf_abs):
+            raise FileNotFoundError(f"Document not found at {pdf_abs}")
 
-            logging.info("📦 Passing document list to RAGPipeline for vectorstore creation.")
-            self.rag_pipeline.create_vectorstore_from_documents(
-                documents=documents,
-                vector_store_path=vectorstore_path
-            )
+        vs_dir = os.path.join(VSTORE_BASE, chat_id, stem)
+        os.makedirs(vs_dir, exist_ok=True)
 
-            logging.info(f"✅ Vectorstore successfully created at {os.path.abspath(vectorstore_path)}")
+        # Build (or rebuild) the vectorstore
+        self.rag.create_vectorstore(pdf_path=pdf_abs, vector_store_path=vs_dir)
 
-        except Exception as e:
-            logging.error(f"❌ Error in create_vectorstore_for_pdf: {str(e)}")
-            raise CustomException(e, sys)
-
-    def run(self, file_path: str, document_id: str, chat_id: str):
-        try:
-            logging.info(f"📄 Loading file: {os.path.abspath(file_path)}")
-            raw_content = FileLoader.load_file(file_path)
-
-            raw_text = raw_content if isinstance(raw_content, str) else raw_content.to_string()
-            if not raw_text.strip():
-                raise Exception(f"No text found in {file_path}. File might be empty or unsupported format.")
-
-            logging.info("🔍 Extracting structured data from raw content...")
-            extracted_input = {
-                "text": raw_text,
-                "table": pd.DataFrame()
-            }
-            extracted_data = self.extractor.extract(extracted_input)
-
-            if not extracted_data["text"].strip():
-                raise Exception(f"No text could be extracted from {file_path}. Check content quality.")
-
-            logging.info("🧹 Cleaning extracted data...")
-            cleaned_text = extracted_data["text"]
-            cleaned_table = extracted_data["table"]
-            table_text = self.extractor.dataframe_to_text(cleaned_table) if not cleaned_table.empty else ""
-
-            combined_text = cleaned_text
-            if table_text:
-                combined_text += "\n\n📊 Table Data:\n" + table_text
-
-            logging.info("💾 Storing cleaned data into database...")
-            self.db.save_to_database({
-                "text": cleaned_text,
-                "table": cleaned_table
-            })
-
-            logging.info("🔗 Creating FAISS vectorstore from cleaned text...")
-            self.create_vectorstore_for_pdf(file_path, combined_text=combined_text, chat_id=chat_id, document_id=document_id)
-
-            logging.info("✅ Document processing complete for file: %s", document_id)
-            return {"message": "Document processed and vectorstore created successfully."}
-
-        except Exception as e:
-            logging.error(f"❌ Error in DocumentPipeline.run: {str(e)}")
-            raise CustomException(e, sys)
+        return {
+            "vectorstore_path": vs_dir,
+            "document_key": stem,
+            "pdf_path": pdf_abs,
+        }
