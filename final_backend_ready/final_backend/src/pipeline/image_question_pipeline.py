@@ -24,7 +24,7 @@ class ImageQuestionPipeline:
         ollama_base: Optional[str] = None,
         ollama_url: Optional[str] = None,
         model_name: str = "llava:13b",
-        timeout_sec: int = 200,
+        timeout_sec: int = 220,
     ):
         # Prefer base (we build /api/chat and /api/generate). Keep legacy ollama_url for back-compat.
         self.model_name = model_name

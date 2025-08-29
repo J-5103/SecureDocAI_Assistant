@@ -1,5 +1,5 @@
 // src/pages/VizChatManager.tsx
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Plus, ArrowLeft, Trash2 } from "lucide-react";
 import { Header } from "@/components/Header";
@@ -9,12 +9,12 @@ import { useToast } from "@/hooks/use-toast";
 import {
   askQuestion,
   askViz,
-  askImage,            // ← NEW: vision endpoint
+  askImage,
   uploadDocument,
   excelUpload,
-  excelPlot,
   excelPlotCombine,
-} from "../api/api";
+  chatUploadImages,
+} from "@/api/api";
 import type { VizDocument } from "@/components/VizDocumentSidebar";
 
 type VizMsg = {
@@ -22,7 +22,7 @@ type VizMsg = {
   text: string;
   sender: "user" | "ai";
   timestamp: string;
-  imageUrl?: string; // will show attached image in the bubble
+  imageUrl?: string;
   imageAlt?: string;
 };
 
@@ -42,23 +42,14 @@ const safeMsgs = (m: unknown): VizMsg[] => (Array.isArray(m) ? (m as VizMsg[]) :
 const cleanFileName = (s?: string) =>
   (String(s || "").split(/[?#]/)[0].split(/[/\\]/).pop() || "").trim().replace(/["']/g, "");
 
-const API_BASE =
-  (import.meta as any)?.env?.VITE_API_URL ||
-  (globalThis as any)?.process?.env?.REACT_APP_API_URL ||
-  "http://192.168.0.109:8000";
-
 function generateId() {
-  return Date.now().toString() + Math.random().toString(36).substring(2, 9);
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 }
-
-// Map CSV → excel bucket for UI logic
 function getDocType(filename: string): VizDocument["type"] {
   const f = filename.toLowerCase();
   if (f.endsWith(".xlsx") || f.endsWith(".xls") || f.endsWith(".csv")) return "excel";
   return "pdf";
 }
-
-// merge docs (de-dupe by documentId||name)
 function mergeDocs(chatId: string, incoming: VizDocument[]): VizDocument[] {
   const key = docsKeyFor(chatId);
   const existing: VizDocument[] = JSON.parse(localStorage.getItem(key) || "[]");
@@ -71,6 +62,110 @@ function mergeDocs(chatId: string, incoming: VizDocument[]): VizDocument[] {
   localStorage.setItem(key, JSON.stringify(merged));
   return merged;
 }
+
+/* ---------- scroll helpers ---------- */
+const isScrollableEl = (el: HTMLElement) => {
+  const st = getComputedStyle(el);
+  return (st.overflowY === "auto" || st.overflowY === "scroll") && el.scrollHeight > el.clientHeight;
+};
+const findScrollableWithin = (root: HTMLElement | null): HTMLElement | null => {
+  if (!root) return null;
+  if (isScrollableEl(root)) return root;
+  for (const n of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
+    if (isScrollableEl(n)) return n;
+  }
+  return null;
+};
+const scrollToBottomEl = (el: HTMLElement, smooth = true) =>
+  el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+const isNearBottomEl = (el: HTMLElement, px = 120) =>
+  el.scrollHeight - (el.scrollTop + el.clientHeight) <= px;
+
+/* ---------- error helper ---------- */
+const stringifyErr = (e: any): string => {
+  if (!e) return "Request failed.";
+  if (typeof e === "string") return e;
+  if (typeof e?.message === "string" && e.message) return e.message;
+  const d = e?.response?.data ?? e?.data ?? e?.detail ?? e?.error ?? e?.message;
+  if (typeof d === "string" && d) return d;
+  try { return JSON.stringify(d || e, null, 2); } catch { return String(d ?? e) || "Unknown error"; }
+};
+
+/* ---------- preview helper ---------- */
+const fileToDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ""));
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+
+/* ---------- business-card prompt (no JSON) ---------- */
+const buildCardPrompt = (userText: string) => `
+You are an OCR + contact parser for business cards and vCards.
+
+OUTPUT RULES:
+- Reply ONLY in clean, human-readable Markdown (no code blocks, no JSON, no tables).
+- Use short topic lines like:
+  **Name:** …
+  **Title:** …
+  **Company:** …
+  **Phones:** add tel: links.
+  **Emails:** add mailto: links.
+  **Website:** clickable URL.
+  **Address:** one neat line if visible.
+  **Social:** list profiles with clickable links.
+  **Extras:** slogans, “QR present/decoded URL”, notes.
+- Include EVERY link on the card (front/back/QR). If you can't read a QR, say “QR present”.
+- Fix obvious OCR errors (O↔0, l↔1, etc). Don’t invent data.
+
+User request: ${userText || "Extract contact details from this card"}
+`;
+
+/* ---------- READ-ONLY plotting prompts & retry variants ---------- */
+const BASE_READONLY = `
+DATA IS READ-ONLY.
+- Never call DataFrame.insert, never assign back to df to create/overwrite columns.
+- Reuse existing columns. If you must transform, make a local Series or use df.assign(**with a unique, temporary name**), but prefer locals.
+- Do not write to disk. Just build the plot and return it.
+`;
+
+const COLUMN_MAPPING = `
+Try to map case-insensitively:
+- sales: sales, sale_amount, revenue, net_sales, sales_amount
+- profit: profit, net_profit, margin, gross_profit, profit_amount
+- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, "salary($)", salary_in_usd
+- experience: experience, years_experience, years_of_experience, yoe, yrs_exp, exp, experience_years
+Clean numbers (strip currency/commas; convert "10 yrs" -> 10) before plotting.
+`;
+
+const buildExcelPlotPrompt = (userText: string) =>
+  `${BASE_READONLY}
+${COLUMN_MAPPING}
+Create exactly the chart user asked (e.g., "${userText}"). If ambiguous, choose the best matching columns and proceed.
+`;
+
+const ULTRA_STRICT_PROMPT = (userText: string) => `
+${BASE_READONLY}
+ABSOLUTE BAN: do not use DataFrame.insert(), df["..."]=..., or overwrite any column names.
+Use only existing columns; if you need a helper, use a local variable (NOT df.assign).
+If suitable columns are not obvious, list columns and your picks, then plot.
+User request: ${userText}
+`;
+
+const DIAGNOSTIC_PROMPT = (userText: string) => `
+${BASE_READONLY}
+List ALL columns with inferred dtypes and 3 sample values. Then pick the best columns and plot: ${userText}
+`;
+
+/* ---------- util to pull an image from any backend shape ---------- */
+const extractImageFrom = (res: any): string => {
+  return (
+    res?.plotImageUrl ||
+    res?.image_url ||
+    (res?.image_base64 ? `data:image/png;base64,${res.image_base64}` : "")
+  );
+};
 
 export const VizChatManager = () => {
   const { chatId } = useParams<{ chatId: string }>();
@@ -89,7 +184,29 @@ export const VizChatManager = () => {
   const [hydrated, setHydrated] = useState(false);
   const [docsHydrated, setDocsHydrated] = useState(false);
 
-  // hydrate chats
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  const nudgeBottom = useCallback((smooth = true) => {
+    const sc = findScrollableWithin(scrollAreaRef.current);
+    if (!sc) return;
+    const go = (s: boolean) => scrollToBottomEl(sc, s);
+    go(smooth); setTimeout(() => go(false), 0); setTimeout(() => go(false), 150); setTimeout(() => go(false), 350);
+  }, []);
+
+  useEffect(() => {
+    const sc = findScrollableWithin(scrollAreaRef.current);
+    if (!sc) return;
+    const mo = typeof MutationObserver !== "undefined"
+      ? new MutationObserver(() => { if (isNearBottomEl(sc)) scrollToBottomEl(sc, true); })
+      : null;
+    const ro = typeof ResizeObserver !== "undefined"
+      ? new ResizeObserver(() => { if (isNearBottomEl(sc)) scrollToBottomEl(sc, true); })
+      : null;
+    mo?.observe?.(sc, { childList: true, subtree: true }); ro?.observe?.(sc);
+    return () => { mo?.disconnect?.(); ro?.disconnect?.(); };
+  }, [selectedChat?.id]);
+
+  /* hydrate chats */
   useEffect(() => {
     try {
       const saved = localStorage.getItem(VIZ_CHAT_STORAGE);
@@ -97,97 +214,73 @@ export const VizChatManager = () => {
       const normalized = parsed.map((c) => ({
         ...c,
         messages: safeMsgs((c as any).messages),
-        messageCount:
-          typeof (c as any).messageCount === "number"
-            ? (c as any).messageCount
-            : safeMsgs((c as any).messages).length,
+        messageCount: typeof (c as any).messageCount === "number"
+          ? (c as any).messageCount
+          : safeMsgs((c as any).messages).length,
       }));
       setVizChatSessions(normalized);
     } catch {
       setVizChatSessions([]);
-    } finally {
-      setHydrated(true);
-    }
+    } finally { setHydrated(true); }
   }, []);
+  useEffect(() => { localStorage.setItem(VIZ_CHAT_STORAGE, JSON.stringify(vizChatSessions)); }, [vizChatSessions]);
 
+  /* select chat & docs */
   useEffect(() => {
-    localStorage.setItem(VIZ_CHAT_STORAGE, JSON.stringify(vizChatSessions));
-  }, [vizChatSessions]);
-
-  // select chat & docs
-  useEffect(() => {
-    if (!chatId) {
-      setSelectedChat(null);
-      setDocuments([]);
-      setDocsHydrated(false);
-      return;
-    }
-
-    const chat =
-      selectedChat?.id === chatId
-        ? selectedChat
-        : vizChatSessions.find((c) => c.id === chatId) || null;
-
-    setSelectedChat(
-      chat
-        ? {
-            ...chat,
-            messages: safeMsgs(chat.messages),
-            messageCount:
-              typeof chat.messageCount === "number"
-                ? chat.messageCount
-                : safeMsgs(chat.messages).length,
-          }
-        : null
-    );
+    if (!chatId) { setSelectedChat(null); setDocuments([]); setDocsHydrated(false); return; }
+    const chat = selectedChat?.id === chatId ? selectedChat : (vizChatSessions.find((c) => c.id === chatId) || null);
+    setSelectedChat(chat ? {
+      ...chat,
+      messages: safeMsgs(chat.messages),
+      messageCount: typeof chat.messageCount === "number" ? chat.messageCount : safeMsgs(chat.messages).length,
+    } : null);
 
     try {
       const savedDocs = localStorage.getItem(docsKeyFor(chatId));
       const parsed: VizDocument[] = savedDocs ? JSON.parse(savedDocs) : [];
       setDocuments(Array.isArray(parsed) ? parsed : []);
-    } catch {
-      setDocuments([]);
-    }
+    } catch { setDocuments([]); }
     setDocsHydrated(true);
 
     if (hydrated && !chat) navigate("/visualizations", { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chatId, vizChatSessions, hydrated]);
 
-  useEffect(() => {
-    if (!chatId || !docsHydrated) return;
-    localStorage.setItem(docsKeyFor(chatId), JSON.stringify(documents));
-  }, [chatId, documents, docsHydrated]);
+  useEffect(() => { if (chatId && docsHydrated) localStorage.setItem(docsKeyFor(chatId), JSON.stringify(documents)); }, [chatId, documents, docsHydrated]);
 
-  // numeric documentId → filename (one-time migration)
+  /* one-time document id fix */
   useEffect(() => {
     if (!chatId || !docsHydrated || !documents.length) return;
-
     const needsFix = (d: any) =>
       typeof d?.documentId === "string" &&
-      !/\.(xlsx|xls|csv)$/i.test(d.documentId) &&
-      /\.(xlsx|xls|csv)$/i.test(d.name || "");
-
+      !/\.(xlsx|xls|csv|pdf)$/i.test(d.documentId) &&
+      /\.(xlsx|xls|csv|pdf)$/i.test(d.name || "");
     const fixed = documents.map((d) => (needsFix(d) ? { ...d, documentId: d.name } : d));
     if (JSON.stringify(fixed) !== JSON.stringify(documents)) {
-      setDocuments(fixed);
-      localStorage.setItem(docsKeyFor(chatId), JSON.stringify(fixed));
+      setDocuments(fixed); localStorage.setItem(docsKeyFor(chatId), JSON.stringify(fixed));
     }
   }, [chatId, docsHydrated, documents]);
 
-  // upload one file (excel/pdf/etc)
+  useLayoutEffect(() => {
+    if (selectedChat) requestAnimationFrame(() => requestAnimationFrame(() => nudgeBottom(false)));
+  }, [selectedChat?.id, nudgeBottom]);
+
+  useEffect(() => {
+    if (!selectedChat) return;
+    const sc = findScrollableWithin(scrollAreaRef.current);
+    if (sc && isNearBottomEl(sc)) nudgeBottom(true);
+  }, [selectedChat?.messages.length, nudgeBottom]);
+
+  /* uploads */
   const uploadFile = async (file: File, targetChatId: string): Promise<VizDocument> => {
     const type = getDocType(file.name);
-
-    if (type === "excel") {
-      await excelUpload(file, targetChatId);
-    } else {
+    if (type === "excel") await excelUpload(file, targetChatId);
+    else {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("chat_id", targetChatId);
       await uploadDocument(formData);
     }
-
     return {
       id: generateId(),
       name: file.name,
@@ -197,121 +290,55 @@ export const VizChatManager = () => {
       status: "ready",
       chatId: targetChatId,
       documentId: file.name,
-    };
+    } as VizDocument;
   };
 
   const handleDocumentUpload = async (files: FileList) => {
-    if (!chatId) {
-      toast({ title: "Error", description: "Chat ID is missing." });
-      return;
-    }
+    if (!chatId) { toast({ title: "Error", description: "Chat ID is missing." }); return; }
     const uploaded: VizDocument[] = [];
     for (const file of Array.from(files)) {
-      try {
-        const doc = await uploadFile(file, chatId);
-        uploaded.push(doc);
-      } catch (error: any) {
-        toast({
-          title: "Upload Failed",
-          description: error?.message || `Error uploading ${file.name}`,
-        });
+      try { uploaded.push(await uploadFile(file, chatId)); }
+      catch (error: any) {
+        toast({ title: "Upload Failed", description: stringifyErr(error) || `Error uploading ${file.name}` });
       }
     }
     if (uploaded.length) {
       const merged = mergeDocs(chatId, uploaded);
       setDocuments(merged);
       toast({ title: "Upload Successful", description: `${uploaded.length} file(s) uploaded.` });
+      nudgeBottom(true);
     }
   };
 
-  // create new chat
-  const createNewChat = async () => {
-    if (!uploadedFiles.length || !newChatName.trim()) {
-      toast({ title: "Error", description: "Chat name and at least one document are required." });
-      return;
-    }
-
-    const newChatId = generateId();
-    const newDocs: VizDocument[] = [];
-
-    for (const file of uploadedFiles) {
-      try {
-        const doc = await uploadFile(file, newChatId);
-        newDocs.push(doc);
-      } catch (err: any) {
-        toast({ title: "Upload Error", description: err?.message || `Failed to upload ${file.name}` });
-      }
-    }
-
-    const greeting = `Hello! I'm ready to help you analyze ${uploadedFiles
-      .map((f) => `"${f.name}"`)
-      .join(", ")}. What would you like to know?`;
-
-    const newChat: VizChat = {
-      id: newChatId,
-      name: newChatName,
-      createdAt: new Date().toISOString(),
-      lastMessage: greeting,
-      messageCount: 1,
-      messages: [
-        {
-          id: "1",
-          text: greeting,
-          sender: "ai",
-          timestamp: new Date().toISOString(),
-        },
-      ],
-    };
-
-    setVizChatSessions((prev) => {
-      const updated = [...prev, newChat];
-      localStorage.setItem(VIZ_CHAT_STORAGE, JSON.stringify(updated));
-      return updated;
-    });
-
-    const merged = mergeDocs(newChatId, newDocs);
-    setSelectedChat(newChat);
-    setDocuments(merged);
-    setDocsHydrated(true);
-
-    setShowNewChatDialog(false);
-    setUploadedFiles([]);
-    setNewChatName("");
-
-    navigate(`/visualizations/chat/${newChatId}`);
-    toast({ title: "Chat Created", description: `New chat with ${merged.length} document(s) created.` });
-  };
-
-  // delete chat
-  const deleteChat = (id: string) => {
-    setVizChatSessions((prev) => prev.filter((c) => c.id !== id));
-    localStorage.removeItem(docsKeyFor(id));
-    if (selectedChat?.id === id) {
-      setSelectedChat(null);
-      setDocuments([]);
-      navigate("/visualizations");
-    }
-  };
-
+  /* helpers */
   const docById = (docId?: string | null) => documents.find((d) => d.documentId === docId);
   const isExcelDoc = (d?: VizDocument) => d && (d.type === "excel" || d.type === "csv");
-
-  // Upload any images to /api/chat (so the backend sees them with the question)
-  const uploadImagesIfAny = async (text: string, images?: File[]) => {
-    if (!chatId || !images || images.length === 0) return;
-    const fd = new FormData();
-    fd.append("chat_id", chatId);
-    fd.append("text", text);
-    images.forEach((f) => fd.append("files", f, f.name));
-    try {
-      await fetch(`${API_BASE}/api/chat`, { method: "POST", body: fd });
-    } catch (e) {
-      // don't block the rest of the flow if this fails
-      console.error("Image upload failed", e);
-    }
+  const looksLikeImage = (f?: File) =>
+    !!f && ((f.type && f.type.startsWith("image/")) || /\.(png|jpe?g|webp|gif|bmp|tiff)$/i.test(f.name || ""));
+  const persistFirstImage = async (text: string, files?: File[]) => {
+    if (!chatId || !files || files.length === 0) return;
+    const img = files.find((f) => looksLikeImage(f));
+    if (!img) return;
+    try { await chatUploadImages({ chatId, text, files: [img] }); } catch {}
   };
 
-  // Main send handler (original logic preserved; now supports image → /api/ask-image)
+  /* delete chat */
+  const deleteChat = useCallback((id: string) => {
+    if (!window.confirm("Delete this chat and its documents?")) return;
+    try { localStorage.removeItem(docsKeyFor(id)); } catch {}
+    setVizChatSessions((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      localStorage.setItem(VIZ_CHAT_STORAGE, JSON.stringify(next));
+      return next;
+    });
+    if (selectedChat?.id === id) {
+      setSelectedChat(null); setDocuments([]); setDocsHydrated(false);
+      navigate("/visualizations", { replace: true });
+    }
+    toast({ title: "Chat deleted", description: "The chat and its documents were removed." });
+  }, [navigate, toast, selectedChat?.id]);
+
+  /* send */
   const handleSendMessage = async (
     text: string,
     documentId?: string | null,
@@ -321,248 +348,189 @@ export const VizChatManager = () => {
     if (!selectedChat || isAsking) return;
     setIsAsking(true);
 
-    // show the first attached image in the user bubble (UI echo)
-    const firstImgUrl = images && images.length > 0 ? URL.createObjectURL(images[0]) : undefined;
-
-    const userMessage: VizMsg = {
-      id: generateId(),
-      text,
-      sender: "user",
-      timestamp: new Date().toISOString(),
-      ...(firstImgUrl ? { imageUrl: firstImgUrl, imageAlt: "attachment" } : {}),
-    };
-
-    const baseMsgs = safeMsgs(selectedChat.messages);
-
-    let updatedChat: VizChat = {
+    // NOTE: We no longer push a user bubble here (the UI already does optimistic echo).
+    const thinkingId = generateId();
+    const thinkingMsg: VizMsg = { id: thinkingId, text: "thinking…", sender: "ai", timestamp: new Date().toISOString() };
+    let chatSnapshot: VizChat = {
       ...selectedChat,
-      messages: [...baseMsgs, userMessage],
-      lastMessage: text,
-      messageCount: (selectedChat.messageCount || baseMsgs.length) + 1,
+      messages: [...safeMsgs(selectedChat.messages), thinkingMsg],
+      lastMessage: "thinking…",
+      messageCount: (selectedChat.messageCount || safeMsgs(selectedChat.messages).length) + 1,
     };
+    setVizChatSessions((prev) => prev.map((c) => (c.id === chatSnapshot.id ? chatSnapshot : c)));
+    setSelectedChat(chatSnapshot);
+    requestAnimationFrame(() => requestAnimationFrame(() => nudgeBottom(true)));
 
-    setVizChatSessions((prev) => prev.map((c) => (c.id === updatedChat.id ? updatedChat : c)));
-    setSelectedChat(updatedChat);
+    const replaceThinking = (patch: Partial<VizMsg>) => {
+      setVizChatSessions((prev) =>
+        prev.map((c) => {
+          if (c.id !== chatSnapshot.id) return c;
+          const msgs = safeMsgs(c.messages).map((m) => (m.id === thinkingId ? { ...m, ...patch } : m));
+          const last = msgs[msgs.length - 1];
+          return { ...c, messages: msgs, lastMessage: (last?.text || "").slice(0, 100) };
+        })
+      );
+      setSelectedChat((cur) => {
+        if (!cur || cur.id !== chatSnapshot.id) return cur;
+        const msgs = safeMsgs(cur.messages).map((m) => (m.id === thinkingId ? { ...m, ...patch } : m));
+        const last = msgs[msgs.length - 1];
+        const next = { ...cur, messages: msgs, lastMessage: (last?.text || "").slice(0, 100) };
+        chatSnapshot = next;
+        return next;
+      });
+      requestAnimationFrame(() => requestAnimationFrame(() => nudgeBottom(true)));
+    };
 
     try {
-      // Save images for preview history (non-blocking)
-      await uploadImagesIfAny(text, images);
-
-      let aiMessage: VizMsg | null = null;
-
-      // === NEW: if user attached images, run the Vision pipeline first ===
       if (images && images.length > 0) {
-        try {
-          const res = await askImage({
-            frontFile: images[0],
-            backFile: images[1] || null,
-          });
-
-          // Prefer whatsapp/plain text if available; else stringify json
-          let visionText = "";
-          const data = (res as any)?.data || {};
-          if (typeof data.whatsapp === "string" && data.whatsapp.trim()) {
-            visionText = data.whatsapp.trim();
-          } else if (data.json) {
-            try {
-              visionText = "```json\n" + JSON.stringify(data.json, null, 2) + "\n```";
-            } catch {
-              visionText = String(data.json);
-            }
-          } else if (typeof (res as any)?.status === "string") {
-            visionText = `Image processed (${(res as any).status}).`;
-          } else {
-            visionText = "Processed the image(s).";
-          }
-
-          aiMessage = {
-            id: generateId(),
-            text: visionText,
-            sender: "ai",
-            timestamp: new Date().toISOString(),
-          };
-        } catch (visionErr: any) {
-          // Don't break the flow; fall back to old logic below
-          console.error("askImage failed:", visionErr?.message || visionErr);
-        }
-      }
-
-      // === Old logic preserved (runs when no images OR if vision failed) ===
-      if (!aiMessage) {
-        // combine multiple excel files
+        void persistFirstImage(text, images);
+        const res = await askImage({ images, prompt: buildCardPrompt(text), question: text, text });
+        const nl =
+          (res as any)?.data?.whatsapp ??
+          (res as any)?.answer ??
+          (res as any)?.data?.text ??
+          (res as any)?.text ??
+          (typeof (res as any)?.status === "string" ? `Image processed (${(res as any).status}).` : "Processed the image(s).");
+        replaceThinking({ text: String(nl).trim(), imageUrl: undefined, imageAlt: undefined });
+      } else {
+        // ===== Excel / CSV routes =====
         if (Array.isArray(combineDocs) && combineDocs.length > 1) {
-          const allExcel = combineDocs.every((id) => {
-            const d = documents.find((dd) => dd.documentId === id);
-            return isExcelDoc(d);
-          });
-
+          const allExcel = combineDocs.every((id) => isExcelDoc(documents.find((d) => d.documentId === id)));
           if (allExcel) {
-            const filePaths = combineDocs.map((id) => {
-              const d = documents.find((dd) => dd.documentId === id);
-              return cleanFileName(d?.name || id);
-            });
-            const res = await excelPlotCombine(filePaths, text, undefined, selectedChat.id);
-            const img =
-              (res as any)?.image_url ||
-              ((res as any)?.image_base64 ? `data:image/png;base64,${(res as any).image_base64}` : "");
+            const filePaths = combineDocs.map((id) => cleanFileName(documents.find((d) => d.documentId === id)?.name || id));
+            const res = await excelPlotCombine(filePaths, buildExcelPlotPrompt(text), undefined, selectedChat.id);
+            const img = extractImageFrom(res || {});
             const title = (res as any)?.meta?.title || "Visualization";
-            aiMessage = {
-              id: generateId(),
-              text: `### ${title}\nPlot generated from ${combineDocs.length} files.`,
-              sender: "ai",
-              timestamp: new Date().toISOString(),
-              ...(img ? { imageUrl: img, imageAlt: title } : {}),
-            };
+            replaceThinking({ text: `### ${title}\nPlot generated from ${combineDocs.length} files.`, ...(img ? { imageUrl: img, imageAlt: title } : {}) });
+            setIsAsking(false);
+            return;
           }
         }
-      }
 
-      // single doc: excel → askViz, others → askQuestion
-      if (!aiMessage) {
         const doc = docById(documentId || undefined);
-
         if (isExcelDoc(doc)) {
-          const res = await askViz({
-            question: text,
-            chatId: selectedChat.id,
-            fileName: cleanFileName(doc?.name),
-          });
-          const answerText = (res as any)?.answer || "Visualization created.";
-          const plotImageUrl =
-            (res as any)?.image_url ||
-            ((res as any)?.image_base64 ? `data:image/png;base64,${(res as any).image_base64}` : "");
-          aiMessage = {
-            id: generateId(),
-            text: answerText,
-            sender: "ai",
-            timestamp: new Date().toISOString(),
-            ...(plotImageUrl ? { imageUrl: plotImageUrl, imageAlt: "Generated plot" } : {}),
+          const fileName = cleanFileName(doc?.name);
+
+          const tryAskViz = async (prompt: string) => {
+            const res = await askViz({ question: prompt, chatId: selectedChat.id, fileName });
+            return { answerText: (res as any)?.answer || (res as any)?.text || "Visualization created.", plot: extractImageFrom(res || {}) };
           };
+          const tryCombine = async (prompt: string) => {
+            const res = await excelPlotCombine([fileName], prompt, undefined, selectedChat.id);
+            return { answerText: (res as any)?.meta?.title ? `### ${(res as any).meta.title}` : "Visualization created.", plot: extractImageFrom(res || {}) };
+          };
+
+          let answerText = "";
+          let plotUrl = "";
+
+          try {
+            // 1) Base read-only prompt
+            ({ answerText, plotUrl: plotUrl as any } = await (async () => {
+              const r = await tryAskViz(buildExcelPlotPrompt(text));
+              return { answerText: r.answerText, plotUrl: r.plot };
+            })());
+
+            if (!plotUrl) {
+              const r = await tryCombine(buildExcelPlotPrompt(text));
+              answerText = r.answerText; plotUrl = r.plot;
+            }
+            if (!plotUrl) {
+              const r = await tryAskViz(DIAGNOSTIC_PROMPT(text));
+              answerText = r.answerText; plotUrl = r.plot;
+            }
+          } catch (errFirst: any) {
+            const msg = stringifyErr(errFirst);
+
+            // 2) If the failure mentions "insert" or "already exists", do a **strict** retry
+            if (/insert|already exists/i.test(msg)) {
+              try {
+                const strict1 = await tryAskViz(ULTRA_STRICT_PROMPT(text));
+                answerText = strict1.answerText; plotUrl = strict1.plot;
+
+                if (!plotUrl) {
+                  const strict2 = await tryCombine(ULTRA_STRICT_PROMPT(text));
+                  answerText = strict2.answerText; plotUrl = strict2.plot;
+                }
+                if (!plotUrl) {
+                  const diag = await tryAskViz(DIAGNOSTIC_PROMPT(text));
+                  answerText = diag.answerText; plotUrl = diag.plot;
+                }
+              } catch (errStrict: any) {
+                const msg2 = stringifyErr(errStrict);
+                replaceThinking({ text: `❌ Backend Error: ${msg2}` });
+                toast({ title: "Error", description: msg2 });
+                setIsAsking(false);
+                return;
+              }
+            } else {
+              // generic failure → diagnostic
+              try {
+                const diag = await tryAskViz(DIAGNOSTIC_PROMPT(text));
+                answerText = diag.answerText; plotUrl = diag.plot;
+              } catch (errDiag: any) {
+                const msg2 = stringifyErr(errDiag);
+                replaceThinking({ text: `❌ Backend Error: ${msg2}` });
+                toast({ title: "Error", description: msg2 });
+                setIsAsking(false);
+                return;
+              }
+            }
+          }
+
+          replaceThinking({ text: answerText, ...(plotUrl ? { imageUrl: plotUrl, imageAlt: "Generated plot" } : {}) });
         } else {
-          const res = await askQuestion({
-            chatId: selectedChat.id,
-            documentId: documentId || undefined,
-            question: text,
-            combineDocs: combineDocs || [],
-          });
+          // PDFs / general Q&A
+          const res = await askQuestion({ chatId: selectedChat.id, documentId: documentId || undefined, question: text, combineDocs: combineDocs || [] });
           const answerText = (res as any)?.answer || "❌ No answer returned.";
-          const maybeImg =
-            (res as any)?.image_url ||
-            ((res as any)?.image_base64 ? `data:image/png;base64,${(res as any).image_base64}` : "");
-          aiMessage = {
-            id: generateId(),
-            text: answerText,
-            sender: "ai",
-            timestamp: new Date().toISOString(),
-            ...(maybeImg ? { imageUrl: maybeImg, imageAlt: "Generated plot" } : {}),
-          };
+          const plotImageUrl = extractImageFrom(res || {});
+          replaceThinking({ text: answerText, ...(plotImageUrl ? { imageUrl: plotImageUrl, imageAlt: "Generated plot" } : {}) });
         }
       }
-
-      // fallback: askViz with newest excel
-      if (!aiMessage) {
-        const res = await askViz({ question: text, chatId: selectedChat.id });
-        const answerText = (res as any)?.answer || "Visualization created.";
-        const maybeImg =
-          (res as any)?.image_url ||
-          ((res as any)?.image_base64 ? `data:image/png;base64,${(res as any).image_base64}` : "");
-        aiMessage = {
-          id: generateId(),
-          text: answerText,
-          sender: "ai",
-          timestamp: new Date().toISOString(),
-          ...(maybeImg ? { imageUrl: maybeImg, imageAlt: "Generated plot" } : {}),
-        };
-      }
-
-      const finalChat: VizChat = {
-        ...updatedChat,
-        messages: [...updatedChat.messages, aiMessage!],
-        lastMessage: aiMessage!.text.slice(0, 100),
-        messageCount: updatedChat.messageCount + 1,
-      };
-
-      setVizChatSessions((prev) => prev.map((c) => (c.id === finalChat.id ? finalChat : c)));
-      setSelectedChat(finalChat);
     } catch (err: any) {
-      const errorMsg: VizMsg = {
-        id: generateId(),
-        text: `❌ Backend Error: ${err?.message || "Request failed."}`,
-        sender: "ai",
-        timestamp: new Date().toISOString(),
-      };
-      const erroredChat: VizChat = {
-        ...updatedChat,
-        messages: [...updatedChat.messages, errorMsg],
-        lastMessage: errorMsg.text.slice(0, 100),
-        messageCount: updatedChat.messageCount + 1,
-      };
-      setVizChatSessions((prev) => prev.map((c) => (c.id === erroredChat.id ? erroredChat : c)));
-      setSelectedChat(erroredChat);
-      toast({ title: "Error", description: err?.message || "Failed to get response from backend." });
+      const msg = stringifyErr(err);
+      replaceThinking({ text: `❌ Backend Error: ${msg}` });
+      toast({ title: "Error", description: msg });
     } finally {
-      // cleanup object URL after a short delay to avoid memory leak
-      if (typeof firstImgUrl === "string") {
-        setTimeout(() => URL.revokeObjectURL(firstImgUrl), 10000);
-      }
       setIsAsking(false);
     }
   };
 
-  // wrapper (typed as any so it works whether VizChatInterface passes 3 or 4 args)
-  const onSendWrapper: any = async (
-    text: string,
-    documentId?: string | null,
-    combineDocs?: string[] | undefined,
-    images?: File[] | undefined
-  ) => {
+  const onSendWrapper = async (text: string, documentId?: string | null, combineDocs?: string[], images?: File[]) => {
     await handleSendMessage(text, documentId, combineDocs, images);
   };
 
   return (
     <div className="min-h-screen bg-white text-black">
       <Header />
-
       {selectedChat ? (
         <div className="flex h-[calc(100vh-4rem)]">
-          <VizDocumentSidebar
-            chatId={chatId!}
-            documentList={documents}
-            onDocumentUpload={handleDocumentUpload}
-          />
-
+          <VizDocumentSidebar chatId={chatId!} documentList={documents} onDocumentUpload={handleDocumentUpload} />
           <div className="flex-1 flex flex-col">
             <div className="bg-gray-100 border-b p-4 flex items-center justify-between">
-              <button onClick={() => navigate("/visualizations")} className="p-2 hover:bg-gray-200 rounded-lg">
+              <button onClick={() => navigate("/visualizations")} className="p-2 hover:bg-gray-200 rounded-lg" aria-label="Back">
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <h2 className="font-semibold">{selectedChat.name}</h2>
-              <button
-                onClick={() => deleteChat(selectedChat.id)}
-                className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
-              >
+              <h2 className="font-semibold truncate">{selectedChat.name}</h2>
+              <button onClick={() => deleteChat(selectedChat.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg" aria-label="Delete chat">
                 <Trash2 className="w-5 h-5" />
               </button>
             </div>
-
-            <VizChatInterface
-              messages={selectedChat?.messages || []}
-              onSendMessage={onSendWrapper}
-              documents={documents}
-              isLoading={isAsking}
-            />
+            <div ref={scrollAreaRef} data-viz-scroll className="flex-1 min-h-0 overflow-y-auto">
+              <VizChatInterface
+                messages={selectedChat?.messages || []}
+                onSendMessage={onSendWrapper}
+                documents={documents}
+                isLoading={isAsking}
+              />
+            </div>
           </div>
         </div>
       ) : (
         <main className="container mx-auto p-6">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold">Visualization Chat</h1>
-            <button
-              onClick={() => setShowNewChatDialog(true)}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              <span>New Chat</span>
+            <button onClick={() => setShowNewChatDialog(true)} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <Plus className="w-5 h-5 mr-2" /><span>New Chat</span>
             </button>
           </div>
           <p className="text-gray-600">No chat selected.</p>
@@ -571,31 +539,48 @@ export const VizChatManager = () => {
 
       {showNewChatDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-md">
+          <div className="bg-white p-6 rounded-lg w/full max-w-md">
             <h2 className="text-xl mb-4">New Chat</h2>
-
             <label className="block mb-2">Upload Document(s):</label>
-            <input
-              type="file"
-              multiple
-              accept=".pdf,.xls,.xlsx,.csv"
-              onChange={(e) => setUploadedFiles(e.target.files ? Array.from(e.target.files) : [])}
-              className="mb-4"
-            />
-
+            <input type="file" multiple accept=".pdf,.xls,.xlsx,.csv" onChange={(e) => setUploadedFiles(e.target.files ? Array.from(e.target.files) : [])} className="mb-4" />
             <label className="block mb-2">Chat Name:</label>
-            <input
-              type="text"
-              value={newChatName}
-              onChange={(e) => setNewChatName(e.target.value)}
-              className="w-full border rounded p-2 mb-4"
-            />
-
+            <input type="text" value={newChatName} onChange={(e) => setNewChatName(e.target.value)} className="w-full border rounded p-2 mb-4" />
             <div className="flex justify-end space-x-2">
-              <button onClick={() => setShowNewChatDialog(false)} className="px-4 py-2 bg-gray-200 rounded">
-                Cancel
-              </button>
-              <button onClick={createNewChat} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+              <button onClick={() => setShowNewChatDialog(false)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!uploadedFiles.length || !newChatName.trim()) {
+                    toast({ title: "Error", description: "Chat name and at least one document are required." }); return;
+                  }
+                  const newChatId = generateId();
+                  const newDocs: VizDocument[] = [];
+                  for (const file of uploadedFiles) {
+                    try { newDocs.push(await uploadFile(file, newChatId)); }
+                    catch (err: any) { toast({ title: "Upload Error", description: stringifyErr(err) || `Failed to upload ${file.name}` }); }
+                  }
+                  const greeting = `Hello! I'm ready to help you analyze ${uploadedFiles.map((f) => `"${f.name}"`).join(", ")}. What would you like to know?`;
+                  const newChat: VizChat = {
+                    id: newChatId,
+                    name: newChatName,
+                    createdAt: new Date().toISOString(),
+                    lastMessage: greeting,
+                    messageCount: 1,
+                    messages: [{ id: "1", text: greeting, sender: "ai", timestamp: new Date().toISOString() }],
+                  };
+                  setVizChatSessions((prev) => {
+                    const updated = [...prev, newChat];
+                    localStorage.setItem(VIZ_CHAT_STORAGE, JSON.stringify(updated));
+                    return updated;
+                  });
+                  const merged = mergeDocs(newChatId, newDocs);
+                  setSelectedChat(newChat); setDocuments(merged); setDocsHydrated(true);
+                  setShowNewChatDialog(false); setUploadedFiles([]); setNewChatName("");
+                  navigate(`/visualizations/chat/${newChatId}`);
+                  toast({ title: "Chat Created", description: `New chat with ${merged.length} document(s) created.` });
+                  requestAnimationFrame(() => requestAnimationFrame(() => nudgeBottom(false)));
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
                 Create
               </button>
             </div>

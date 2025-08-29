@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   // Dev host/port for Vite
-  const DEV_HOST = env.VITE_DEV_HOST || "192.168.0.109";
+  const DEV_HOST = env.VITE_DEV_HOST || "192.168.0.110";
   const DEV_PORT = Number(env.VITE_DEV_PORT || 3000);
 
   // FastAPI backend base (used by proxy)
@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => {
   const BACKEND =
     (env.VITE_BACKEND && env.VITE_BACKEND.trim()) ||
     (env.VITE_API_BASE && env.VITE_API_BASE.trim()) ||
-    "http://192.168.0.109:8000";
+    "http://192.168.0.110:8000";
 
   // Ollama server base (used by proxy for /ollama/*)
   const OLLAMA =

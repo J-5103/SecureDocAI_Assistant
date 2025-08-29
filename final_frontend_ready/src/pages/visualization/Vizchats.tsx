@@ -33,6 +33,13 @@ const Vizchats = () => {
   const [visualizationChats, setVisualizationChats] = useState<VizChat[]>([]);
   const [showNewModal, setShowNewModal] = useState(false);
 
+  // ✅ Always keep this listing page at TOP on refresh/mount
+  useEffect(() => {
+    // force top for SPA mount
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, []);
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -53,33 +60,32 @@ const Vizchats = () => {
   const handleCreateChat = async (chatName: string, files: FileList) => {
     const id = window.crypto?.randomUUID?.() ?? `${Date.now()}`;
 
-    // 1) Create chat locally (documentName will be set after first upload)
+    // 1) Create chat locally
     const newChat: VizChat = { id, name: chatName, documentName: null, createdAt: Date.now() };
     const updated = [newChat, ...visualizationChats];
     setVisualizationChats(updated);
     persistChats(updated);
 
-    // 2) Upload files for this chat (Excel/CSV only)
+    // 2) Upload files
     const docsKey = `documents:${id}`;
     const uploadedDocs: AppDocument[] = [];
     let firstDocName: string | null = null;
 
     for (const file of Array.from(files)) {
       try {
-        const res = await excelUpload(file, id); // { file_path, chat_id, message }
-        // Build document entry from the file (backend doesn't return name/id)
+        const res = await excelUpload(file, id);
         const docName = file.name;
         if (!firstDocName) firstDocName = docName;
 
         uploadedDocs.push({
-          id: `${Date.now()}-${docName}`, // local unique id for UI
+          id: `${Date.now()}-${docName}`,
           name: docName,
           type: "excel",
           size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
           uploadDate: new Date().toISOString(),
           status: "ready",
           chatId: id,
-          documentId: docName, // IMPORTANT: must be the filename; VizChatManager uses this
+          documentId: docName,
         });
       } catch (e: any) {
         toast({
@@ -90,27 +96,20 @@ const Vizchats = () => {
       }
     }
 
-    // 3) Persist uploaded docs for this chat
     if (uploadedDocs.length) {
       localStorage.setItem(docsKey, JSON.stringify(uploadedDocs));
-      // Update the card subtitle with first file name
-      const nextChats = (prev: VizChat[]) =>
-        prev.map((c) => (c.id === id ? { ...c, documentName: firstDocName } : c));
-      const refreshed = nextChats(updated);
+      const refreshed = updated.map((c) => (c.id === id ? { ...c, documentName: firstDocName } : c));
       setVisualizationChats(refreshed);
       persistChats(refreshed);
-
-      toast({
-        title: "Chat created",
-        description: `${uploadedDocs.length} file(s) uploaded to this chat.`,
-      });
+      toast({ title: "Chat created", description: `${uploadedDocs.length} file(s) uploaded to this chat.` });
     } else {
       toast({ title: "Chat created", description: "No files uploaded." });
     }
 
-    // 4) Navigate to the chat detail page
     closeNewChatModal();
-    navigate(`/visualizations/chat/${id}`);
+
+    // ✅ Navigate to chat detail and hint it to stick-bottom (via query)
+    navigate(`/visualizations/chat/${id}?sb=1`);
   };
 
   const deleteChat = (id: string) => {
@@ -121,6 +120,7 @@ const Vizchats = () => {
   };
 
   return (
+    // ❌ Removed data-viz-scroll from listing page (should be on detail page wrapper)
     <div className="min-h-screen bg-white">
       <Header />
       <div className="container mx-auto p-6">
@@ -152,7 +152,8 @@ const Vizchats = () => {
               <div key={chat.id} className="relative">
                 {/* Whole card navigates */}
                 <Link
-                  to={`/visualizations/chat/${chat.id}`}
+                  // ✅ Pass stick-bottom hint to detail
+                  to={`/visualizations/chat/${chat.id}?sb=1`}
                   className="block cursor-pointer rounded-lg bg-gray-100 p-4 transition hover:shadow-md no-underline text-inherit"
                 >
                   <div className="mb-2 flex items-center space-x-2">

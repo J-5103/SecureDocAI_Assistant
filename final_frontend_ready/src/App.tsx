@@ -1,9 +1,16 @@
 // src/App.tsx
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 
 import Index from "./pages/Index";
 import { ChatManager } from "./pages/ChatManager";
@@ -20,12 +27,33 @@ import VisualizationPage from "./pages/visualizationpage";
 
 const queryClient = new QueryClient();
 
+/** Ensure HOME ("/") always starts at top; do not affect other routes */
+function ScrollTopOnHome() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      // Manual on home so browser doesn't restore previous scroll
+      window.history.scrollRestoration = pathname === "/" ? "manual" : "auto";
+    }
+    if (pathname === "/") {
+      // Force to top on initial load / refresh / route change to "/"
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, [pathname]);
+
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        {/* 👇 Home-only top lock (doesn't touch chat/viz pages) */}
+        <ScrollTopOnHome />
+
         <Routes>
           {/* Home */}
           <Route path="/" element={<Index />} />

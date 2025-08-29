@@ -9,7 +9,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Body, Query,
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import logging
 
 # NEW: data utils
@@ -32,17 +32,25 @@ from src.components.file_loader import FileLoader        # noqa: F401
 from src.pipeline.plot_pipeline import PlotGenerationPipeline
 
 # If you already expose visualization routes elsewhere, you can still keep this:
+visualizations_router = None
 try:
-    from src.routes.plot_routes import router as visualizations_router
+    from src.routes.plot_routes import router as visualizations_router  # UPDATED: keep original first
 except Exception:
-    visualizations_router = None
+    try:
+        from routes.plot_routes import router as visualizations_router  # UPDATED: fallback import
+    except Exception:
+        visualizations_router = None
 
-# === NEW (Vision): import Ollama+LLaVA pipeline ===
+# === NEW: mount image (vision) routes that call Ollama LLaVA ===
+image_router = None
 try:
-    from src.pipeline.image_question_pipeline import ImageQuestionPipeline
-except Exception as _e:
-    logger.warning(f"Vision pipeline not available yet: { _e }")
-    ImageQuestionPipeline = None  # type: ignore
+    from src.routes.image_routes import router as image_router  # UPDATED: prefer src.routes
+except Exception:
+    try:
+        from routes.image_routes import router as image_router  # UPDATED: fallback import (backend/routes)
+    except Exception as e:
+        image_router = None
+        logger.warning(f"image_routes not available: {e}")
 
 # ----- FS layout (make static dir before mounting!) -----
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -66,17 +74,19 @@ qa_pipeline = QuestionAnswerPipeline()
 rag_pipeline = RAGPipeline()
 plot_pipeline = PlotGenerationPipeline()
 
-app = FastAPI(title="SecureDocAI Backend", version="1.2.1")
+app = FastAPI(title="SecureDocAI Backend", version="1.3.0")  # >>> UPDATED version bump
 
-# -------- CORS (UPDATED) --------
+# -------- CORS (friendlier for dev) --------
 _frontend_origins = os.getenv("FRONTEND_ORIGINS")
 if _frontend_origins:
     _allowed_origins = [o.strip() for o in _frontend_origins.split(",") if o.strip()]
 else:
     _allowed_origins = [
-        "http://192.168.0.190:3000",
+        "http://192.168.0.110:3000",
         "http://192.168.0.109:3000",
-        "http://192.168.0.109:5173",
+        "http://192.168.0.110:5173",
+        "http://192.168.0.88:3000",
+        "http://192.168.0.88:5173",
         "http://localhost:3000",
         "http://localhost:5173",
     ]
@@ -93,9 +103,12 @@ app.add_middleware(
 # Serve images and other assets from ./static
 app.mount("/static", StaticFiles(directory=str(STATIC_ROOT)), name="static")
 
-# Try mounting your router if present
+# Mount routers
 if visualizations_router:
     app.include_router(visualizations_router)
+if image_router:
+    # exposes: POST /api/ask-image (images-first; PDF→PNG → LLaVA)
+    app.include_router(image_router, prefix="/api")
 
 # ---- Allowed extensions ----
 CHAT_DOC_EXTS = {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".png", ".jpg", ".jpeg"}
@@ -337,7 +350,10 @@ def _apply_year_filter(df: pd.DataFrame, question: str) -> Tuple[pd.DataFrame, O
 def _read_df_any(path: str) -> pd.DataFrame:
     ext = _ext(path)
     if ext == ".csv":
-        return pd.read_csv(path)
+        try:
+            return pd.read_csv(path, encoding="utf-8-sig")
+        except UnicodeDecodeError:
+            return pd.read_csv(path, encoding="latin1")
     try:
         return pd.read_excel(path)
     except Exception:
@@ -414,6 +430,31 @@ def _compute_stat_from_paths(paths: List[str], question: str) -> Dict[str, Any]:
     df = pd.concat(frames, ignore_index=True, sort=False)
     return _compute_stat_from_df(df, question)
 
+# ===============  NEW: Chat doc manifest helpers  ===============
+DOCS_MANIFEST = "manifest.json"               # >>> ADDED
+
+def _chat_docs_dir(chat_id: str) -> Path:    # >>> ADDED
+    p = Path(UPLOAD_BASE) / chat_id
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+def _manifest_path(chat_id: str) -> Path:    # >>> ADDED
+    return _chat_docs_dir(chat_id) / DOCS_MANIFEST
+
+def _load_manifest(chat_id: str) -> Dict[str, Any]:  # >>> ADDED
+    mpath = _manifest_path(chat_id)
+    if mpath.exists():
+        return json.loads(mpath.read_text(encoding="utf-8"))
+    return {"chat_id": chat_id, "docs": []}
+
+def _save_manifest(chat_id: str, data: Dict[str, Any]) -> None:  # >>> ADDED
+    _manifest_path(chat_id).write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+def _new_doc_id(filename: str) -> str:       # >>> ADDED (unique per file)
+    base = Path(filename).stem
+    base = re.sub(r"[^a-zA-Z0-9._-]+", "_", base).strip("._-").lower() or "doc"
+    return f"{base}-{uuid.uuid4().hex[:8]}"
+
 # ---------- uploads (Chat Sessions: all supported types) ----------
 @app.post("/api/upload/upload_file")
 async def upload_file(
@@ -422,7 +463,7 @@ async def upload_file(
     background_tasks: BackgroundTasks = None
 ):
     """
-    Chat Sessions uploader — SUPPORTS: .pdf, .doc, .docx, .xls, .xlsx, .csv, .png, .jpg, .jpeg
+    (Legacy single-file) Chat Sessions uploader — SUPPORTS: .pdf, .doc, .docx, .xls, .xlsx, .csv, .png, .jpg, .jpeg
     """
     try:
         safe_name = _safe_name(file.filename)
@@ -435,25 +476,40 @@ async def upload_file(
         chat_folder = os.path.join(UPLOAD_BASE, chat_id)
         os.makedirs(chat_folder, exist_ok=True)
 
-        saved_path = os.path.join(chat_folder, safe_name)
+        # >>> UPDATED: give each file a stable doc_id and save that
+        doc_id = _new_doc_id(safe_name)
+        ext = _ext(safe_name)
+        saved_path = os.path.join(chat_folder, f"{doc_id}{ext}")
         with open(saved_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        doc_base_name = os.path.splitext(safe_name)[0]
-        vector_store_path = os.path.join("vectorstores", chat_id, doc_base_name)
+        vector_store_path = os.path.join("vectorstores", chat_id, doc_id)
         os.makedirs(os.path.dirname(vector_store_path), exist_ok=True)
+
+        # record in manifest
+        manifest = _load_manifest(chat_id)
+        meta = {
+            "doc_id": doc_id,
+            "file_name": safe_name,
+            "ext": ext,
+            "size": os.path.getsize(saved_path),
+            "stored_path": saved_path.replace("\\", "/"),
+            "vector_dir": vector_store_path.replace("\\", "/"),
+            "created_at": datetime.utcnow().isoformat() + "Z",
+        }
+        manifest["docs"].append(meta)
+        _save_manifest(chat_id, manifest)
 
         task_id = str(uuid.uuid4())
         update_task_status(task_id, "pending", progress=0)
-        logger.info(f"Upload received for {safe_name}. Task ID: {task_id}")
+        logger.info(f"[LEGACY UPLOAD] {safe_name} → {doc_id}. Task ID: {task_id}")
 
         async def create_vectorstore_task():
             try:
                 update_task_status(task_id, "processing", progress=10)
-                logger.info(f"Starting vectorstore creation for: {safe_name} at {vector_store_path}")
+                logger.info(f"Indexing (legacy) {safe_name} at {vector_store_path}")
                 rag_pipeline.create_vectorstore(file_path=saved_path, vector_store_path=vector_store_path)
-                update_task_status(task_id, "ready", progress=100, document_id=doc_base_name)
-                logger.info(f"Vectorstore created for {safe_name}. Task ID: {task_id}")
+                update_task_status(task_id, "ready", progress=100, document_id=doc_id)
             except Exception as e:
                 update_task_status(task_id, "failed", progress=0, error=str(e))
                 logger.error(f"Vectorstore creation failed for {safe_name}: {str(e)}")
@@ -466,7 +522,7 @@ async def upload_file(
                 "chat_id": chat_id,
                 "status": "processing",
                 "task_id": task_id,
-                "document_id": doc_base_name,
+                "document_id": doc_id,          # >>> UPDATED to return doc_id
             }
         else:
             await create_vectorstore_task()  # type: ignore
@@ -477,7 +533,7 @@ async def upload_file(
                 "chat_id": chat_id,
                 "status": status,
                 "task_id": task_id,
-                "document_id": doc_base_name,
+                "document_id": doc_id,
             }
     except OSError as e:
         logger.error(f"Directory or file access error: {str(e)}")
@@ -485,6 +541,71 @@ async def upload_file(
     except Exception as e:
         logger.error(f"Upload failed: {str(e)}")
         return JSONResponse(status_code=500, content={"error": f"Upload failed: {str(e)}"})
+
+# ===============  NEW: Multi-file upload tied to a chat  ===============
+class MultiUploadResult(BaseModel):  # >>> ADDED
+    chat_id: str
+    docs: List[Dict[str, Any]]
+
+@app.post("/api/chats/{chat_id}/upload", response_model=MultiUploadResult)  # >>> ADDED
+async def upload_many(chat_id: str, files: List[UploadFile] = File(...), background_tasks: BackgroundTasks = None):
+    """
+    Multi-file upload. Saves each under uploaded_docs/<chat_id>/<doc_id>.<ext>,
+    creates vectorstore under vectorstores/<chat_id>/<doc_id>, and writes chat manifest.
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="No files received.")
+    manifest = _load_manifest(chat_id)
+    added = []
+
+    for up in files:
+        safe = _safe_name(up.filename or f"file-{uuid.uuid4().hex}.pdf")
+        if not _is_chat_doc(safe):
+            raise HTTPException(status_code=400, detail=f"Unsupported file: {safe}")
+        doc_id = _new_doc_id(safe)
+        ext = _ext(safe)
+
+        chat_dir = _chat_docs_dir(chat_id)
+        save_path = chat_dir / f"{doc_id}{ext}"
+        with open(save_path, "wb") as f:
+            shutil.copyfileobj(up.file, f)
+
+        vdir = Path("vectorstores") / chat_id / doc_id
+        vdir.parent.mkdir(parents=True, exist_ok=True)
+
+        meta = {
+            "doc_id": doc_id,
+            "file_name": safe,
+            "ext": ext,
+            "size": save_path.stat().st_size,
+            "stored_path": str(save_path).replace("\\", "/"),
+            "vector_dir": str(vdir).replace("\\", "/"),
+            "created_at": datetime.utcnow().isoformat() + "Z",
+        }
+        manifest["docs"].append(meta)
+        added.append(meta)
+
+        # vectorize async
+        tid = uuid.uuid4().hex
+        update_task_status(tid, "pending", progress=0, document_id=doc_id)
+
+        async def _task(p=str(save_path), vd=str(vdir), t=tid, name=safe):
+            try:
+                update_task_status(t, "processing", progress=10, document_id=doc_id)
+                rag_pipeline.create_vectorstore(file_path=p, vector_store_path=vd)
+                update_task_status(t, "ready", progress=100, document_id=doc_id)
+                logger.info(f"Indexed {name} → {vd}")
+            except Exception as e:
+                update_task_status(t, "failed", progress=0, error=str(e), document_id=doc_id)
+                logger.exception(f"Index failed for {name}")
+
+        if background_tasks:
+            background_tasks.add_task(_task)
+        else:
+            await _task()  # type: ignore
+
+    _save_manifest(chat_id, manifest)
+    return {"chat_id": chat_id, "docs": added}
 
 # ---------- create vector store ----------
 @app.post("/api/create-vector-store")
@@ -494,11 +615,20 @@ async def create_vector_store(
     background_tasks: BackgroundTasks = None
 ):
     try:
-        file_path = os.path.join(UPLOAD_BASE, chat_id, file_id)
-        if not os.path.exists(file_path):
-            raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+        # >>> UPDATED: file_id is a doc_id now, resolve to actual path
+        # try by doc_id first, then fallback to raw filename
+        man = _load_manifest(chat_id)
+        entry = next((d for d in man["docs"] if d["doc_id"] == file_id or d["file_name"] == file_id), None)
+        if entry:
+            file_path = entry["stored_path"]
+            vector_store_path = entry["vector_dir"]
+        else:
+            # legacy fallback
+            file_path = os.path.join(UPLOAD_BASE, chat_id, file_id)
+            if not os.path.exists(file_path):
+                raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+            vector_store_path = os.path.join("vectorstores", chat_id, os.path.splitext(file_id)[0])
 
-        vector_store_path = os.path.join("vectorstores", chat_id, os.path.splitext(file_id)[0])
         os.makedirs(os.path.dirname(vector_store_path), exist_ok=True)
         logger.info(f"Starting vector store creation for {file_id} in chat {chat_id}")
 
@@ -508,10 +638,8 @@ async def create_vector_store(
         async def create_vectorstore_task():
             try:
                 update_task_status(task_id, "processing", progress=10)
-                logger.info(f"Starting vectorstore creation for: {file_id} at {vector_store_path}")
                 rag_pipeline.create_vectorstore(file_path=file_path, vector_store_path=vector_store_path)
-                update_task_status(task_id, "ready", progress=100, document_id=os.path.splitext(file_id)[0])
-                logger.info(f"Vectorstore created for {file_id}. Task ID: {task_id}")
+                update_task_status(task_id, "ready", progress=100, document_id=file_id)
             except Exception as e:
                 update_task_status(task_id, "failed", progress=0, error=str(e))
                 logger.error(f"Vector store creation failed for {file_id}: {str(e)}")
@@ -539,13 +667,28 @@ async def get_status(task_id: str):
 class AskRequest(BaseModel):
     chat_id: str
     question: str
-    document_id: Optional[str] = None
-    combine_docs: Optional[List[str]] = None
+    document_id: Optional[str] = None       # single (legacy)
+    combine_docs: Optional[List[str]] = None  # Excel combine (kept)
+    doc_ids: Optional[List[str]] = None       # >>> ADDED: multi-doc QA for PDFs/etc.
     intent: Optional[str] = None  # "qa" | "plot"
 
 @app.get("/api/list_documents")
 async def list_documents(chat_id: str = Query(...)):
+    """
+    Returns docs tied to the chat. Uses manifest if present; falls back to directory scan for legacy.
+    """
     try:
+        # Prefer manifest
+        man = _load_manifest(chat_id)
+        if man["docs"]:
+            docs = [
+                {"name": d["file_name"], "documentId": d["doc_id"], "size": d.get("size", 0)}
+                for d in man["docs"]
+                if _is_chat_doc(d["file_name"])
+            ]
+            return {"documents": docs}
+
+        # Fallback (legacy)
         folder = os.path.join(UPLOAD_BASE, chat_id)
         if not os.path.isdir(folder):
             return {"documents": []}
@@ -553,10 +696,16 @@ async def list_documents(chat_id: str = Query(...)):
         for f in os.listdir(folder):
             if _is_chat_doc(f):
                 p = os.path.join(folder, f)
-                docs.append({"name": f, "documentId": f, "size": os.path.getsize(p)})
+                docs.append({"name": f, "documentId": os.path.splitext(f)[0], "size": os.path.getsize(p)})
         return {"documents": docs}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+# ===============  NEW: list docs straight from manifest  ===============
+@app.get("/api/chats/{chat_id}/docs")  # >>> ADDED
+def chat_docs(chat_id: str):
+    man = _load_manifest(chat_id)
+    return {"chat_id": chat_id, "docs": man["docs"]}
 
 # ---------- Visualization Chats (Excel/CSV only) ----------
 @app.post("/api/excel/upload/")
@@ -670,9 +819,18 @@ def plot_excel_data(
     try:
         resolved_path = _resolve_excel_file(file_path, chat_id)
 
+        # quick pre-validate to avoid 500s
+        try:
+            df_check = _read_df_any(resolved_path)
+            if df_check is None or df_check.empty or df_check.shape[1] == 0:
+                raise HTTPException(status_code=422, detail="No usable table found in the file.")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=f"Cannot read the selected file: {e}")
+
         if _detect_stat_intent(question):
-            df = _read_df_any(resolved_path)
-            ans = _compute_stat_from_df(df, question)
+            ans = _compute_stat_from_df(df_check, question)
             return {
                 "answer": ans["answer"],
                 "meta": ans,
@@ -704,6 +862,9 @@ def plot_excel_data(
     except HTTPException:
         raise
     except Exception as e:
+        msg = str(e)
+        if "No objects to concatenate" in msg or "empty" in msg.lower():
+            raise HTTPException(status_code=422, detail="No usable data found to create the plot.")
         raise HTTPException(status_code=500, detail=f"Plot failed: {e}")
 
 # ---------- Excel/CSV -> plot (combine files) ----------
@@ -730,7 +891,17 @@ def plot_excel_data_combine(payload: CombinePayload):
                 raise HTTPException(status_code=404, detail=f"File not found: {p.name}")
             if not _is_excel(p.name):
                 raise HTTPException(status_code=400, detail=f"Unsupported file type: {p.name}")
+            # pre-validate readability
+            try:
+                dft = _read_df_any(str(p))
+                if dft is None or dft.empty or dft.shape[1] == 0:
+                    continue
+            except Exception:
+                continue
             resolved.append(str(p))
+
+        if len(resolved) == 0:
+            raise HTTPException(status_code=422, detail="No usable tables found across the selected files.")
 
         if _detect_stat_intent(payload.question):
             ans = _compute_stat_from_paths(resolved, payload.question)
@@ -762,95 +933,110 @@ def plot_excel_data_combine(payload: CombinePayload):
     except HTTPException:
         raise
     except Exception as e:
+        msg = str(e)
+        if "No objects to concatenate" in msg or "empty" in msg.lower():
+            raise HTTPException(status_code=422, detail="No usable data found across the selected files.")
         raise HTTPException(status_code=500, detail=f"Combined plot failed: {e}")
 
 # ---------- Visualizations: list + serve + generate ----------
-@app.get("/api/visualizations/{plot_id}/image")
-def vis_image(plot_id: str):
-    img = STATIC_VIS_DIR / f"{plot_id}.png"
-    if not img.exists():
-        raise HTTPException(status_code=404, detail="Image not found")
-    return FileResponse(str(img), media_type="image/png")
+# Only define these if we couldn't import the external router to avoid duplicate routes.
+if visualizations_router is None:
+    @app.get("/api/visualizations/{plot_id}/image")
+    def vis_image(plot_id: str):
+        img = STATIC_VIS_DIR / f"{plot_id}.png"
+        if not img.exists():
+            raise HTTPException(status_code=404, detail="Image not found")
+        return FileResponse(str(img), media_type="image/png")
 
-@app.get("/api/visualizations/{plot_id}/thumb")
-def vis_thumb(plot_id: str):
-    img = STATIC_VIS_DIR / f"{plot_id}_thumb.png"
-    if not img.exists():
-        raise HTTPException(status_code=404, detail="Thumbnail not found")
-    return FileResponse(str(img), media_type="image/png")
+    @app.get("/api/visualizations/{plot_id}/thumb")
+    def vis_thumb(plot_id: str):
+        img = STATIC_VIS_DIR / f"{plot_id}_thumb.png"
+        if not img.exists():
+            raise HTTPException(status_code=404, detail="Thumbnail not found")
+        return FileResponse(str(img), media_type="image/png")
 
-@app.get("/api/visualizations/list")
-def vis_list(
-    chat_id: Optional[str] = None,
-    q: Optional[str] = None,
-    limit: Optional[int] = Query(None, ge=1),
-    offset: Optional[int] = Query(0, ge=0),
-    order: Optional[str] = Query("desc"),
-):
-    items = plot_pipeline.list_meta(chat_id=chat_id)
+    @app.get("/api/visualizations/list")
+    def vis_list(
+        chat_id: Optional[str] = None,
+        q: Optional[str] = None,
+        limit: Optional[int] = Query(None, ge=1),
+        offset: Optional[int] = Query(0, ge=0),
+        order: Optional[str] = Query("desc"),
+    ):
+        items = plot_pipeline.list_meta(chat_id=chat_id)
 
-    if q:
-        ql = q.lower()
-        items = [
-            it for it in items
-            if ql in (it.get("title", "") or "").lower()
-            or ql in (it.get("kind", "") or "").lower()
-            or ql in (it.get("x", "") or "").lower()
-            or ql in (it.get("y", "") or "").lower()
-        ]
+        if q:
+            ql = q.lower()
+            items = [
+                it for it in items
+                if ql in (it.get("title", "") or "").lower()
+                or ql in (it.get("kind", "") or "").lower()
+                or ql in (it.get("x", "") or "").lower()
+                or ql in (it.get("y", "") or "").lower()
+            ]
 
-    items.sort(key=lambda m: m.get("created_at", ""), reverse=(order != "asc"))
+        items.sort(key=lambda m: m.get("created_at", ""), reverse=(order != "asc"))
 
-    total = len(items)
-    if limit is not None:
-        items = items[offset: offset + limit]
-    else:
-        items = items[offset:]
+        total = len(items)
+        if limit is not None:
+            items = items[offset: offset + limit]
+        else:
+            items = items[offset:]
 
-    return {"items": items, "total": total, "chat_ids": list({m.get("chat_id") for m in items if m.get("chat_id")})}
+        return {"items": items, "total": total, "chat_ids": list({m.get("chat_id") for m in items if m.get("chat_id")})}
 
-@app.post("/api/visualizations/generate")
-async def vis_generate(
-    file: Optional[UploadFile] = File(None),
-    file_path: Optional[str] = Form(None),
-    question: str = Form(...),
-    title: Optional[str] = Form(None),
-    chat_id: Optional[str] = Form(None),
-):
-    try:
-        if file is not None:
-            if not _is_excel(file.filename or ""):
-                raise HTTPException(status_code=400, detail="Only Excel/CSV files are allowed (.xlsx, .xls, .csv).")
-            cid = chat_id or "default"
-            chat_dir = Path(UPLOAD_EXCEL) / cid
-            chat_dir.mkdir(parents=True, exist_ok=True)
-            dest = chat_dir / _safe_name(file.filename)
-            with open(dest, "wb") as f:
-                shutil.copyfileobj(file.file, f)
+    @app.post("/api/visualizations/generate")
+    async def vis_generate(
+        file: Optional[UploadFile] = File(None),
+        file_path: Optional[str] = Form(None),
+        question: str = Form(...),
+        title: Optional[str] = Form(None),
+        chat_id: Optional[str] = Form(None),
+    ):
+        try:
+            if file is not None:
+                if not _is_excel(file.filename or ""):
+                    raise HTTPException(status_code=400, detail="Only Excel/CSV files are allowed (.xlsx, .xls, .csv).")
+                cid = chat_id or "default"
+                chat_dir = Path(UPLOAD_EXCEL) / cid
+                chat_dir.mkdir(parents=True, exist_ok=True)
+                dest = chat_dir / _safe_name(file.filename)
+                with open(dest, "wb") as f:
+                    shutil.copyfileobj(file.file, f)
+
+                # pre-validate
+                dfv = _read_df_any(str(dest))
+                if dfv is None or dfv.empty or dfv.shape[1] == 0:
+                    raise HTTPException(status_code=422, detail="No usable table found in the file.")
+
+                if _detect_stat_intent(question):
+                    ans = _compute_stat_from_df(dfv, question)
+                    return {"answer": ans["answer"], "meta": ans, "chat_id": cid, "dataset_path": str(dest)}
+
+                meta = plot_pipeline.generate_and_store(str(dest), question, title=title, chat_id=cid)
+                return meta
+
+            if not file_path:
+                raise HTTPException(status_code=400, detail="Either 'file' or 'file_path' is required.")
+            resolved = _resolve_excel_file(file_path, chat_id)
+
+            dfv = _read_df_any(resolved)
+            if dfv is None or dfv.empty or dfv.shape[1] == 0:
+                raise HTTPException(status_code=422, detail="No usable table found in the file.")
 
             if _detect_stat_intent(question):
-                df = _read_df_any(str(dest))
-                ans = _compute_stat_from_df(df, question)
-                return {"answer": ans["answer"], "meta": ans, "chat_id": cid, "dataset_path": str(dest)}
+                ans = _compute_stat_from_df(dfv, question)
+                return {"answer": ans["answer"], "meta": ans, "chat_id": chat_id, "dataset_path": resolved}
 
-            meta = plot_pipeline.generate_and_store(str(dest), question, title=title, chat_id=cid)
+            meta = plot_pipeline.generate_and_store(resolved, question, title=title, chat_id=chat_id)
             return meta
-
-        if not file_path:
-            raise HTTPException(status_code=400, detail="Either 'file' or 'file_path' is required.")
-        resolved = _resolve_excel_file(file_path, chat_id)
-
-        if _detect_stat_intent(question):
-            df = _read_df_any(resolved)
-            ans = _compute_stat_from_df(df, question)
-            return {"answer": ans["answer"], "meta": ans, "chat_id": chat_id, "dataset_path": resolved}
-
-        meta = plot_pipeline.generate_and_store(resolved, question, title=title, chat_id=chat_id)
-        return meta
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Visualization generate failed: {e}")
+        except HTTPException:
+            raise
+        except Exception as e:
+            msg = str(e)
+            if "No objects to concatenate" in msg or "empty" in msg.lower():
+                raise HTTPException(status_code=422, detail="No usable data found to create the plot.")
+            raise HTTPException(status_code=500, detail=f"Visualization generate failed: {e}")
 
 # ---------- Dedicated Excel Q&A endpoint ----------
 class VizAskBody(BaseModel):
@@ -866,9 +1052,13 @@ def ask_viz_excel(payload: VizAskBody):
     resolved_path = _resolve_excel_file(candidate, payload.chat_id)
 
     try:
+        # pre-validate first so we don't emit 500s for empty data
+        dfv = _read_df_any(resolved_path)
+        if dfv is None or dfv.empty or dfv.shape[1] == 0:
+            raise HTTPException(status_code=422, detail="No usable table found in the file.")
+
         if _detect_stat_intent(payload.question):
-            df = _read_df_any(resolved_path)
-            ans = _compute_stat_from_df(df, payload.question)
+            ans = _compute_stat_from_df(dfv, payload.question)
             return {
                 "answer": ans["answer"],
                 "meta": ans,
@@ -896,7 +1086,12 @@ def ask_viz_excel(payload: VizAskBody):
             "chat_id": payload.chat_id,
             "dataset_path": resolved_path,
         }
+    except HTTPException:
+        raise
     except Exception as e:
+        msg = str(e)
+        if "No objects to concatenate" in msg or "empty" in msg.lower():
+            raise HTTPException(status_code=422, detail="No usable data found to create the plot.")
         raise HTTPException(status_code=500, detail=f"Visualization failed: {e}")
 
 # ---------- Q&A (all supported types) ----------
@@ -915,6 +1110,20 @@ async def ask_question(request: AskRequest = Body(...)):
         stat_intent = _detect_stat_intent(question)
         wants_plot = ((request.intent or "").lower() == "plot") or bool(PLOT_KEYWORDS.search(question))
 
+        # ---- Multi-file QA (the fix you needed) ----
+        if request.doc_ids:   # >>> ADDED
+            logger.info(f"QA across {len(request.doc_ids)} docs for chat {request.chat_id}: {request.doc_ids}")
+            answer = qa_pipeline.run(
+                question=question,
+                chat_id=request.chat_id,
+                document_id=None,
+                combine_docs=request.doc_ids,   # pass selected doc ids to the pipeline
+            )
+            if isinstance(answer, tuple):
+                answer = answer[0]
+            return {"answer": str(answer or ""), "used_doc_ids": request.doc_ids}
+
+        # ---- Excel: combine (kept) ----
         if request.combine_docs:
             resolved: List[str] = []
             for fp in request.combine_docs:
@@ -935,6 +1144,7 @@ async def ask_question(request: AskRequest = Body(...)):
                 ans = "Here is the combined plot based on your selected files."
                 return {"answer": ans, **res}
 
+        # ---- Single specific document (legacy) ----
         if request.document_id:
             ext = _ext(request.document_id)
 
@@ -964,6 +1174,7 @@ async def ask_question(request: AskRequest = Body(...)):
                     answer = answer[0]
                 return {"answer": str(answer or "")}
 
+        # ---- Plot intent without explicit file ----
         if wants_plot:
             try:
                 res = plot_excel_data(
@@ -976,6 +1187,7 @@ async def ask_question(request: AskRequest = Body(...)):
             except Exception:
                 pass
 
+        # ---- Stats intent without explicit file ----
         if stat_intent:
             try:
                 resolved_path = _resolve_excel_file(None, request.chat_id)
@@ -985,11 +1197,12 @@ async def ask_question(request: AskRequest = Body(...)):
             except Exception as e:
                 logger.warning(f"Stat attempt failed: {e}")
 
+        # ---- Generic QA over latest/whole chat (pipeline decides) ----
         answer = qa_pipeline.run(
             question=question,
             chat_id=request.chat_id,
             document_id=None,
-            combine_docs=[],
+            combine_docs=[],  # pipeline may treat this as "all"
         )
         if isinstance(answer, tuple):
             answer = answer[0]
@@ -1004,98 +1217,8 @@ async def ask_question(request: AskRequest = Body(...)):
 async def health():
     return {"status": "ok"}
 
-# ============================
-# === NEW (Vision) Endpoints ==
-# ============================
-_VISION_OLLAMA_BASE = os.getenv("OLLAMA_BASE", "http://192.168.0.88:11434")
-_LLaVA_MODEL_TAG = os.getenv("LLAVA_MODEL", "llava:13b")
-
-if ImageQuestionPipeline is not None:
-    try:
-        image_pipeline = ImageQuestionPipeline(
-            ollama_base=_VISION_OLLAMA_BASE,
-            model_name=_LLaVA_MODEL_TAG
-        )
-    except TypeError:
-        image_pipeline = ImageQuestionPipeline(
-            ollama_url=f"{_VISION_OLLAMA_BASE}/api/generate",
-            model_name=_LLaVA_MODEL_TAG
-        )
-else:
-    image_pipeline = None
-
-# simple in-memory visualization chat store
-VISION_CHAT: Dict[str, list] = {}
-
-class AskImageOut(BaseModel):
-    status: str
-    data: Dict[str, Any]
-    session_id: str
-
-@app.post("/api/ask-image", response_model=AskImageOut)
-async def ask_image(
-    front_image: UploadFile = File(...),
-    back_image: Optional[UploadFile] = File(None),
-    session_id: Optional[str] = Form(None)
-):
-    if image_pipeline is None:
-        raise HTTPException(status_code=500, detail="Vision pipeline not initialized. Ensure src/pipeline/image_question_pipeline.py exists.")
-    try:
-        fb = await front_image.read()
-        bb = await back_image.read() if back_image else None
-
-        sid = session_id or str(uuid.uuid4())
-
-        session_dir = UPLOAD_IMAGES_DIR / sid
-        session_dir.mkdir(parents=True, exist_ok=True)
-
-        def _safelike(n: str) -> str:
-            return os.path.basename((n or "").replace("\\", "/"))
-
-        ts = str(int(datetime.utcnow().timestamp()))
-        saved_urls: List[str] = []
-
-        fname_front = f"{ts}_front_{_safelike(front_image.filename)}"
-        with open(session_dir / fname_front, "wb") as f:
-            f.write(fb)
-        saved_urls.append(f"/static/uploads/{sid}/{fname_front}")
-
-        if bb:
-            fname_back = f"{ts}_back_{_safelike(back_image.filename)}"
-            with open(session_dir / fname_back, "wb") as f:
-                f.write(bb)
-            saved_urls.append(f"/static/uploads/{sid}/{fname_back}")
-
-        out = image_pipeline.run(fb, bb)
-
-    except Exception as e:
-        logger.exception("Vision extraction failed")
-        raise HTTPException(status_code=500, detail=f"Vision extraction failed: {e}")
-
-    VISION_CHAT.setdefault(sid, []).append({
-        "role": "user",
-        "type": "image",
-        "image_urls": saved_urls,
-        "front_name": front_image.filename,
-        "back_name": back_image.filename if back_image else None
-    })
-    VISION_CHAT[sid].append({
-        "role": "assistant",
-        "whatsapp": out.get("whatsapp") if isinstance(out, dict) else out,
-        "vcard": out.get("vcard") if isinstance(out, dict) else "",
-        "json": out.get("json") if isinstance(out, dict) else {},
-    })
-
-    data_with_urls = out if isinstance(out, dict) else {"whatsapp": out, "vcard": "", "json": {}}
-    data_with_urls = {**data_with_urls, "image_urls": saved_urls}
-    return AskImageOut(status="success", data=data_with_urls, session_id=sid)
-
-@app.get("/api/chat/{session_id}")
-async def get_chat(session_id: str):
-    return {"session_id": session_id, "history": VISION_CHAT.get(session_id, [])}
-
 # ==========================================
-# === NEW: Generic chat message + images ===
+# === Generic chat message + images (save) ==
 # ==========================================
 # In-memory chat store for generic text+images (separate from VISION_CHAT)
 CHAT_MESSAGES: Dict[str, list] = {}
@@ -1109,7 +1232,8 @@ def _save_image_to_static(chat_id: str, up: UploadFile) -> str:
         raise HTTPException(status_code=400, detail=f"Only image files are allowed: {', '.join(sorted(_ALLOWED_IMAGE_EXT))}")
     chat_dir = UPLOAD_IMAGES_DIR / chat_id
     chat_dir.mkdir(parents=True, exist_ok=True)
-    fname = f"{uuid.uuid4().hex}{ext}"
+    fname = f"{uuid.uuid4().hex}{ext}."
+    fname = f"{uuid.uuid4().hex}{ext}"  # ensure single extension
     with open(chat_dir / fname, "wb") as f:
         shutil.copyfileobj(up.file, f)
     return f"/static/uploads/{chat_id}/{fname}"
@@ -1118,7 +1242,7 @@ class ChatMessageOut(BaseModel):
     message_id: str
     chat_id: str
     text: Optional[str] = ""
-    attachments: List[Dict[str, str]] = []
+    attachments: List[Dict[str, str]] = Field(default_factory=list)
     created_at: str
 
 @app.post("/api/chat", response_model=ChatMessageOut)
@@ -1157,3 +1281,91 @@ async def post_chat_message(
 async def chat_history(chat_id: str = Query(...)):
     """Return all messages (text + image URLs) for a chat."""
     return {"chat_id": chat_id, "messages": CHAT_MESSAGES.get(chat_id, [])}
+
+# ============================================================
+# === Fallback Vision route (stops 422; tolerant of fields) ===
+# ============================================================
+if image_router is None:
+    @app.post("/api/ask-image")
+    async def ask_image_fallback(
+        prompt: Optional[str] = Form(""),
+        chat_id: Optional[str] = Form(None),
+
+        # multiple possible field names the FE might send:
+        images: Optional[List[UploadFile]] = File(None),
+        images_array: Optional[List[UploadFile]] = File(None, alias="images[]"),
+        front_image: Optional[UploadFile] = File(None),
+        back_image: Optional[UploadFile] = File(None),
+        frontFile: Optional[UploadFile] = File(None),
+        backFile: Optional[UploadFile] = File(None),
+        file: Optional[UploadFile] = File(None),
+    ):
+        """
+        Fallback implementation that accepts many field-name variants:
+        - images / images[] (multiple)
+        - front_image / back_image
+        - frontFile / backFile
+        - file
+        Returns whatsapp-like text + any saved image URLs.
+        """
+        try:
+            # consolidate uploads into a list
+            uploads: List[UploadFile] = []
+            for group in (images, images_array):
+                if group:
+                    uploads.extend(group)
+            for single in (front_image, back_image, frontFile, backFile, file):
+                if single:
+                    uploads.append(single)
+
+            if not uploads:
+                raise HTTPException(
+                    status_code=422,
+                    detail="No image(s) received. Send 'images', 'images[]', 'front_image', 'back_image', 'frontFile', 'backFile' or 'file'.",
+                )
+
+            cid = chat_id or "vision"
+            image_urls: List[str] = []
+            saved = 0
+            pdfs = 0
+
+            for up in uploads:
+                ext = _ext(up.filename or "")
+                if ext in _ALLOWED_IMAGE_EXT and (up.content_type or "").startswith("image/"):
+                    url = _save_image_to_static(cid, up)
+                    image_urls.append(url)
+                    saved += 1
+                elif ext == ".pdf":
+                    # store PDF as-is; (OCR/model not included in fallback)
+                    cid_dir = UPLOAD_IMAGES_DIR / cid
+                    cid_dir.mkdir(parents=True, exist_ok=True)
+                    fname = f"{uuid.uuid4().hex}{ext}"
+                    with open(cid_dir / fname, "wb") as f:
+                        shutil.copyfileobj(up.file, f)
+                    image_urls.append(f"/static/uploads/{cid}/{fname}")
+                    pdfs += 1
+                else:
+                    raise HTTPException(status_code=400, detail=f"Unsupported file type: {up.filename}")
+
+            text = (prompt or "").strip()
+            msg = f"Processed {saved} image(s){(' and ' + str(pdfs) + ' PDF(s)') if pdfs else ''}. Prompt: {text}"
+
+            return {
+                "status": "ok",
+                "data": {
+                    "whatsapp": msg,
+                    "json": None,
+                    "image_urls": image_urls,
+                },
+                "meta": {
+                    "received": len(uploads),
+                    "saved_images": saved,
+                    "saved_pdfs": pdfs,
+                    "chat_id": cid,
+                },
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.exception("ask-image fallback failed")
+            raise HTTPException(status_code=500, detail=f"ask-image failed: {e}")

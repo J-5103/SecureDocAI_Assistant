@@ -1,7 +1,7 @@
 # src/components/rag_pipeline.py
 import os
 import time
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict, Any
 
 import pdfplumber
 import pandas as pd
@@ -30,13 +30,23 @@ CHUNK_OVERLAP = 100
 
 
 class RAGPipeline:
+    """
+    RAG helper that:
+      - builds FAISS vectorstores per (chat_id, doc_id)
+      - retrieves top contexts from one or many docs
+      - calls Ollama for grounded answers
+    Vectorstore layout (new):
+        vectorstores/<chat_id>/<doc_id>/index.faiss
+    Legacy layout still works:
+        vectorstores/<chat_id>/<file_basename>/index.faiss
+    """
+
     def __init__(
         self,
-        vector_store_path: str = "vectorstores",  # plural to match main.py
+        vector_store_path: str = "vectorstores",
         ollama_url: str = "http://192.168.0.88:11434/api/generate",
         model_name: str = "llama3:8b",
     ):
-        # Choose device only if torch is present
         device = "cuda" if (_TORCH_AVAILABLE and torch.cuda.is_available()) else "cpu"  # type: ignore[attr-defined]
         print(f"Initializing RAGPipeline with device: {device}")
 
@@ -48,25 +58,30 @@ class RAGPipeline:
         self.ollama_url = ollama_url
         self.model_name = model_name
 
-    # -------------------- utils --------------------
+    # -------------------- path utils --------------------
 
     def _chat_folder(self, chat_id: str) -> str:
         return os.path.join(self.vector_store_path, chat_id)
 
-    def _doc_folder(self, chat_id: str, doc_name_or_file: str) -> str:
-        base = os.path.splitext(doc_name_or_file)[0]
+    def _doc_folder(self, chat_id: str, doc_name_or_id: str) -> str:
+        """
+        Accepts either a modern doc_id ('file-slug-1a2b3c4d') or a legacy file name.
+        We strip extension if present so both 'abc.pdf' and 'abc' map to same folder.
+        """
+        base = os.path.splitext(doc_name_or_id)[0]
         return os.path.join(self._chat_folder(chat_id), base)
 
     def _load_vs(self, folder_path: str):
         index_file = os.path.join(folder_path, "index.faiss")
         if not os.path.exists(index_file):
             return None
-        # langchain_community 0.2+: load_local(path, embeddings, allow_dangerous_deserialization=...)
         return FAISS.load_local(
             folder_path,
             self.embedding_model,
             allow_dangerous_deserialization=True,
         )
+
+    # -------------------- small helpers --------------------
 
     def sanitize_text(self, text: str) -> str:
         return text.encode("utf-8", "replace").decode("utf-8")
@@ -79,7 +94,7 @@ class RAGPipeline:
             return "summary"
         return "default"
 
-    # -------------------- document extraction --------------------
+    # -------------------- extraction --------------------
 
     def extract_text_from_doc(self, file_path: str) -> List[Document]:
         """Extract text from various document types with progress logging."""
@@ -158,6 +173,8 @@ class RAGPipeline:
         except ValueError:
             return None
 
+    # -------------------- indexing --------------------
+
     def create_vectorstore(
         self,
         file_path: Optional[str] = None,
@@ -165,7 +182,10 @@ class RAGPipeline:
         vector_store_path: Optional[str] = None,
         metadata: Optional[dict] = None,
     ):
-        """Create vectorstore with batch processing and progress logging."""
+        """
+        Create a FAISS vectorstore at vector_store_path.
+        If not provided, we infer <vectorstores>/<chat_id>/<filename-base>.
+        """
         filename = os.path.basename(file_path or "manual_input").replace(
             os.path.splitext(file_path or "")[1], ""
         )
@@ -207,7 +227,6 @@ class RAGPipeline:
                 print(f"Embedded batch {i // batch_size + 1} of {(len(chunks) + batch_size - 1) // batch_size}")
                 time.sleep(0.05)  # slight yield; remove in production
 
-            # Create FAISS vectorstore with (text, embedding) pairs
             texts = [c.page_content for c in chunks]
             text_embeddings = list(zip(texts, all_embeddings))
             metadatas = [{"source": filename, "page": c.metadata.get("page", 1)} for c in chunks]
@@ -231,7 +250,42 @@ class RAGPipeline:
             print(f"❌ create_vectorstore failed for {filename}: {e}")
             raise
 
+    # Convenience API (optional, used by some variants of main.py)
+    def index_document(self, file_path: str, namespace: str, out_dir: str) -> Dict[str, Any]:
+        """
+        Kept for compatibility with alternative wiring.
+        We ignore 'namespace' here since our layout already scopes by chat/doc.
+        """
+        return self.create_vectorstore(file_path=file_path, vector_store_path=out_dir)
+
+    def search(self, query: str, namespace: str, index_dir: str, k: int = DEFAULT_K) -> List[Dict[str, Any]]:
+        """
+        Convenience search that returns a list of {text, score, source, page}.
+        """
+        vs = self._load_vs(index_dir)
+        if not vs:
+            return []
+        docs_scores = vs.similarity_search_with_score(query, k=k)
+        out = []
+        for d, s in docs_scores:
+            out.append({
+                "text": d.page_content,
+                "score": float(s),
+                "source": d.metadata.get("source"),
+                "page": d.metadata.get("page"),
+            })
+        return out
+
     # -------------------- context retrieval --------------------
+
+    def _expanded_query(self, question: str) -> str:
+        expander = SynonymExpander()
+        return expander.find_similar_words(question)
+
+    def _topk_from_vs(self, vs, query: str, k: int) -> List[Tuple[Document, float]]:
+        docs_with_scores = vs.similarity_search_with_score(query, k=max(1, k))
+        # No strict threshold; we’ll sort later across docs
+        return docs_with_scores
 
     def get_context_from_single_doc(
         self,
@@ -241,8 +295,7 @@ class RAGPipeline:
         top_k: int = DEFAULT_K,
     ) -> Tuple[str, List[str], str]:
         question_type = self.detect_question_type(question)
-        expander = SynonymExpander()
-        expanded_query = expander.find_similar_words(question)
+        expanded_query = self._expanded_query(question)
 
         folder_path = self._doc_folder(chat_id, document_id)
         vs = self._load_vs(folder_path)
@@ -250,16 +303,16 @@ class RAGPipeline:
             print(f"❌ Vectorstore not found for: {folder_path}")
             return "", [], question_type
 
-        docs_with_scores = vs.similarity_search_with_score(expanded_query, k=top_k)
-        top_docs = [doc for doc, score in docs_with_scores if score < 1.0] or [
-            doc for doc, score in docs_with_scores
-        ]
-
-        if not top_docs:
+        docs_with_scores = self._topk_from_vs(vs, expanded_query, top_k)
+        if not docs_with_scores:
             return "", [], question_type
 
+        # sort best-first (lower score is better for FAISS distances)
+        docs_with_scores.sort(key=lambda x: x[1])
+        docs_with_scores = docs_with_scores[:top_k]
+
         numbered = []
-        for idx, doc in enumerate(top_docs, start=1):
+        for idx, (doc, _) in enumerate(docs_with_scores, start=1):
             doc_text = self.sanitize_text(doc.page_content.strip())
             numbered.append(f"{idx}. {doc_text}")
 
@@ -273,7 +326,11 @@ class RAGPipeline:
         document_names: Optional[List[str]] = None,
         top_k: int = DEFAULT_K,
     ) -> Tuple[str, List[str], str]:
-        print("🔍 Loading vectorstores...")
+        """
+        Retrieve from multiple docs and keep the BEST 'top_k' chunks GLOBALLY.
+        'document_names' are usually new doc_ids. If None, we search across all docs in the chat.
+        """
+        print("🔍 Loading vectorstores across multiple docs...")
         question_type = self.detect_question_type(question)
         base_folder = self._chat_folder(chat_id)
 
@@ -281,12 +338,9 @@ class RAGPipeline:
             print(f"❌ Chat folder not found: {base_folder}")
             return "", [], question_type
 
-        expander = SynonymExpander()
-        expanded_query = expander.find_similar_words(question)
+        expanded_query = self._expanded_query(question)
 
-        used_docs: List[str] = []
-        contexts: List[str] = []
-
+        # Build list of folders to query
         target_folders: List[str] = []
         if document_names:
             for name in document_names:
@@ -295,28 +349,44 @@ class RAGPipeline:
             for folder_name in os.listdir(base_folder):
                 target_folders.append(os.path.join(base_folder, folder_name))
 
+        # Collect results from each doc, then rank globally
+        heap: List[Tuple[float, Document, str]] = []  # (score, doc, folder_path)
+        used_folders: set = set()
+
+        # We over-fetch per doc (2x) then trim globally
+        per_doc_k = max(1, min(top_k * 2, 20))
+
         for folder_path in target_folders:
             vs = self._load_vs(folder_path)
             if not vs:
                 continue
             try:
-                docs_with_scores = vs.similarity_search_with_score(expanded_query, k=top_k)
-                top_docs = [doc for doc, score in docs_with_scores if score < 1.0] or [
-                    doc for doc, score in docs_with_scores
-                ]
-                if not top_docs:
-                    continue
-
-                numbered = []
-                for idx, doc in enumerate(top_docs, start=1):
-                    doc_text = self.sanitize_text(doc.page_content.strip())
-                    numbered.append(f"{idx}. {doc_text}")
-                contexts.append("\n".join(numbered))
-                used_docs.append(os.path.basename(folder_path))
+                pairs = self._topk_from_vs(vs, expanded_query, per_doc_k)
+                for doc, score in pairs:
+                    heap.append((float(score), doc, folder_path))
+                    used_folders.add(folder_path)
             except Exception as e:
-                print(f"❌ Failed loading {folder_path}: {e}")
+                print(f"❌ Failed search in {folder_path}: {e}")
 
-        merged_context = "\n\n".join(contexts)
+        if not heap:
+            return "", [], question_type
+
+        # global sort by score and take top_k
+        heap.sort(key=lambda t: t[0])
+        best = heap[:top_k]
+
+        numbered: List[str] = []
+        used_docs: List[str] = []
+        for idx, (score, doc, fldr) in enumerate(best, start=1):
+            doc_text = self.sanitize_text(doc.page_content.strip())
+            numbered.append(f"{idx}. {doc_text}")
+            used_docs.append(os.path.basename(fldr))
+
+        # dedupe used_docs but keep order
+        seen = set()
+        used_docs = [d for d in used_docs if not (d in seen or seen.add(d))]
+
+        merged_context = "\n".join(numbered)
         return merged_context, used_docs, question_type
 
     def get_context(
@@ -336,6 +406,8 @@ class RAGPipeline:
             question, chat_id, document_names=combine_docs, top_k=k
         )
         return ctx, used
+
+    # -------------------- answer --------------------
 
     def answer_question(
         self,

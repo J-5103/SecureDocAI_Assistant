@@ -1,6 +1,6 @@
 // src/components/ChatInterface.tsx
-import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Sparkles, X } from "lucide-react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { Send, Bot, User, Sparkles, X, Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -17,71 +17,100 @@ interface Message {
   text: string;
   sender: "user" | "ai";
   timestamp: string;
-  /** NEW: optional image shown in bubble (user echo or AI image) */
   imageUrl?: string;
   imageAlt?: string;
 }
 
 interface Document {
-  documentId: string;
+  documentId: string; // this is the doc_id/folder key under vectorstores/<chat_id>/
   name: string;
 }
 
 interface ChatInterfaceProps {
   messages?: Message[];
-  /** SUPerset: adding optional `images` keeps old logic compatible */
+  /** onSendMessage(question, documentId?, docIds?, images?) */
   onSendMessage: (
     question: string,
-    documentId: string | null,
-    combineDocs?: string[],
+    documentId?: string | null,
+    docIds?: string[],
     images?: File[]
   ) => void | Promise<void>;
   documents?: Document[];
+  isLoading?: boolean;
 }
 
 export const ChatInterface = ({
   messages = [],
   onSendMessage,
   documents = [],
+  isLoading = false,
 }: ChatInterfaceProps) => {
   const [inputText, setInputText] = useState("");
   const [selectedDocId, setSelectedDocId] = useState<string>("");
   const [isCombineMode, setIsCombineMode] = useState(false);
   const [combineDialogOpen, setCombineDialogOpen] = useState(false);
-  const [selectedCombineDocs, setSelectedCombineDocs] = useState<string[]>([]);
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]); // renamed for clarity
 
-  // NEW: local image selection + previews
+  // images (attach + previews)
   const [images, setImages] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const imgInputRef = useRef<HTMLInputElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composingRef = useRef(false);
 
-  // Auto scroll when messages change
+  // ---- memo helpers ----
+  const nameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const d of documents) m.set(d.documentId, d.name);
+    return m;
+  }, [documents]);
+
+  const chipNames = useMemo(() => {
+    if (isCombineMode) return selectedDocIds.map((id) => nameById.get(id) || id);
+    if (selectedDocId) return [nameById.get(selectedDocId) || selectedDocId];
+    return [];
+  }, [isCombineMode, selectedDocIds, selectedDocId, nameById]);
+
+  // ---- effects ----
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isLoading]);
 
-  // Keep selection valid with docs changes
+  // keep selection valid — only set when it would actually change
   useEffect(() => {
     if (!documents || documents.length === 0) {
-      if (selectedDocId !== "") setSelectedDocId("");
-      if (isCombineMode) setIsCombineMode(false);
-      if (selectedCombineDocs.length > 0) setSelectedCombineDocs([]);
+      if (selectedDocId !== "" || isCombineMode || selectedDocIds.length) {
+        setSelectedDocId("");
+        setIsCombineMode(false);
+        setSelectedDocIds([]);
+      }
       return;
     }
+
     const hasSelected =
-      selectedDocId && documents.some((d) => d.documentId === selectedDocId);
+      !!selectedDocId && documents.some((d) => d.documentId === selectedDocId);
 
     if (!isCombineMode && !hasSelected) {
-      setSelectedDocId(documents[0].documentId);
+      const first = documents[0].documentId;
+      if (selectedDocId !== first) {
+        setSelectedDocId(first);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documents, isCombineMode, selectedDocId]);
+  }, [documents]); // intentionally only on documents change
 
-  // --- image helpers ---
-  const addImages = (files: FileList | null) => {
+  // cleanup object URLs on unmount
+  useEffect(() => {
+    return () => {
+      previews.forEach((u) => URL.revokeObjectURL(u));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- image helpers ----
+  const addImages = useCallback((files: FileList | null) => {
     if (!files) return;
     const nextFiles: File[] = [];
     const nextUrls: string[] = [];
@@ -90,13 +119,13 @@ export const ChatInterface = ({
       nextFiles.push(f);
       nextUrls.push(URL.createObjectURL(f));
     }
-    if (nextFiles.length === 0) return;
+    if (!nextFiles.length) return;
     setImages((p) => [...p, ...nextFiles]);
     setPreviews((p) => [...p, ...nextUrls]);
     if (imgInputRef.current) imgInputRef.current.value = "";
-  };
+  }, []);
 
-  const removePreview = (idx: number) => {
+  const removePreview = useCallback((idx: number) => {
     setPreviews((prev) => {
       const url = prev[idx];
       if (url) URL.revokeObjectURL(url);
@@ -109,94 +138,111 @@ export const ChatInterface = ({
       copy.splice(idx, 1);
       return copy;
     });
-  };
+  }, []);
 
-  const clearImages = () => {
+  const clearImages = useCallback(() => {
     previews.forEach((u) => URL.revokeObjectURL(u));
     setPreviews([]);
     setImages([]);
     if (imgInputRef.current) imgInputRef.current.value = "";
-  };
+  }, [previews]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = inputText.trim();
-    if (!trimmed) return;
-
-    if (isCombineMode && selectedCombineDocs.length > 0) {
-      await onSendMessage(trimmed, null, selectedCombineDocs, images);
-    } else if (!isCombineMode && selectedDocId) {
-      await onSendMessage(trimmed, selectedDocId, undefined, images);
-    } else {
-      return;
-    }
-
-    setInputText("");
-    clearImages(); // reset previews after send
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+  // ---- handlers ----
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
       e.preventDefault();
-      void handleSubmit(e as unknown as React.FormEvent);
-    }
-  };
+      const trimmed = inputText.trim();
+      if (!trimmed || isLoading) return;
 
-  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      if (isCombineMode && selectedDocIds.length > 0) {
+        // MULTI: pass as docIds (array)
+        await onSendMessage(trimmed, null, selectedDocIds, images);
+      } else if (!isCombineMode && selectedDocId) {
+        // SINGLE
+        await onSendMessage(trimmed, selectedDocId, undefined, images);
+      } else {
+        return;
+      }
+
+      setInputText("");
+      clearImages();
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
+    },
+    [inputText, isLoading, isCombineMode, selectedDocIds, selectedDocId, onSendMessage, images, clearImages]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (composingRef.current) return;
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        void handleSubmit(e as unknown as React.FormEvent);
+      }
+    },
+    [handleSubmit]
+  );
+
+  const handleTextareaChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputText(e.target.value);
-    const textarea = e.target;
-    textarea.style.height = "auto";
-    textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
-  };
+    const ta = e.target;
+    ta.style.height = "auto";
+    ta.style.height = Math.min(ta.scrollHeight, 120) + "px";
+  }, []);
 
-  const handleDropdownChange = (value: string) => {
+  const handleDropdownChange = useCallback((value: string) => {
     if (value === "combine") {
       setCombineDialogOpen(true);
     } else {
-      if (isCombineMode) setIsCombineMode(false);
-      if (selectedCombineDocs.length > 0) setSelectedCombineDocs([]);
-      if (value !== selectedDocId) setSelectedDocId(value);
+      setIsCombineMode(false);
+      setSelectedDocIds([]);
+      setSelectedDocId(value);
     }
-  };
+  }, []);
 
-  const toggleCombineDoc = (docId: string) => {
-    setSelectedCombineDocs((prev) =>
-      prev.includes(docId) ? prev.filter((id) => id !== docId) : [...prev, docId]
-    );
-  };
+  const toggleCombineDoc = useCallback(
+    (docId: string, checked?: boolean | string) => {
+      const willSelect =
+        checked === true || (checked === undefined && !selectedDocIds.includes(docId));
+      setSelectedDocIds((prev) =>
+        willSelect ? [...prev, docId] : prev.filter((id) => id !== docId)
+      );
+    },
+    [selectedDocIds]
+  );
 
-  const handleCombineConfirm = () => {
-    if (selectedCombineDocs.length < 2) {
+  const handleCombineConfirm = useCallback(() => {
+    if (selectedDocIds.length < 2) {
       alert("Please select at least two files to combine.");
       return;
     }
-    if (!isCombineMode) setIsCombineMode(true);
-    if (selectedDocId !== "combine") setSelectedDocId("combine");
+    setIsCombineMode(true);
+    setSelectedDocId("combine");
     setCombineDialogOpen(false);
-  };
+  }, [selectedDocIds]);
 
-  const handleCombineCancel = () => {
+  const handleCombineCancel = useCallback(() => {
     setCombineDialogOpen(false);
     if (!isCombineMode && !selectedDocId && documents[0]) {
       setSelectedDocId(documents[0].documentId);
     }
-  };
+  }, [documents, isCombineMode, selectedDocId]);
 
-  const clearContext = () => {
+  const clearContext = useCallback(() => {
     setIsCombineMode(false);
-    setSelectedCombineDocs([]);
+    setSelectedDocIds([]);
     setSelectedDocId(documents[0]?.documentId || "");
-    clearImages(); // clear images along with context
-  };
+    clearImages();
+  }, [documents, clearImages]);
 
   const canSend =
     inputText.trim() !== "" &&
-    (isCombineMode ? selectedCombineDocs.length > 0 : !!selectedDocId);
+    (isCombineMode ? selectedDocIds.length > 0 : !!selectedDocId) &&
+    !isLoading;
 
+  // ---- UI ----
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* Messages */}
+      {/* messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
           <div
@@ -209,6 +255,7 @@ export const ChatInterface = ({
               className={`flex items-center justify-center w-8 h-8 rounded-full ${
                 message.sender === "ai" ? "bg-blue-600 shadow-glow" : "bg-gray-200"
               }`}
+              aria-hidden
             >
               {message.sender === "ai" ? (
                 <Bot className="w-5 h-5 text-white" />
@@ -224,18 +271,14 @@ export const ChatInterface = ({
                   : "bg-gray-100 text-gray-800"
               }`}
             >
-              {/* Show image inside bubble if provided */}
-              {message.imageUrl && (
+              {!!message.imageUrl && (
                 <img
                   src={message.imageUrl}
                   alt={message.imageAlt || "attachment"}
                   className="mb-3 rounded border max-w-full h-auto"
                 />
               )}
-
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                {message.text}
-              </p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.text}</p>
               <p
                 className={`text-xs mt-2 ${
                   message.sender === "ai" ? "text-blue-600" : "text-gray-600"
@@ -249,14 +292,15 @@ export const ChatInterface = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Controls */}
+      {/* controls */}
       <div className="p-4 border-t border-gray-200 bg-white">
-        {/* Selection row */}
+        {/* row 1: select */}
         <div className="flex items-center gap-2 mb-2">
           <select
             className="px-2 py-1 border rounded text-sm bg-white text-gray-800"
             value={isCombineMode ? "combine" : selectedDocId || ""}
             onChange={(e) => handleDropdownChange(e.target.value)}
+            disabled={isLoading || documents.length === 0}
           >
             <option value="" disabled>
               Select a file
@@ -268,14 +312,30 @@ export const ChatInterface = ({
               </option>
             ))}
           </select>
+        </div>
 
-          {isCombineMode && (
-            <span className="text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-1 rounded">
-              {selectedCombineDocs.length} selected
-            </span>
+        {/* row 2: Using chips + camera + Clear */}
+        <div className="mb-2 flex items-center gap-2 flex-wrap">
+          {chipNames.length > 0 && (
+            <>
+              <span className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-muted text-foreground/80 border">
+                <LinkIcon className="w-3 h-3" />
+                Using:
+              </span>
+              <div className="flex items-center gap-2 flex-wrap max-h-20 overflow-y-auto">
+                {chipNames.map((n, i) => (
+                  <span
+                    key={`${n}-${i}`}
+                    className="inline-flex items-center text-[11px] px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200"
+                  >
+                    {n}
+                  </span>
+                ))}
+              </div>
+            </>
           )}
 
-          {/* IMAGE button (back where the controls are) */}
+          {/* attach image */}
           <input
             ref={imgInputRef}
             type="file"
@@ -283,18 +343,20 @@ export const ChatInterface = ({
             multiple
             className="hidden"
             onChange={(e) => addImages(e.target.files)}
+            disabled={isLoading}
           />
           <Button
             variant="outline"
             size="sm"
             onClick={() => imgInputRef.current?.click()}
+            disabled={isLoading}
             title="Attach image(s)"
             aria-label="Attach image(s)"
           >
             📷
           </Button>
 
-          {/* Small previews (with per-thumb remove) */}
+          {/* previews */}
           {previews.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto">
               {previews.map((u, i) => (
@@ -313,21 +375,20 @@ export const ChatInterface = ({
             </div>
           )}
 
-          {/* Clear (placed next to image controls) */}
-          <Button
+          {/* Clear on the right */}
+          <button
             type="button"
-            variant="ghost"
-            size="sm"
             onClick={clearContext}
-            className="ml-auto"
+            className="ml-auto inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-800"
             title="Clear selection & images"
+            disabled={isLoading}
           >
-            <X className="w-4 h-4 mr-1" />
+            <X className="w-4 h-4" />
             Clear
-          </Button>
+          </button>
         </div>
 
-        {/* Input row */}
+        {/* input row */}
         <form onSubmit={handleSubmit} className="flex gap-3">
           <div className="flex-1 relative">
             <Textarea
@@ -335,25 +396,31 @@ export const ChatInterface = ({
               value={inputText}
               onChange={handleTextareaChange}
               onKeyDown={handleKeyDown}
+              onCompositionStart={() => (composingRef.current = true)}
+              onCompositionEnd={() => (composingRef.current = false)}
               placeholder="Ask anything about your file(s) or image…"
               className="min-h-[2.5rem] max-h-[120px] resize-none pr-12 border-gray-300 focus:border-blue-500 focus:ring-blue-200"
               rows={1}
+              disabled={isLoading}
+              aria-label="Ask a question"
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              <Sparkles className="w-4 h-4 text-gray-400" />
+              <Sparkles className="w-4 h-4 text-gray-400" aria-hidden />
             </div>
           </div>
+
           <Button
             type="submit"
             disabled={!canSend}
             className="bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200 disabled:opacity-50"
+            aria-label="Send message"
           >
             <Send className="w-4 h-4" />
           </Button>
         </form>
       </div>
 
-      {/* Combine dialog */}
+      {/* combine dialog */}
       <Dialog
         open={combineDialogOpen}
         onOpenChange={(open) => (open ? setCombineDialogOpen(true) : handleCombineCancel())}
@@ -365,37 +432,36 @@ export const ChatInterface = ({
         >
           <DialogHeader>
             <DialogTitle id="combine-dialog-title" className="text-blue-700">
-              Select files to Combine
+              Select files to combine
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-2 max-h-[250px] overflow-y-auto" id="combine-dialog-description">
+          <div className="space-y-2 max-h-[260px] overflow-y-auto" id="combine-dialog-description">
             {documents.length === 0 && (
               <p className="text-xs text-gray-500">No files available in this chat.</p>
             )}
-            {documents.map((doc) => (
-              <label key={doc.documentId} className="flex items-center space-x-2">
-                <Checkbox
-                  checked={selectedCombineDocs.includes(doc.documentId)}
-                  onCheckedChange={() => toggleCombineDoc(doc.documentId)}
-                  className="border-gray-300"
-                />
-                <span className="text-sm text-gray-800">{doc.name}</span>
-              </label>
-            ))}
+            {documents.map((doc) => {
+              const checked = selectedDocIds.includes(doc.documentId);
+              return (
+                <label key={doc.documentId} className="flex items-center space-x-2">
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(val) => toggleCombineDoc(doc.documentId, val as boolean)}
+                    className="border-gray-300"
+                  />
+                  <span className="text-sm text-gray-800">{doc.name}</span>
+                </label>
+              );
+            })}
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={handleCombineCancel}
-              className="border-gray-300 text-gray-700"
-            >
+            <Button variant="outline" onClick={handleCombineCancel} className="border-gray-300 text-gray-700">
               Cancel
             </Button>
             <Button
               onClick={handleCombineConfirm}
-              disabled={selectedCombineDocs.length < 2}
+              disabled={selectedDocIds.length < 2}
               className="bg-blue-600 text-white hover:bg-blue-700"
             >
               Confirm

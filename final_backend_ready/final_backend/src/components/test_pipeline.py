@@ -4,7 +4,7 @@ import os
 import time
 
 # ✅ Your actual API base
-BASE_URL = "http://192.168.0.109:8000"
+BASE_URL = "http://:8000"
 PDF_FOLDER = "test_files"  # 📁 Make sure this folder exists and contains your PDFs
 
 

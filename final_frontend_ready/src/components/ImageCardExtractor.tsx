@@ -18,7 +18,7 @@ type AssistantMsg = {
 type Msg = UserImageMsg | AssistantMsg;
 
 /** Backend base:
- * - If VITE_API_BASE is set (e.g. http://192.168.0.109:8000), we use it.
+ * - If VITE_API_BASE is set (e.g. http://192.168.0.110:8000), we use it.
  * - Else empty string → relative paths (/api, /static) that Vite proxies in dev.
  */
 const RAW_API_BASE =
@@ -140,7 +140,7 @@ function ImageCardExtractor() {
     setJsonOut(null);
     setLoading(true);
 
-    // create local preview URLs for the chat bubble (separate from chipUrls)
+    // create local preview URLs for the chat bubble
     const localUrls: string[] = [
       URL.createObjectURL(frontImage),
       ...(backImage ? [URL.createObjectURL(backImage)] : []),
@@ -175,7 +175,7 @@ function ImageCardExtractor() {
         throw new Error(data.message || "Failed to extract.");
       }
 
-      // replace the last user bubble's local URLs with server URLs (persistent)
+      // replace the last user bubble's local URLs with server URLs
       const serverUrlsRaw: string[] = Array.isArray(data?.data?.image_urls)
         ? data.data.image_urls
         : [];
@@ -216,7 +216,6 @@ function ImageCardExtractor() {
     } catch (err: any) {
       setError(err.message || "Error uploading image or connecting to server.");
     } finally {
-      // cleanup local ObjectURLs used for the chat bubble (after we swapped to server URLs)
       setTimeout(() => localUrls.forEach((u) => URL.revokeObjectURL(u)), 1000);
       setLoading(false);
     }
@@ -330,22 +329,26 @@ function ImageCardExtractor() {
                   maxWidth: 640,
                 }}
               >
-                <div style={{ fontWeight: 700 }}>🤖 Extracted</div>
-                <div style={{ whiteSpace: "pre-wrap", marginTop: 6 }}>{msg.whatsapp}</div>
-                <details style={{ marginTop: 8 }}>
-                  <summary>vCard</summary>
-                  <pre style={{ whiteSpace: "pre-wrap" }}>{msg.vcard}</pre>
-                </details>
-                <details style={{ marginTop: 8 }}>
-                  <summary>JSON</summary>
-                  <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(msg.json, null, 2)}</pre>
-                </details>
-                <button
-                  onClick={downloadVcf}
-                  style={{ ...styles.button, backgroundColor: "#1b5e20", marginTop: 8 }}
-                >
-                  Download vCard
-                </button>
+                <div style={{ fontWeight: 700 }}>🤖 Extracted Business Card</div>
+                <div style={{ marginTop: 6 }}>
+                  <strong>Name:</strong> {msg.json?.full_name || "N/A"}<br />
+                  <strong>Title:</strong> {msg.json?.title || "N/A"}<br />
+                  <strong>Company:</strong> {msg.json?.company || "N/A"}<br />
+                  <strong>Phone:</strong> {msg.json?.phones?.[0]?.number || "N/A"}<br />
+                  <strong>Email:</strong> {msg.json?.emails?.[0] || "N/A"}<br />
+                  <strong>Website:</strong> {msg.json?.website || "N/A"}<br />
+                  <strong>Social:</strong>{" "}
+                  {msg.json?.social?.linkedin && (
+                    <a href={msg.json.social.linkedin} target="_blank" rel="noreferrer">
+                      LinkedIn
+                    </a>
+                  )}
+                  {msg.json?.social?.twitter && (
+                    <a href={msg.json.social.twitter} target="_blank" rel="noreferrer">
+                      Twitter
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           )

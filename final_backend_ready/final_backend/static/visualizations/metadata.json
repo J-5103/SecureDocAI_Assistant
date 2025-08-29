@@ -1,5 +1,37 @@
 [
   {
+    "id": "6c7cd1a174f04d009c87d2d3bff6b0f7",
+    "title": "Pie • State",
+    "kind": "pie",
+    "x": "State",
+    "y": "Sales",
+    "image_url": "/api/visualizations/6c7cd1a174f04d009c87d2d3bff6b0f7/image",
+    "thumb_url": "/api/visualizations/6c7cd1a174f04d009c87d2d3bff6b0f7/thumb",
+    "created_at": "2025-08-27T07:20:20.797327Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
+    "id": "492c8ab4854747de8f91e761b3bc572b",
+    "title": "Pie • Revenue",
+    "kind": "pie",
+    "x": "Revenue",
+    "y": "Sales",
+    "image_url": "/api/visualizations/492c8ab4854747de8f91e761b3bc572b/image",
+    "thumb_url": "/api/visualizations/492c8ab4854747de8f91e761b3bc572b/thumb",
+    "created_at": "2025-08-26T12:22:14.891887Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537"
+  },
+  {
     "id": "034de90b62294a7e8c4e25d71ae108db",
     "title": "Pie • State",
     "kind": "pie",

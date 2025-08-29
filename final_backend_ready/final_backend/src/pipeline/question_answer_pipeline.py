@@ -1,7 +1,7 @@
 # src/pipeline/question_answer_pipeline.py
 import os
 import requests
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from langchain_community.vectorstores import FAISS
 
@@ -18,49 +18,15 @@ def _safe_filename(name: str) -> str:
     return os.path.basename((name or "").replace("\\", "/"))
 
 
-def _resolve_pdf_path(chat_id: str, document_id: str) -> str:
-    """
-    Build a safe absolute path to the uploaded PDF. We try both:
-      1) the exact filename provided
-      2) the same stem forced to `.pdf` (guards against ext/case mismatches)
-    """
-    fname = _safe_filename(document_id)
-    cand1 = os.path.join(UPLOAD_BASE, chat_id, fname)
-
-    stem, ext = os.path.splitext(fname)
-    cand2 = os.path.join(UPLOAD_BASE, chat_id, f"{stem}.pdf")
-
-    if os.path.exists(cand1):
-        return cand1
-    if os.path.exists(cand2):
-        return cand2
-    # Return the "expected" path to help error messages upstream
-    return cand2 if ext.lower() != ".pdf" else cand1
-
-
-def _is_valid_pdf(path: str) -> bool:
-    """
-    Quick sanity check: header must be %PDF- and file should end with %%EOF (within last 2KB).
-    Prevents trying to index Excel/CSV/images as PDFs.
-    """
-    try:
-        with open(path, "rb") as f:
-            header = f.read(5)
-        if header != b"%PDF-":
-            return False
-        size = os.path.getsize(path)
-        tail_len = min(2048, size)
-        if tail_len <= 0:
-            return False
-        with open(path, "rb") as f:
-            f.seek(-tail_len, os.SEEK_END)
-            tail = f.read()
-        return b"%%EOF" in tail
-    except Exception:
-        return False
-
-
 class QuestionAnswerPipeline:
+    """
+    High-level QA runner over your RAG pipeline.
+
+    - Multi-file: pass selected doc_ids in `combine_docs` (these are the IDs you return from uploads).
+    - Single-file: pass a single `document_id` (either a legacy stem or the new doc_id).
+    - No selection: it will retrieve across every vectorstore under the chat.
+    """
+
     def __init__(self):
         # Keep a single RAG pipeline instance so we share embeddings + Ollama config
         self.rag = RAGPipeline()
@@ -68,14 +34,21 @@ class QuestionAnswerPipeline:
     def sanitize_text(self, text: str) -> str:
         return text.encode("utf-8", "replace").decode("utf-8")
 
+    # ---------------- public entrypoint ----------------
+
     def run(
         self,
-        question,
-        chat_id,
-        document_id: Optional[str] = None,
-        combine_docs: Optional[List[str]] = None,
+        question: str,
+        chat_id: str,
+        document_id: Optional[str] = None,         # single doc (legacy stem or new doc_id)
+        combine_docs: Optional[List[str]] = None,  # multi-docs (list of doc_ids)
         return_sources: bool = False,
     ):
+        """
+        Returns one of:
+          - answer (str)
+          - (answer, sources) if return_sources=True (sources are either doc_ids used, or LangChain docs)
+        """
         try:
             # --------- validate & normalize question ----------
             if not question:
@@ -93,18 +66,16 @@ class QuestionAnswerPipeline:
             expanded_question = expander.find_similar_words(question)
 
             ql = question.lower()
-            is_cost_question = any(
-                kw in ql for kw in ["cost", "price", "charges", "amount", "budget"]
-            )
+            is_cost_question = any(kw in ql for kw in ["cost", "price", "charges", "amount", "budget"])
 
-            # =================== COMBINE MODE ===================
+            # =================== MULTI-DOC MODE (selected) ===================
             if combine_docs and len(combine_docs) > 0:
                 print("🔗 Combine Mode: Using selected documents only...")
                 context, used_docs = self.rag.get_context(
                     question=expanded_question,
                     chat_id=chat_id,
                     document_id=None,
-                    combine_docs=combine_docs,
+                    combine_docs=combine_docs,  # these are doc_ids/folder names under vectorstores/<chat_id>/
                     k=8,
                 )
                 if not context.strip():
@@ -122,36 +93,23 @@ class QuestionAnswerPipeline:
 
             # =================== SINGLE DOCUMENT MODE ===================
             if document_id:
-                safe_name = _safe_filename(str(document_id))
-                stem = os.path.splitext(safe_name)[0]
-
-                pdf_path = _resolve_pdf_path(chat_id, safe_name)
-                if not os.path.exists(pdf_path):
-                    raise FileNotFoundError(f"Document not found at {pdf_path}")
-
-                # ❗ Guard: only real PDFs are allowed in the QA pipeline
-                if not _is_valid_pdf(pdf_path):
-                    return (
-                        "❌ The selected file isn't a valid PDF (or it's corrupted). "
-                        "If this is Excel/CSV data, use the Excel plot endpoints "
-                        "(/api/excel/upload and /api/excel/plot) to generate charts."
-                    )
-
+                # accepts legacy stems (e.g. "Jimi_patel_AIML") or new doc_ids ("jimi_patel_aiml-1a2b3c4d")
+                safe_key = _safe_filename(str(document_id))
+                stem = os.path.splitext(safe_key)[0]
                 vs_folder = os.path.join(VSTORE_BASE, chat_id, stem)
                 index_file = os.path.join(vs_folder, "index.faiss")
 
-                # Check if vectorstore exists; if not, inform user to re-upload or wait
+                # If vectorstore doesn't exist, user should (re)process or wait
                 if not os.path.exists(index_file):
                     return (
-                        f"❌ Vectorstore for {stem} is missing or not yet processed. "
-                        "Please re-upload the document or wait for background processing to complete."
+                        f"❌ Vectorstore for '{stem}' is missing or not yet processed. "
+                        f"Please upload the file under this chat again or wait for processing."
                     )
 
-                # fetch context for the selected single doc
                 context, used_docs = self.rag.get_context(
                     question=expanded_question,
                     chat_id=chat_id,
-                    document_id=stem,  # pass folder/doc key (stem)
+                    document_id=stem,   # folder/doc key (matches vectorstores/<chat_id>/<stem>)
                     combine_docs=None,
                     k=8,
                 )
@@ -164,24 +122,27 @@ class QuestionAnswerPipeline:
                 answer = self.call_ollama(prompt)
 
                 if return_sources:
-                    # langchain_community 0.2+: load_local(path, embeddings, allow_dangerous_deserialization=...)
-                    vectorstore = FAISS.load_local(
-                        vs_folder,
-                        self.rag.embedding_model,
-                        allow_dangerous_deserialization=True,
-                    )
-                    docs = vectorstore.similarity_search(expanded_question, k=5)
-                    return answer, docs
+                    try:
+                        vectorstore = FAISS.load_local(
+                            vs_folder,
+                            self.rag.embedding_model,
+                            allow_dangerous_deserialization=True,
+                        )
+                        docs = vectorstore.similarity_search(expanded_question, k=5)
+                        return answer, docs
+                    except Exception:
+                        # If loading sources fails, still return the answer & the doc key
+                        return answer, [stem]
 
                 return answer
 
-            # =================== NO SELECTION ===================
+            # =================== NO SELECTION: ALL DOCS IN CHAT ===================
             print("ℹ️ No document selected; using all chat documents.")
             context, used_docs = self.rag.get_context(
                 question=expanded_question,
                 chat_id=chat_id,
                 document_id=None,
-                combine_docs=[],  # [] => "all docs"
+                combine_docs=[],  # [] => "all docs" (RAGPipeline interprets this)
                 k=8,
             )
             if not context.strip():
@@ -202,7 +163,7 @@ class QuestionAnswerPipeline:
 
     # ---------------- prompts ----------------
 
-    def build_single_doc_prompt(self, question, context):
+    def build_single_doc_prompt(self, question: str, context: str) -> str:
         return f"""
 You are a highly knowledgeable assistant. Answer ONLY from the provided document content.
 
@@ -222,7 +183,7 @@ Instructions:
 - If the answer isn't present, say "Not found in the provided document."
 """
 
-    def build_multi_doc_compare_prompt(self, question, combined_contexts):
+    def build_multi_doc_compare_prompt(self, question: str, combined_contexts: str) -> str:
         return f"""
 You are comparing multiple PDFs. Produce a concise, decision-ready answer in this exact format:
 
@@ -257,7 +218,7 @@ User Question:
 {question}
 """
 
-    def build_cost_compare_prompt(self, question, combined_contexts):
+    def build_cost_compare_prompt(self, question: str, combined_contexts: str) -> str:
         return f"""
 You are a finance assistant extracting and comparing costs from multiple PDFs.
 

@@ -1,4 +1,4 @@
-const BASE_URL = process.env.REACT_APP_API_BASE || "http://192.168.0.109:8000";
+const BASE_URL = process.env.REACT_APP_API_BASE || "http://192.168.0.110:8000";
 
 export async function fetchVisualizations(chat = "") {
   const url = chat

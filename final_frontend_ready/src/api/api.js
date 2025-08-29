@@ -4,8 +4,21 @@ import axios from "axios";
 /* =========================================
  * Base URL & axios client
  * =======================================*/
-let API_BASE = (import.meta?.env?.VITE_API_BASE ?? "").trim();
-if (!API_BASE) API_BASE = "http://192.168.0.109:8000"; // fallback for local dev
+let API_BASE =
+  (import.meta?.env?.VITE_API_BASE ?? "").trim() ||
+  (import.meta?.env?.VITE_API_URL ?? "").trim() ||
+  (globalThis?.process?.env?.REACT_APP_API_URL ?? "").trim() ||
+  (globalThis?.__API_BASE__ ?? "").trim();
+
+// If nothing provided, default to same host + :8000 (works after IP changes)
+if (!API_BASE) {
+  const proto = (globalThis?.location?.protocol || "http:").replace(/:$/, "");
+  const host = globalThis?.location?.hostname || "127.0.0.1";
+  const port = (import.meta?.env?.VITE_API_PORT ?? "8000").toString().trim();
+  API_BASE = `${proto}://${host}:${port}`;
+}
+
+console.log("[%capi", "color:#0bf;font-weight:bold", "] BASE =", API_BASE);
 
 export const getApiBase = () => API_BASE;
 export const setApiBase = (url) => {
@@ -30,14 +43,51 @@ const http = axios.create({
 });
 
 http.interceptors.request.use((c) => c, (e) => Promise.reject(e));
+
+/** Better error messages (unwrap FastAPI + proxied Ollama text/JSON) */
 http.interceptors.response.use(
   (r) => r,
   (e) => {
-    const msg =
-      e?.response?.data?.detail ||
-      e?.response?.data?.error ||
-      e?.message ||
-      "Request failed";
+    const res = e?.response;
+    const data = res?.data;
+
+    // Prefer FastAPI detail / error fields; fall back to raw
+    let detail = data?.detail ?? data?.error ?? data?.message ?? data ?? e?.message;
+
+    // If detail is a JSON string, parse once more (some servers return JSON as string)
+    if (typeof detail === "string") {
+      const s = detail.trim();
+      if (s.startsWith("{") || s.startsWith("[")) {
+        try {
+          const inner = JSON.parse(s);
+          detail = inner?.detail ?? inner?.error ?? inner?.message ?? s;
+        } catch {
+          /* keep original string */
+        }
+      }
+    }
+
+    let msg = "";
+    if (Array.isArray(detail)) {
+      msg = detail.map((it) => it?.msg || it?.detail || JSON.stringify(it)).join("; ");
+    } else if (detail && typeof detail === "object") {
+      msg =
+        detail?.msg ||
+        detail?.detail ||
+        detail?.error ||
+        detail?.message ||
+        JSON.stringify(detail);
+    } else if (typeof detail === "string") {
+      msg = detail;
+    } else if (e?.message) {
+      msg = e.message;
+    } else {
+      msg = "Request failed";
+    }
+
+    if (res?.status && !String(msg).startsWith(String(res.status))) {
+      msg = `${res.status} · ${msg}`;
+    }
     return Promise.reject(new Error(msg));
   }
 );
@@ -47,15 +97,17 @@ export const httpClient = http;
 /* =========================================
  * Helpers
  * =======================================*/
-const toDataUrl = (b64, mime = "image/png") =>
-  b64 ? `data:${mime};base64,${b64}` : "";
+const toDataUrl = (b64, mime = "image/png") => (b64 ? `data:${mime};base64,${b64}` : "");
 
-// Absolute URL helper for images returned by backend (/static/… paths)
+/** Join API base + relative path safely (handles missing/extra slashes) */
 export const vizImageUrl = (apiPath) => {
   if (!apiPath) return "";
   if (/^(data:|https?:\/\/)/i.test(apiPath)) return apiPath;
   const b = getApiBase();
-  return b ? `${b.replace(/\/+$/, "")}${apiPath}` : apiPath;
+  if (!b) return apiPath;
+  const base = b.replace(/\/+$/, "");
+  const path = String(apiPath).replace(/^\/+/, "");
+  return `${base}/${path}`;
 };
 
 const withAbsUrls = (items = []) =>
@@ -65,7 +117,6 @@ const withAbsUrls = (items = []) =>
     thumb_url: vizImageUrl(m.thumb_url),
   }));
 
-// --- path/extension helpers ---
 const extOf = (name = "") => {
   const i = name.lastIndexOf(".");
   return i >= 0 ? name.slice(i).toLowerCase() : "";
@@ -93,6 +144,9 @@ const ensureAllowed = (fileOrName, allowed, errMsg) => {
   return true;
 };
 
+const isFile = (v) => typeof File !== "undefined" && v instanceof File;
+const isFormData = (v) => typeof FormData !== "undefined" && v instanceof FormData;
+
 /* =========================================
  * Allowed extensions (must match backend)
  * =======================================*/
@@ -109,26 +163,36 @@ const CHAT_DOC_EXTS = new Set([
 ]);
 const VIZ_DATA_EXTS = new Set([".xlsx", ".xls", ".csv"]);
 const IMG_EXTS = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
+// Vision also accepts PDF (backend converts first page → PNG)
+const VISION_EXTS = new Set([...IMG_EXTS, ".pdf"]);
 
 /* =========================================
  * Normalizer for /api/ask & /api/viz/ask
  * =======================================*/
+const pickPlotUrl = (obj) => {
+  if (!obj || typeof obj !== "object") return "";
+  if (obj.plot_image_url) return vizImageUrl(obj.plot_image_url);
+  if (obj.image_url) return vizImageUrl(obj.image_url);
+  if (obj.meta?.image_url) return vizImageUrl(obj.meta.image_url);
+  if (obj.image_base64) return toDataUrl(obj.image_base64);
+  if (obj.meta?.image_base64) return toDataUrl(obj.meta.image_base64);
+  return "";
+};
+
 const normalizeAnswer = (res) => {
   if (!res) return { answer: "❌ No answer returned." };
 
   const answer =
     typeof res === "string" ? res : res.answer ?? res.text ?? "❌ No answer returned.";
 
-  let plotImageUrl = "";
-  if (typeof res.plot_image_url === "string" && res.plot_image_url) {
-    plotImageUrl = vizImageUrl(res.plot_image_url);
-  } else if (typeof res.image_url === "string" && res.image_url) {
-    plotImageUrl = vizImageUrl(res.image_url);
-  } else if (typeof res.image_base64 === "string" && res.image_base64) {
-    plotImageUrl = toDataUrl(res.image_base64);
-  }
+  const plotImageUrl = pickPlotUrl(res);
+  const usedDocIds = res?.used_doc_ids || res?.used_docs || null;
 
-  return plotImageUrl ? { answer, plotImageUrl } : { answer };
+  return {
+    answer,
+    ...(plotImageUrl ? { plotImageUrl } : {}),
+    ...(usedDocIds ? { usedDocIds } : {}),
+  };
 };
 
 /* =========================================
@@ -138,16 +202,25 @@ export const askQuestion = async ({
   question,
   chatId,
   documentId,
-  combineDocs,
+  docIds,          // << NEW: array of selected doc_ids
+  combineDocs,     // (Excel combine) legacy
   intent,
 }) => {
   const payload = {
     question: (question ?? "").trim(),
     chat_id: chatId,
     intent: intent || undefined,
-    document_id: documentId && documentId !== "combine" ? documentId : null,
-    combine_docs: Array.isArray(combineDocs) ? combineDocs : [],
   };
+
+  if (Array.isArray(docIds) && docIds.length > 0) {
+    payload.doc_ids = docIds;
+  } else if (documentId && documentId !== "combine") {
+    payload.document_id = documentId;
+  }
+
+  if (Array.isArray(combineDocs) && combineDocs.length > 0) {
+    payload.combine_docs = combineDocs;
+  }
 
   const { data } = await http.post("/api/ask", payload, {
     headers: { "Content-Type": "application/json" },
@@ -155,7 +228,32 @@ export const askQuestion = async ({
   return normalizeAnswer(data);
 };
 
-// Upload to Chat Sessions — supports docs/images; async vectorstore creation
+/* Multi-file upload tied to a chat (new endpoint) */
+export const uploadToChat = async (chatId, files = []) => {
+  if (!chatId) throw new Error("chatId is required.");
+  if (!Array.isArray(files) || files.length === 0) throw new Error("No files selected.");
+
+  const fd = new FormData();
+  files.forEach((f) => {
+    ensureAllowed(
+      f,
+      CHAT_DOC_EXTS,
+      "Only PDF, Word, Excel/CSV, or image files are allowed (.pdf, .doc, .docx, .xls, .xlsx, .csv, .png, .jpg, .jpeg)."
+    );
+    fd.append("files", f, f.name);
+  });
+
+  const { data } = await http.post(`/api/chats/${encodeURIComponent(chatId)}/upload`, fd);
+  return data; // { chat_id, docs: [{doc_id, file_name, ...}] }
+};
+
+/* List docs for a chat (from manifest) — new endpoint */
+export const listChatDocs = async (chatId) => {
+  const { data } = await http.get(`/api/chats/${encodeURIComponent(chatId)}/docs`);
+  return data; // { chat_id, docs: [...] }
+};
+
+/* ===== Legacy single-file upload (kept for compatibility) ===== */
 export const uploadDocument = async (formData) => {
   const file = formData?.get?.("file");
   if (!file) throw new Error("No file selected.");
@@ -167,9 +265,7 @@ export const uploadDocument = async (formData) => {
   const chatId = formData.get("chat_id");
   if (!chatId) throw new Error("Chat ID is required.");
 
-  const { data: uploadData } = await http.post("/api/upload/upload_file", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  const { data: uploadData } = await http.post("/api/upload/upload_file", formData);
 
   const { task_id, status } = uploadData;
   if (status !== "processing" || !task_id) {
@@ -203,7 +299,7 @@ export const uploadDocument = async (formData) => {
   });
 };
 
-// Renamed from listDocuments for consistency
+// Renamed from listDocuments for consistency (legacy)
 export const listDocuments = async (chatId) => {
   const { data } = await http.get("/api/list_documents", { params: { chat_id: chatId } });
   return data;
@@ -212,6 +308,12 @@ export const listDocuments = async (chatId) => {
 export const health = async () => {
   const { data } = await http.get("/api/health");
   return data;
+};
+
+// Extra: Ollama reachability via backend
+export const ollamaHealth = async () => {
+  const { data } = await http.get("/api/health/ollama");
+  return data; // {ok: boolean, status?: number, error?: string}
 };
 
 /* =========================================
@@ -223,9 +325,8 @@ export const excelUpload = async (file, chatId) => {
   const fd = new FormData();
   fd.append("file", file);
   if (chatId) fd.append("chat_id", chatId);
-  const { data } = await http.post("/api/excel/upload/", fd, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+
+  const { data } = await http.post("/api/excel/upload/", fd);
   return data; // { file_path, chat_id, message }
 };
 
@@ -307,10 +408,7 @@ export const vizGenerate = async ({ file, filePath, question, title, chatId }) =
   if (title) fd.append("title", title);
   if (chatId) fd.append("chat_id", chatId);
 
-  const { data } = await http.post("/api/visualizations/generate", fd, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-
+  const { data } = await http.post("/api/visualizations/generate", fd);
   if (data && typeof data === "object") {
     data.image_url = vizImageUrl(data.image_url);
     data.thumb_url = vizImageUrl(data.thumb_url);
@@ -345,15 +443,12 @@ export const vizChatCreate = async ({ chatName, file }) => {
   const fd = new FormData();
   fd.append("chat_name", chatName);
   fd.append("file", file);
-  const { data } = await http.post("/api/excel/chats", fd, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  const { data } = await http.post("/api/excel/chats", fd);
   return data; // { chat_id, chat_name, files, created_at }
 };
 
 /* =========================================
- * NEW — Generic chat image upload (previews)
- * Saves images to /static/uploads/<chat_id>/ and returns URLs
+ * Generic chat image upload (previews)
  * =======================================*/
 export const chatUploadImages = async ({ chatId, text = "", files = [] }) => {
   if (!chatId) throw new Error("chatId is required.");
@@ -362,13 +457,15 @@ export const chatUploadImages = async ({ chatId, text = "", files = [] }) => {
   fd.append("text", text);
   if (Array.isArray(files)) {
     files.forEach((f) => {
-      ensureAllowed(f, IMG_EXTS, "Only image files are allowed (.png, .jpg, .jpeg, .webp, .gif).");
+      ensureAllowed(
+        f,
+        IMG_EXTS,
+        "Only image files are allowed (.png, .jpg, .jpeg, .webp, .gif)."
+      );
       fd.append("files", f, f.name);
     });
   }
-  const { data } = await http.post("/api/chat", fd, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  const { data } = await http.post("/api/chat", fd);
   // data: { message_id, chat_id, text, attachments:[{filename,url}], created_at }
   return {
     ...data,
@@ -389,46 +486,111 @@ export const chatHistory = async (chatId) => {
 };
 
 /* =========================================
- * NEW — Vision endpoints
- *   1) /api/ask-image (multipart: front/back images)
- *   2) /api/vision/ask (JSON: prompt + image_urls)
+ * Vision endpoint — /api/ask-image
+ *   - askImage({ images?: File[], frontFile?, backFile?, prompt?, question?, text? })
+ *   - askImage(File)  or askImage(FormData)
  * =======================================*/
+export const askImage = async (arg) => {
+  let fd = null;
+  // default prompt; backend will also receive 'question' (user’s typed text)
+  let prompt =
+    "Extract key information from this image. Provide a concise summary and a JSON if possible.";
+  let question = ""; // << will be included for 'image + question' UX
+  let text = "";      // alias some backends expect
 
-// Multipart: send one or two images for vision pipeline
-export const askImage = async ({ frontFile, backFile = null, sessionId = null }) => {
-  if (!frontFile) throw new Error("frontFile is required.");
-  ensureAllowed(frontFile, IMG_EXTS, "Only image files are allowed (.png, .jpg, .jpeg, .webp, .gif).");
-  if (backFile) ensureAllowed(backFile, IMG_EXTS, "Only image files are allowed (.png, .jpg, .jpeg, .webp, .gif).");
+  const pushFirstAsFrontAliases = (f) => {
+    fd.append("front_image", f, f.name);
+    fd.append("frontFile", f, f.name);
+    fd.append("file", f, f.name);   // some servers expect 'file'
+    fd.append("files", f, f.name);  // some servers expect 'files'
+  };
+  const pushSecondAsBackAliases = (f) => {
+    fd.append("back_image", f, f.name);
+    fd.append("backFile", f, f.name);
+    fd.append("files", f, f.name);
+  };
 
-  const fd = new FormData();
-  fd.append("front_image", frontFile);
-  if (backFile) fd.append("back_image", backFile);
-  if (sessionId) fd.append("session_id", sessionId);
+  if (isFormData(arg)) {
+    fd = arg;
+    if (!fd.has("prompt")) fd.append("prompt", prompt);
+    // if UI added question/text we keep them; else they can be added by caller
 
-  const { data } = await http.post("/api/ask-image", fd, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  } else if (isFile(arg)) {
+    ensureAllowed(arg, VISION_EXTS, "Only images or PDF are allowed for vision.");
+    fd = new FormData();
+    fd.append("prompt", prompt);
+    fd.append("images", arg, arg.name);
+    fd.append("images[]", arg, arg.name);
+    pushFirstAsFrontAliases(arg);
 
-  // shape: { status, data: { whatsapp|json|vcard?, image_urls? }, session_id }
+  } else if (arg && typeof arg === "object") {
+    const { images, frontFile, backFile = null, prompt: p, question: q, text: t } = arg;
+    if (p) prompt = String(p);
+    if (q) question = String(q);
+    if (t) text = String(t);
+
+    fd = new FormData();
+    fd.append("prompt", prompt);
+
+    if (Array.isArray(images) && images.length) {
+      images.forEach((f) => {
+        ensureAllowed(f, VISION_EXTS, "Only images or PDF are allowed for vision.");
+        fd.append("images", f, f.name);
+        fd.append("images[]", f, f.name);
+      });
+      pushFirstAsFrontAliases(images[0]);
+      if (images[1]) pushSecondAsBackAliases(images[1]);
+
+    } else if (frontFile || backFile) {
+      if (frontFile) {
+        ensureAllowed(frontFile, VISION_EXTS, "Only images or PDF are allowed for vision.");
+        pushFirstAsFrontAliases(frontFile);
+        fd.append("images", frontFile, frontFile.name);
+        fd.append("images[]", frontFile, frontFile.name);
+      }
+      if (backFile) {
+        ensureAllowed(backFile, VISION_EXTS, "Only images or PDF are allowed for vision.");
+        pushSecondAsBackAliases(backFile);
+        fd.append("images", backFile, backFile.name);
+        fd.append("images[]", backFile, backFile.name);
+      }
+    } else {
+      throw new Error("Provide images[], or frontFile/backFile, or a single File.");
+    }
+  } else {
+    throw new Error("Invalid argument for askImage");
+  }
+
+  // Always include the user's text so backend can link image + question
+  if (!fd.has("question") && question) fd.append("question", question);
+  if (!fd.has("text") && (text || question)) fd.append("text", text || question);
+
+  const { data } = await http.post("/api/ask-image", fd);
+  // normalize response
   return {
-    ...data,
+    status: data?.status ?? "ok",
     data: {
-      ...data?.data,
+      whatsapp: data?.data?.whatsapp ?? data?.answer ?? "",
+      json: data?.data?.json ?? null,
       image_urls: (data?.data?.image_urls || []).map((u) => vizImageUrl(u)),
     },
+    meta: data?.meta || {},
+    session_id: data?.session_id || null,
   };
 };
 
-// JSON: prompt + already-uploaded static URLs (from chatUploadImages)
+/* =========================================
+ * (Optional) JSON vision ask using saved static URLs
+ * =======================================*/
 export const visionAsk = async ({ prompt, imageUrls = [], sessionId = null }) => {
   const payload = {
     prompt: (prompt ?? "").trim(),
     image_urls: imageUrls,
-    session_id: sessionId ?? null,
   };
+  if (sessionId) payload.session_id = sessionId;
+
   const { data } = await http.post("/api/vision/ask", payload, {
     headers: { "Content-Type": "application/json" },
   });
-  // shape: { status, data:{ answer, raw?, model? }, session_id }
   return data;
 };

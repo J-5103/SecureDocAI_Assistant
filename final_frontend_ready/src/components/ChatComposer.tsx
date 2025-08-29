@@ -25,7 +25,7 @@ const API_BASE =
     (import.meta as any).env &&
     (import.meta as any).env.VITE_API_BASE) ||
   (window as any).__API_BASE__ ||
-  "http://192.168.0.109:8000";
+  "http://192.168.0.110:8000";
 
 // ---------- utils ----------
 const extOf = (n?: string) => (n ? n.split(".").pop()?.toLowerCase() || "" : "");

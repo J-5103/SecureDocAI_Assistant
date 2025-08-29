@@ -19,7 +19,7 @@ export default function Backbar({ title, right, divider = true, backTo, onBack }
       aria-label="Back"
     >
       <span className="text-2xl leading-none">←</span>
-      <span className="text-lg">Back</span>
+      <span className="text-lg"></span>
     </Link>
   ) : (
     <button

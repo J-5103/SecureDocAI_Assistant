@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+// src/pages/index.tsx
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChatInterface } from "@/components/ChatInterface";
 import { PlotsSection } from "@/components/PlotsSection";
@@ -34,6 +35,14 @@ export interface Message {
 const Index = () => {
   const navigate = useNavigate();
 
+  // 🔝 Always start at TOP on home load/refresh
+  useEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, []);
+
   const [plots, setPlots] = useState<Plot[]>([]);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -50,17 +59,22 @@ const Index = () => {
   // Live count of saved visualizations from backend
   const [vizCount, setVizCount] = useState<number | null>(null);
   useEffect(() => {
+    let alive = true;
     (async () => {
       try {
-        const items = await vizList();
-        setVizCount(Array.isArray(items) ? items.length : 0);
+        // api.vizList now returns { items, total, chatIds }
+        const { total } = await vizList({});
+        if (alive) setVizCount(typeof total === "number" ? total : 0);
       } catch {
-        setVizCount(0);
+        if (alive) setVizCount(0);
       }
     })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = useCallback((text: string) => {
     const userMessage: Message = {
       id: Date.now().toString(),
       text,
@@ -80,13 +94,10 @@ const Index = () => {
       setMessages((prev) => [...prev, aiMessage]);
 
       // Demo plot in local tab
-      if (
-        text.toLowerCase().includes("plot") ||
-        text.toLowerCase().includes("chart") ||
-        text.toLowerCase().includes("graph")
-      ) {
+      const low = text.toLowerCase();
+      if (low.includes("plot") || low.includes("chart") || low.includes("graph")) {
         const newPlot: Plot = {
-          id: Date.now().toString() + "_plot",
+          id: `${Date.now()}_plot`,
           title: `Quick Analysis - ${text.slice(0, 30)}...`,
           type: "bar",
           data: {},
@@ -95,7 +106,7 @@ const Index = () => {
         setPlots((prev) => [...prev, newPlot]);
       }
     }, 800);
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-secondary">
