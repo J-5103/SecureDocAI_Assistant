@@ -3,10 +3,22 @@ uvicorn
 
 pandas
 openpyxl
+# google-genai>=1.0.0
 seaborn
 matplotlib
 langchain
+pydantic>=2.5
+google-generativeai>=0.7.2
 openai
+google-genai==0.3.0
+# or
+# google-generativeai>=0.7.0
+
+# .env load ke liye (agar already nahi hai)
+python-dotenv==1.0.0
+
+# REST fallback requests use karega agar available ho (warna urllib se karega)
+requests==2.31.0
 
 pdfplumber           # Extract text from PDFs
 tabula-py            # Extract tables from PDFs

@@ -18,7 +18,7 @@ type AssistantMsg = {
 type Msg = UserImageMsg | AssistantMsg;
 
 /** Backend base:
- * - If VITE_API_BASE is set (e.g. http://192.168.0.110:8000), we use it.
+ * - If VITE_API_BASE is set (e.g. http://192.168.0.109:8000), we use it.
  * - Else empty string → relative paths (/api, /static) that Vite proxies in dev.
  */
 const RAW_API_BASE =

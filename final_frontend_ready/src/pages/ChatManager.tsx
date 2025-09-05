@@ -1,20 +1,19 @@
 // src/pages/ChatManager.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Plus, MessageCircle, ArrowLeft, Trash2 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
 
-// ✅ DOC chat components (not visualization)
 import { DocumentSidebar } from "@/components/DocumentSidebar";
 import { ChatInterface } from "@/components/ChatInterface";
 import type { Document as Doc } from "@/components/DocumentSidebar";
 
 import {
-  askQuestion,
-  askImage,
+  askDocs,          // ✅ docs/vectorstore endpoint (always /api/ask)
   uploadDocument,
   chatUploadImages,
+  extractBusinessCard, // ✅ SAME extractor as Viz chats
 } from "../api/api";
 
 type Msg = {
@@ -22,7 +21,8 @@ type Msg = {
   text: string;
   sender: "user" | "ai";
   timestamp: string;
-  imageUrl?: string;
+  imageUrl?: string;         // legacy (first image)
+  imageUrls?: string[];      // ✅ multi-image thumbnails
   imageAlt?: string;
   status?: "Thinking" | "ok" | "error";
 };
@@ -40,6 +40,7 @@ export interface ChatSession {
 const CHAT_STORAGE = "chatSessions";
 const docsKeyFor = (id: string) => `documents:${id}`;
 const imgMapKeyFor = (id: string) => `imageDocUrlMap:${id}`;
+const imgAnsCacheKeyFor = (id: string) => `imageAnswerCache:${id}`;
 
 const genId = () =>
   Date.now().toString() + Math.random().toString(36).substring(2, 9);
@@ -49,7 +50,6 @@ const IMG_EXTS = [".png", ".jpg", ".jpeg", ".webp", ".gif"];
 const isImageName = (name = "") =>
   IMG_EXTS.some((ext) => name.toLowerCase().endsWith(ext));
 
-// Map filename: image → treat as "other" for sidebar; pdf stays pdf
 function getDocType(filename: string): Doc["type"] {
   const f = filename.toLowerCase();
   if (f.endsWith(".pdf")) return "pdf";
@@ -70,20 +70,36 @@ function mergeDocs(chatId: string, incoming: Doc[]): Doc[] {
   return merged;
 }
 
-// MIGRATION: drop dead blob: URLs from saved messages
+/* ---------- sanitize saved sessions (strip blob:/data: URLs) ---------- */
+const stripHeavyUrl = (url?: string) =>
+  url && (url.startsWith("blob:") || url.startsWith("data:")) ? "" : (url || "");
+
 function sanitizeSessions(sessions: ChatSession[]): ChatSession[] {
   return sessions.map((cs) => ({
     ...cs,
-    messages: (cs.messages || []).map((m) =>
-      typeof m?.imageUrl === "string" && m.imageUrl.startsWith("blob:")
-        ? { ...m, imageUrl: "" }
-        : m
-    ),
+    messages: (cs.messages || []).map((m) => {
+      const mm: Msg = { ...m };
+      if (typeof mm.imageUrl === "string") mm.imageUrl = stripHeavyUrl(mm.imageUrl);
+      if (Array.isArray(mm.imageUrls))
+        mm.imageUrls = mm.imageUrls.map((u) => stripHeavyUrl(u)).filter(Boolean);
+      return mm;
+    }),
   }));
 }
 
-// Turn a saved URL into a File for askImage()
-async function urlToFile(url: string, fallbackName = "image_from_doc.png"): Promise<File> {
+/* ---------- safe saver ---------- */
+const safeSaveSessions = (chs: ChatSession[]) => {
+  try {
+    const cleaned = sanitizeSessions(chs);
+    localStorage.setItem(CHAT_STORAGE, JSON.stringify(cleaned));
+  } catch {}
+};
+
+// Turn a saved URL into a File (for extractor)
+async function urlToFile(
+  url: string,
+  fallbackName = "image_from_doc.png"
+): Promise<File> {
   const res = await fetch(url, { credentials: "omit" });
   if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
   const blob = await res.blob();
@@ -92,12 +108,194 @@ async function urlToFile(url: string, fallbackName = "image_from_doc.png"): Prom
     const u = new URL(url);
     const last = (u.pathname.split("/").pop() || "").trim();
     if (last) name = last;
-  } catch {
-    /* ignore */
-  }
+  } catch {}
   const type = blob.type || "image/png";
   return new File([blob], name, { type });
 }
+
+/* ---------- strict business-card prompt (kept for parity) ---------- */
+const buildCardPrompt = (userText: string) => `
+You are an OCR + contact extractor for business cards.
+Return only what the card prints; no guessing. If a field is missing, omit it.
+User request: ${userText || "Extract contact details from this card"}
+`.trim();
+
+/* ---------- normalize extractor response -> items[] ---------- */
+type CardItem = {
+  first_name?: string;
+  last_name?: string;
+  // name?: string; // (optional if your backend returns a single "name")
+  organization?: string;
+  job_title?: string;
+  phones?: string[];
+  emails?: string[];
+  websites?: string[];
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+  };
+  source_url?: string;
+};
+
+function toArray<T>(x: T | T[] | undefined | null): T[] {
+  if (!x) return [];
+  return Array.isArray(x) ? x : [x];
+}
+
+function normalizeToItems(r: any): CardItem[] {
+  // common shapes handled: { items: [...] }, { card: {...} }, { data: { card/items/... } }
+  const data = r?.data ?? r;
+  const items = toArray<CardItem>(data?.items) as CardItem[];
+  if (items.length) return items;
+  const card = data?.card;
+  if (card && typeof card === "object") return [card as CardItem];
+  // sometimes backend may return {cards:[...]} or {result:[...]}
+  const cards = toArray<CardItem>(data?.cards) || toArray<CardItem>(data?.result);
+  if (cards.length) return cards as CardItem[];
+  return [];
+}
+
+/* ========= NEW: smart merge when it's the same person ========= */
+const norm = (s?: string) => (s || "").toLowerCase().replace(/\s+/g, " ").trim();
+
+const fullNameOf = (it: CardItem) => {
+  const fn = (it.first_name || "").trim();
+  const ln = (it.last_name || "").trim();
+  const raw = (fn || ln) ? `${fn} ${ln}`.trim() : "";
+  return { raw, key: norm(raw) };
+};
+
+const pickLongest = (a?: string, b?: string) => {
+  const aa = (a || "").trim();
+  const bb = (b || "").trim();
+  if (!aa) return bb;
+  if (!bb) return aa;
+  return bb.length > aa.length ? bb : aa;
+};
+
+const mergeArrayDedup = (...arrs: (string[] | undefined)[]) => {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  arrs.flat().filter(Boolean).forEach((x) => {
+    String(x)
+      .split(",")
+      .map((v) => v.trim())
+      .forEach((v) => {
+        const key = norm(v);
+        if (v && !seen.has(key)) {
+          seen.add(key);
+          out.push(v);
+        }
+      });
+  });
+  return out;
+};
+
+const mergeAddress = (a?: CardItem["address"], b?: CardItem["address"]) => {
+  const aa = a || {};
+  const bb = b || {};
+  return {
+    street: pickLongest(aa.street, bb.street),
+    city: pickLongest(aa.city, bb.city),
+    state: pickLongest(aa.state, bb.state),
+    postal_code: pickLongest(aa.postal_code, bb.postal_code),
+    country: pickLongest(aa.country, bb.country),
+  };
+};
+
+/** Group by normalized full name. If zero/one unique name -> merge into ONE contact. */
+function smartMergeContacts(items: CardItem[]): CardItem[] {
+  const groups = new Map<string, CardItem[]>();
+  const uniqueNameKeys = new Set<string>();
+
+  items.forEach((it) => {
+    const { key } = fullNameOf(it);
+    const k = key || "__noname__";
+    uniqueNameKeys.add(key);
+    groups.set(k, [...(groups.get(k) || []), it]);
+  });
+
+  const uniqueNamed = Array.from(uniqueNameKeys).filter(Boolean);
+  const mergeAll = uniqueNamed.length <= 1;
+
+  const mergeGroup = (arr: CardItem[]): CardItem =>
+    arr.reduce<CardItem>((acc: any, cur) => {
+      const accNm = fullNameOf(acc).raw.split(/\s+/);
+      const curNm = fullNameOf(cur).raw.split(/\s+/);
+      const [afn, aln] = [accNm[0] || "", accNm.slice(1).join(" ") || ""];
+      const [fn, ln] = [curNm[0] || "", curNm.slice(1).join(" ") || ""];
+
+      return {
+        first_name: pickLongest(afn, fn),
+        last_name: pickLongest(aln, ln),
+        organization: pickLongest(acc.organization, cur.organization),
+        job_title: pickLongest(acc.job_title, cur.job_title),
+        phones: mergeArrayDedup(acc.phones, cur.phones),
+        emails: mergeArrayDedup(acc.emails, cur.emails),
+        websites: mergeArrayDedup(acc.websites, cur.websites),
+        address: mergeAddress(acc.address, cur.address),
+        source_url: acc.source_url || cur.source_url,
+      };
+    }, {} as CardItem);
+
+  if (mergeAll) return [mergeGroup(items)];
+
+  const out: CardItem[] = [];
+  for (const [, arr] of groups.entries()) out.push(mergeGroup(arr));
+  return out.sort((a, b) => norm(fullNameOf(a).raw).localeCompare(norm(fullNameOf(b).raw)));
+}
+
+/* ---------- VizChat-style pretty formatter (no raw JSON)
+ * Shows "Contact 1/2..." ONLY when >1 contacts after merge ----------
+ */
+function formatContactsViz(items: CardItem[] = [], meta: { totalImages?: number } = {}): string {
+  const { totalImages = 0 } = meta;
+  if (!items.length) return `No details found from ${totalImages} image${totalImages > 1 ? "s" : ""}.`;
+
+  const single = items.length === 1;
+
+  const blockFor = (it: CardItem, idx: number) => {
+    const L: string[] = [];
+    if (!single) {
+      L.push(`Contact ${idx + 1}`);
+      L.push("───────────────");
+    }
+
+    const fullName = `${it.first_name || ""} ${it.last_name || ""}`.trim();
+    if (fullName) L.push(`Name       : ${fullName}`);
+    if (it.organization) L.push(`Company    : ${it.organization}`);
+    if (it.job_title)    L.push(`Title      : ${it.job_title}`);
+
+    if (Array.isArray(it.phones) && it.phones.length)   L.push(`Phones     : ${it.phones.join(", ")}`);
+    if (Array.isArray(it.emails) && it.emails.length)   L.push(`Emails     : ${it.emails.join(", ")}`);
+    if (Array.isArray(it.websites) && it.websites.length) L.push(`Websites   : ${it.websites.join(", ")}`);
+
+    const a = it.address || {};
+    const addr = [a.street, a.city, a.state, a.postal_code, a.country].filter(Boolean).join(", ");
+    if (addr) L.push(`Address    : ${addr}`);
+
+    if (it.source_url && !single) L.push(`Source     : ${it.source_url}`);
+
+    return L.join("\n");
+  };
+
+  const header = `Extracted contacts from ${totalImages} image${totalImages > 1 ? "s" : ""}:`;
+  if (single) return [header, "", blockFor(items[0], 0)].join("\n");
+  return [header, "", ...items.map(blockFor)].join("\n");
+}
+
+/* ---------- pick display text (fallback) ---------- */
+const pickExtractorText = (r: any) => {
+  const whats = r?.whatsapp || r?.data?.whatsapp;
+  if (typeof whats === "string" && whats.trim()) return whats.trim();
+  const card = r?.card || r?.data?.card;
+  if (card && typeof card === "object") return JSON.stringify(card, null, 2);
+  const txt = r?.text || r?.answer || r?.data?.text || "";
+  return String(txt || "").trim();
+};
 
 export const ChatManager = () => {
   const { chatId } = useParams<{ chatId: string }>();
@@ -108,7 +306,7 @@ export const ChatManager = () => {
   const [documents, setDocuments] = useState<Doc[]>([]);
   const [selectedChat, setSelectedChat] = useState<ChatSession | null>(null);
 
-  // sync selection with sidebar highlight
+  // sidebar state (for highlight only)
   const [selectedDocId, setSelectedDocId] = useState<string | undefined>(undefined);
   const [selectedCombineDocs, setSelectedCombineDocs] = useState<string[]>([]);
 
@@ -121,8 +319,41 @@ export const ChatManager = () => {
   const [docsHydrated, setDocsHydrated] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  // NEW: persistent map for image-type docs to their server URLs
+  // persistent map for image-type docs to their server URLs
   const [imageDocUrlMap, setImageDocUrlMap] = useState<Record<string, string>>({});
+
+  // stable ref for selectedChat to avoid stale closures in async
+  const selectedChatRef = useRef<ChatSession | null>(null);
+  useEffect(() => {
+    selectedChatRef.current = selectedChat;
+  }, [selectedChat]);
+
+  /* ---- image-answer cache (same image => same answer forever) ---- */
+  const readImgAnsCache = (): Record<string, string> => {
+    if (!chatId) return {};
+    try {
+      return JSON.parse(localStorage.getItem(imgAnsCacheKeyFor(chatId)) || "{}");
+    } catch {
+      return {};
+    }
+  };
+  const writeImgAnsCache = (m: Record<string, string>) => {
+    if (!chatId) return;
+    localStorage.setItem(imgAnsCacheKeyFor(chatId), JSON.stringify(m));
+  };
+  const getCachedAnswer = (url?: string) => {
+    if (!url || !chatId) return undefined;
+    const m = readImgAnsCache();
+    return m[url];
+  };
+  const setCachedAnswer = (url?: string, text?: string) => {
+    if (!url || !chatId || !text) return;
+    const m = readImgAnsCache();
+    if (!m[url]) {
+      m[url] = text;
+      writeImgAnsCache(m);
+    }
+  };
 
   /* ---- hydrate sessions ---- */
   useEffect(() => {
@@ -139,7 +370,7 @@ export const ChatManager = () => {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(CHAT_STORAGE, JSON.stringify(chatSessions));
+    safeSaveSessions(chatSessions);
   }, [chatSessions]);
 
   /* ---- select chat & docs ---- */
@@ -159,7 +390,7 @@ export const ChatManager = () => {
         ? selectedChat
         : chatSessions.find((c) => c.id === chatId) || null;
 
-    setSelectedChat(chat);
+    setSelectedChat(chat || null);
 
     try {
       const saved = localStorage.getItem(docsKeyFor(chatId));
@@ -212,7 +443,10 @@ export const ChatManager = () => {
     // Images → save in chat uploads to get a persistent URL
     if (isImageName(file.name)) {
       const up = await chatUploadImages({ chatId: targetChatId, files: [file] });
-      const url = up?.attachments?.[0]?.url || "";
+      const url =
+        (up?.attachments?.[0]?.url as string) ||
+        (up?.image_urls?.[0] as string) ||
+        "";
       const docId = fallbackId; // our local id
       if (url) saveImageDocUrl(docId, url);
 
@@ -235,7 +469,7 @@ export const ChatManager = () => {
     const res = await uploadDocument(formData);
 
     return {
-      id: res.document_id || fallbackId,
+      id: (res as any)?.document_id || fallbackId,
       name: file.name,
       type: getDocType(file.name),
       size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
@@ -248,7 +482,8 @@ export const ChatManager = () => {
 
   const handleDocumentUpload = async (files: FileList): Promise<void> => {
     if (!chatId) {
-      toast({ title: "Error", description: "Chat ID is missing." });
+      const { toast: t } = useToast();
+      t({ title: "Error", description: "Chat ID is missing." });
       return;
     }
     setIsUploading(true);
@@ -258,7 +493,8 @@ export const ChatManager = () => {
         const doc = await uploadOneFile(file, chatId, i);
         uploaded.push(doc);
       } catch (error: any) {
-        toast({
+        const { toast: t } = useToast();
+        t({
           title: "Upload Failed",
           description: error?.message || `Error uploading ${file.name}`,
           variant: "destructive",
@@ -357,6 +593,7 @@ export const ChatManager = () => {
     setChatSessions((prev) => prev.filter((c) => c.id !== id));
     localStorage.removeItem(docsKeyFor(id));
     localStorage.removeItem(imgMapKeyFor(id));
+    localStorage.removeItem(imgAnsCacheKeyFor(id));
     if (selectedChat?.id === id) {
       setSelectedChat(null);
       setDocuments([]);
@@ -366,11 +603,11 @@ export const ChatManager = () => {
     }
   };
 
-  /* ---- send message (routing rules implemented) ---- */
+  /* ---- send message ---- */
   const handleSendMessage = async (
     text: string,
     documentId?: string,
-    _combineDocs?: string[],
+    combineDocs?: string[],
     images?: File[]
   ) => {
     if (!selectedChat || isAsking) return;
@@ -378,11 +615,11 @@ export const ChatManager = () => {
 
     const hasImages = Array.isArray(images) && images.length > 0;
 
-    // 1) push user message (temporary blob preview if any image)
-    const tmpBlob =
+    // ----- Push user message with ALL local thumbnails (multi-image) -----
+    const blobUrls: string[] =
       hasImages && typeof URL !== "undefined"
-        ? URL.createObjectURL(images![0])
-        : undefined;
+        ? images!.map((f) => URL.createObjectURL(f))
+        : [];
 
     const userMsgId = genId();
     const userMessage: Msg = {
@@ -390,7 +627,9 @@ export const ChatManager = () => {
       text,
       sender: "user",
       timestamp: new Date().toISOString(),
-      ...(tmpBlob ? { imageUrl: tmpBlob, imageAlt: "attachment" } : {}),
+      ...(blobUrls.length
+        ? { imageUrls: blobUrls, imageUrl: blobUrls[0], imageAlt: "attachment(s)" }
+        : {}),
     };
 
     const thinkingId = genId();
@@ -413,13 +652,32 @@ export const ChatManager = () => {
     );
     setSelectedChat(updatedChat);
 
+    // timeout fallback so "Thinking…" never gets stuck
+    const timeoutId = window.setTimeout(() => {
+      setChatSessions((prev) =>
+        prev.map((c) =>
+          c.id === updatedChat.id
+            ? {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === thinkingId
+                    ? { ...m, text: "Processing complete. (fallback)", status: "ok" }
+                    : m
+                ),
+              }
+            : c
+        )
+      );
+    }, 15000);
+
     const replaceThinking = (next: Partial<Msg>) => {
-      const finalMessages = updatedChat.messages.map((m) =>
+      window.clearTimeout(timeoutId);
+      const final = updatedChat.messages.map((m) =>
         m.id === thinkingId ? { ...m, ...next, status: next.status ?? "ok" } : m
       );
       const finalChat: ChatSession = {
         ...updatedChat,
-        messages: finalMessages,
+        messages: final,
         lastMessage: (next.text || updatedChat.lastMessage || "").slice(0, 100),
         messageCount: updatedChat.messageCount + 1,
       };
@@ -430,9 +688,9 @@ export const ChatManager = () => {
       updatedChat = finalChat;
     };
 
-    const replaceUserImageUrl = (url: string) => {
+    const patchUserImages = (urls: string[]) => {
       const msgs = updatedChat.messages.map((m) =>
-        m.id === userMsgId ? { ...m, imageUrl: url } : m
+        m.id === userMsgId ? { ...m, imageUrls: urls, imageUrl: urls[0] } : m
       );
       const finalChat = { ...updatedChat, messages: msgs };
       setChatSessions((prev) =>
@@ -443,111 +701,181 @@ export const ChatManager = () => {
     };
 
     try {
-      /** RULE 2: If question has image(s) → always image extraction (LLaVA). */
+      /** A) Vision / Image flow — now supports MULTIPLE images */
       if (hasImages) {
-        // persist to server for permanent URL
+        // 1) Upload all images (server should return attachments[] or image_urls[])
+        let serverUrls: string[] = [];
         try {
           const up = await chatUploadImages({
             chatId: selectedChat.id,
             text,
-            files: [images![0]],
+            files: images!, // <-- MULTIPLE files
           });
-          const serverUrl = up?.attachments?.[0]?.url;
-          if (serverUrl) replaceUserImageUrl(serverUrl);
+          const att = Array.isArray(up?.attachments) ? up.attachments : [];
+          const urlsA = att.map((a: any) => a?.url).filter(Boolean);
+          const urlsB = Array.isArray(up?.image_urls) ? up.image_urls : [];
+          serverUrls = (urlsA.length ? urlsA : urlsB).filter(Boolean);
+          if (serverUrls.length) patchUserImages(serverUrls);
         } catch {
-          // non-blocking
+          // best-effort; keep blob thumbnails if upload preview fails
         } finally {
-          if (tmpBlob) setTimeout(() => URL.revokeObjectURL(tmpBlob), 15000);
+          // clean local blob memory
+          if (blobUrls.length)
+            setTimeout(() => blobUrls.forEach((u) => URL.revokeObjectURL(u)), 15000);
         }
 
-        // Vision extraction (multi-file capable)
-        const res: any = await askImage({ images, prompt: text });
-        const data = res?.data ?? res;
-        let out =
-          (typeof data?.whatsapp === "string" && data.whatsapp.trim()) ||
-          (data?.text ? String(data.text) : "");
-        if (!out && data?.json) {
-          try {
-            out = "```json\n" + JSON.stringify(data.json, null, 2) + "\n```";
-          } catch {
-            out = String(data.json);
+        // 2) Try cache per image (if we have server URLs)
+        const allItems: CardItem[] = [];
+        const perImageBlocksFromCache: string[] = [];
+        const needsExtraction: number[] = [];
+
+        if (serverUrls.length === images!.length) {
+          serverUrls.forEach((u, idx) => {
+            const cached = getCachedAnswer(u);
+            if (cached) perImageBlocksFromCache.push(cached);
+            else needsExtraction.push(idx);
+          });
+        } else {
+          // If we don't have corresponding URLs, just extract all
+          needsExtraction.push(...images!.map((_, i) => i));
+        }
+
+        // 3) Extract for images that are not cached
+        for (const idx of needsExtraction) {
+          const file = images![idx];
+          const r = await extractBusinessCard({
+            file,
+            returnVcard: true,
+            prompt: buildCardPrompt(text),
+          });
+          const items = normalizeToItems(r);
+          if (items.length) {
+            allItems.push(...items);
+            // store per-image formatted text in cache (if server url is known)
+            const u = serverUrls[idx];
+            if (u) {
+              const mergedOne = smartMergeContacts(items);
+              const perBlock = formatContactsViz(mergedOne, { totalImages: 1 });
+              setCachedAnswer(u, perBlock);
+              perImageBlocksFromCache.push(perBlock);
+            }
+          } else {
+            // fallback: whatever text extractor returned
+            const fallbackTxt = pickExtractorText(r);
+            if (fallbackTxt) perImageBlocksFromCache.push(fallbackTxt);
           }
         }
-        replaceThinking({
-          text: out || "No text detected in image.",
-          sender: "ai",
-        });
+
+        // 4) Build final VizChat-style message (merge to avoid duplicate Contact 1/2)
+        let finalText = "";
+        if (allItems.length) {
+          const merged = smartMergeContacts(allItems);
+          finalText = formatContactsViz(merged, {
+            totalImages: serverUrls.length || images!.length,
+          });
+        } else if (perImageBlocksFromCache.length) {
+          finalText =
+            `Extracted contacts from ${serverUrls.length || images!.length} image` +
+            `${(serverUrls.length || images!.length) > 1 ? "s" : ""}:\n\n` +
+            perImageBlocksFromCache.join("\n\n");
+        } else {
+          finalText = "No recognizable details were found.";
+        }
+
+        replaceThinking({ text: finalText, sender: "ai" });
         return;
       }
 
-      /** RULE 1: No images → answer strictly from the selected file (if any). */
-      const activeDoc = documents.find((d) => d.documentId === (documentId || selectedDocId));
+      /** B) Docs QA route — send vectorstore doc IDs (no change) */
+      const selectedIds = Array.isArray(combineDocs) ? combineDocs.filter(Boolean) : [];
 
-      if (activeDoc) {
-        // If selected file is an IMAGE → route through LLaVA by fetching it and sending as File
-        if (isImageName(activeDoc.name)) {
-          const url = imageDocUrlMap[activeDoc.documentId];
-          if (url) {
-            try {
-              const file = await urlToFile(url, activeDoc.name);
-              const res: any = await askImage({ images: [file], prompt: text });
-              const data = res?.data ?? res;
-              const out =
-                (typeof data?.whatsapp === "string" && data.whatsapp.trim()) ||
-                data?.answer ||
-                data?.text ||
-                "No text detected in image.";
-              replaceThinking({ text: out, sender: "ai" });
-              return;
-            } catch (e: any) {
-              // fall back to normal doc-QA if conversion fails
-              console.warn("Image fetch→File failed, falling back to doc-QA:", e?.message);
-            }
-          }
-          // if no URL saved, fall through to normal doc-QA
-        }
+      if (selectedIds.length > 0) {
+        const compareHint =
+          "\n\n---\nYou are an AI analyst comparing multiple documents. " +
+          "Answer the user's question, then produce a markdown summary with sections:\n" +
+          "1) Executive Summary (3–6 bullet points)\n" +
+          "2) Comparison Table with columns: Criteria | Doc Name | Evidence (quote or paraphrase) | Page/Section\n" +
+          "3) Key Differences / Conflicts\n" +
+          "4) Gaps / Missing Info\n" +
+          "Cite document names exactly as uploaded. Keep it concise.";
+        const questionWithHint = text + compareHint;
 
-        // PDF/Doc/Excel → LLama doc-QA confined to that document
-        const qa = await askQuestion({
+        const qa = await askDocs({
           chatId: selectedChat.id,
-          documentId: activeDoc.documentId,
-          combineDocs: [],
-          question: text,
+          question: questionWithHint,
+          docIds: selectedIds,
         });
         replaceThinking({
           text: qa?.answer || "❌ No answer returned.",
           sender: "ai",
-          ...(qa?.plotImageUrl
-            ? { imageUrl: qa.plotImageUrl, imageAlt: "Generated image" }
-            : {}),
+          ...(qa?.plotImageUrl ? { imageUrl: qa.plotImageUrl, imageAlt: "Generated image" } : {}),
         });
         return;
       }
 
-      // No file selected → general doc-QA
-      const qa = await askQuestion({
+      // SINGLE-FILE (by ID)
+      const activeDoc =
+        documents.find((d) => d.documentId === (documentId || selectedDocId)) || null;
+
+      if (activeDoc) {
+        // If the active doc is an image we uploaded earlier, run the same extractor
+        if (isImageName(activeDoc.name)) {
+          const url = imageDocUrlMap[activeDoc.documentId];
+          if (url) {
+            const cached = getCachedAnswer(url);
+            if (cached) {
+              replaceThinking({ text: cached, sender: "ai" });
+              return;
+            }
+            try {
+              const file = await urlToFile(url, activeDoc.name);
+              const r = await extractBusinessCard({
+                file,
+                returnVcard: true,
+                prompt: buildCardPrompt(text),
+              });
+              const items = normalizeToItems(r);
+              const merged = smartMergeContacts(items);
+              const out = merged.length
+                ? formatContactsViz(merged, { totalImages: 1 })
+                : pickExtractorText(r) || "No recognizable details were found.";
+              replaceThinking({ text: out, sender: "ai" });
+              if (out) setCachedAnswer(url, out);
+              return;
+            } catch (e: any) {
+              console.warn("Image fetch→File failed, falling back to doc-QA:", e?.message);
+            }
+          }
+        }
+
+        const qa = await askDocs({
+          chatId: selectedChat.id,
+          question: text,
+          documentId: activeDoc.documentId,
+        });
+        replaceThinking({
+          text: qa?.answer || "❌ No answer returned.",
+          sender: "ai",
+          ...(qa?.plotImageUrl ? { imageUrl: qa.plotImageUrl, imageAlt: "Generated image" } : {}),
+        });
+        return;
+      }
+
+      // No file selected → general QA
+      const qa = await askDocs({
         chatId: selectedChat.id,
-        documentId: undefined,
-        combineDocs: [],
         question: text,
       });
       replaceThinking({
         text: qa?.answer || "❌ No answer returned.",
         sender: "ai",
-        ...(qa?.plotImageUrl
-          ? { imageUrl: qa.plotImageUrl, imageAlt: "Generated image" }
-          : {}),
+        ...(qa?.plotImageUrl ? { imageUrl: qa.plotImageUrl, imageAlt: "Generated image" } : {}),
       });
     } catch (err: any) {
       replaceThinking({
         text: `❌ Backend Error: ${err?.message || "Request failed."}`,
         sender: "ai",
         status: "error",
-      });
-      toast({
-        title: "Error",
-        description: err?.message || "Failed to get response from backend.",
-        variant: "destructive",
       });
     } finally {
       setIsAsking(false);
@@ -587,7 +915,7 @@ export const ChatManager = () => {
             setSelectedCombineDocs={setSelectedCombineDocs}
           />
 
-          {/* RIGHT: chat interface (viz-style composer) */}
+          {/* RIGHT: chat interface */}
           <div className="flex-1 flex flex-col">
             <div className="bg-gray-100 border-b p-4 flex items-center justify-between">
               <button
@@ -671,7 +999,8 @@ export const ChatManager = () => {
             <input
               type="file"
               multiple
-              accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp,.gif"
+              // Docs/Images only for this chat
+              accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif"
               onChange={(e) =>
                 setUploadedFiles(e.target.files ? Array.from(e.target.files) : [])
               }

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import io, os, re, base64, difflib
-from typing import Dict, Tuple, Optional, List
+from typing import Dict, Tuple, Optional, List, Union
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,10 @@ except Exception:
 _FIRST_N_RE = re.compile(r"\b(first|top)\s+(\d+)\s+rows?\b", re.I)
 _LAST_N_RE  = re.compile(r"\b(last|bottom)\s+(\d+)\s+rows?\b", re.I)
 
+# NEW: top/bottom N by category (e.g., "top 5", "bottom 10")
+_TOP_ANY_RE    = re.compile(r"\b(top|highest)\s+(\d+)\b", re.I)
+_BOTTOM_ANY_RE = re.compile(r"\b(bottom|lowest)\s+(\d+)\b", re.I)
+
 _PIE_RE     = re.compile(r"\b(pie|donut)\b", re.I)
 _BAR_RE     = re.compile(r"\b(bar|column)\b", re.I)
 _LINE_RE    = re.compile(r"\b(line|trend)\b", re.I)
@@ -31,6 +35,11 @@ _BY_RE       = re.compile(r"\bby\s+([a-zA-Z0-9 \-_]+)", re.I)                 # 
 _WISE_RE     = re.compile(r"\b([a-zA-Z0-9 \-_]+?)\s*(?:-|\s)?wise\b", re.I)  # "state wise"
 _FOR_BY_RE   = re.compile(r"\bfor\s+([a-zA-Z0-9 \-_]+?)\s+by\s+([a-zA-Z0-9 \-_]+)\b", re.I)  # (legacy)
 _PER_RE      = re.compile(r"\bper\s+([a-zA-Z0-9 \-_]+)\b", re.I)             # "sales per state"
+
+# NEW: explicit filter forms – "where Region = East", "for Category: Technology"
+_FILTER_EXPR_RE = re.compile(
+    r"\b(?:where|for)\s+([a-zA-Z0-9 _\-]+?)\s*(?:=|:|is)\s*([a-zA-Z0-9 _\-]+)\b", re.I
+)
 
 # time parsing
 _YEAR_RE = re.compile(r"\b(19|20)\d{2}\b")
@@ -74,6 +83,17 @@ def _parse_subset_slice(question: str, nrows: int) -> Tuple[int, str]:
     if m:
         return max(1, min(int(m.group(2)), nrows)), "last"
     return nrows, "all"
+
+# NEW: parse generic "top/bottom N"
+def _parse_top_bottom(question: str) -> Tuple[Optional[int], Optional[str]]:
+    q = _norm(question)
+    m = _TOP_ANY_RE.search(q)
+    if m:
+        return int(m.group(2)), "top"
+    m = _BOTTOM_ANY_RE.search(q)
+    if m:
+        return int(m.group(2)), "bottom"
+    return None, None
 
 def _is_count_based(question: str) -> bool:
     q = _norm(question)
@@ -278,23 +298,37 @@ def _resolve_category_value(values: pd.Series, target_raw: str) -> Optional[str]
 def _apply_label_value_filter(df: pd.DataFrame, question: str) -> Tuple[pd.DataFrame, str, Optional[str]]:
     """
     If question says 'by <label> <value>' e.g., 'by region East',
-    filter df to that label=value. Returns (df_filtered, note, label_used).
+    or 'where/for <label> = <value>', filter df to that label=value. Returns (df_filtered, note, label_used).
     """
     q = _norm(question)
+    # by <label/value> form
     m = _BY_RE.search(q)
-    if not m:
-        return df, "", None
-    want = m.group(1).strip()
-    lbl, raw_val = _split_label_value(want, list(df.columns))
-    if lbl is None or not raw_val:
-        return df, "", lbl
-    resolved = _resolve_category_value(df[lbl], raw_val)
-    if resolved is None:
-        return df, f"{lbl}: {raw_val} (no rows matched)", lbl
-    mask = _norm_series(df[lbl]) == _norm(resolved)
-    if not mask.any():
-        return df, f"{lbl}: {resolved} (no rows matched)", lbl
-    return df.loc[mask].copy(), f"{lbl}: {resolved}", lbl
+    if m:
+        want = m.group(1).strip()
+        lbl, raw_val = _split_label_value(want, list(df.columns))
+        if lbl is not None and raw_val:
+            resolved = _resolve_category_value(df[lbl], raw_val)
+            if resolved is not None:
+                mask = _norm_series(df[lbl]) == _norm(resolved)
+                if mask.any():
+                    return df.loc[mask].copy(), f"{lbl}: {resolved}", lbl
+                return df, f"{lbl}: {resolved} (no rows matched)", lbl
+
+    # where/for label = value
+    m2 = _FILTER_EXPR_RE.search(q)
+    if m2:
+        want_label = m2.group(1).strip()
+        want_value = m2.group(2).strip()
+        col = _match_col(list(df.columns), [want_label])
+        if col is not None and want_value:
+            resolved = _resolve_category_value(df[col], want_value)
+            if resolved is not None:
+                mask = _norm_series(df[col]) == _norm(resolved)
+                if mask.any():
+                    return df.loc[mask].copy(), f"{col}: {resolved}", col
+                return df, f"{col}: {resolved} (no rows matched)", col
+
+    return df, "", None
 
 def _norm_series(s: pd.Series) -> pd.Series:
     return s.astype(str).str.lower().str.replace("_"," ", regex=False).str.replace("-"," ", regex=False).str.strip()
@@ -417,8 +451,24 @@ def _add_subtitle(fig: go.Figure, subtitle: str):
 
 # ---------- main ----------
 class PlotGenerator:
-    def __init__(self, df: pd.DataFrame):
-        self.df = df.copy()
+    """
+    You can pass a single DataFrame OR a list of DataFrames (combined mode).
+    In combined mode we vertically append rows (outer columns union).
+    """
+    def __init__(self, df_or_dfs: Union[pd.DataFrame, List[pd.DataFrame]]):
+        if isinstance(df_or_dfs, list):
+            # combine by row; align different schemas by outer join
+            aligned = []
+            all_cols = set()
+            for d in df_or_dfs:
+                all_cols.update(d.columns.tolist())
+            all_cols = list(all_cols)
+            for d in df_or_dfs:
+                aligned.append(d.reindex(columns=all_cols))
+            self.df = pd.concat(aligned, ignore_index=True)
+        else:
+            self.df = df_or_dfs.copy()
+
         _ensure_price_column_inplace(self.df)  # prepare price column upfront if possible
 
     def generate_plot_and_info(self, question: str) -> Tuple[str, Dict]:
@@ -482,7 +532,7 @@ class PlotGenerator:
         metric = metrics[0] if metrics else None
 
         # pure count
-        if stat == "count" or (metric is None and any(w in _norm(q) for w in ["count", "how many", "number of"])):
+        if stat == "count" or (metric is None and any(w in _norm(q) for w in ["count", "how many", "number of"])):  # noqa: E501
             value = int(df.shape[0])
             title = "Count" + (f" — {filter_note}" if filter_note else "") + (f" — {time_note}" if time_note else "")
             return title.strip(" —"), float(value), {
@@ -526,7 +576,7 @@ class PlotGenerator:
 
     # ---------- PIE / DONUT ----------
     def _build_pie_or_donut(self, df: pd.DataFrame, question: str, which: str, take: int, cur: str, time_note: str):
-        # label + optional filter from "by <label> <value>"
+        # label + optional filter from "by <label> <value>" or where/for
         df, label_col = _pick_label_column_resolved(df, question)
         df, filter_note, filter_label = _apply_label_value_filter(df, question)
         if filter_label:
@@ -534,11 +584,20 @@ class PlotGenerator:
         subtitle = _dataset_context_line(df, cur, which, take, " • ".join([x for x in [time_note, filter_note] if x]))
         count_mode = _is_count_based(question)
 
+        # top/bottom N support
+        n_take, tb_flag = _parse_top_bottom(question)
+
         table_df = _summary_by_label(df, label_col)
         sort_key = "Sales" if "Sales" in table_df.columns else "Count"
         table_df = table_df.sort_values(by=sort_key, ascending=False)
-        labels = table_df[label_col].astype(str).tolist()
 
+        if n_take:
+            if tb_flag == "top":
+                table_df = table_df.head(n_take)
+            elif tb_flag == "bottom":
+                table_df = table_df.tail(n_take)
+
+        labels = table_df[label_col].astype(str).tolist()
         colors = (_DARK_COLORS * ((len(labels)//len(_DARK_COLORS))+1))[:len(labels)]
         color_map = {lab: col for lab, col in zip(labels, colors)}
 
@@ -603,6 +662,10 @@ class PlotGenerator:
 
         sums = df.groupby(label_col, dropna=False)[metric].sum().sort_values(ascending=False)
         order = sums.index.astype(str).tolist()
+        if n_take:
+            order = (order[:n_take] if tb_flag == "top" else order[-n_take:])
+            sums = sums.loc[[s for s in sums.index if str(s) in set(order)]]
+
         tdf = table_df.set_index(label_col).reindex(order).reset_index()
 
         custom = np.column_stack([
@@ -646,6 +709,7 @@ class PlotGenerator:
             label_col = filter_label
         subtitle = _dataset_context_line(df, cur, which, take, " • ".join([x for x in [time_note, filter_note] if x]))
 
+        n_take, tb_flag = _parse_top_bottom(q)  # top/bottom N
         metrics = _pick_value_columns(df, q, want_two=True)
         forced_stat = _stat_from_question(q)
         table_df_raw = _summary_by_label(df, label_col)
@@ -662,6 +726,9 @@ class PlotGenerator:
             g_avg = df.groupby(label_col, dropna=False)[price_col].mean()
             g = pd.DataFrame({label_col: g_sum.index, sales_col: g_sum.values, price_col: g_avg.reindex(g_sum.index).values})
             g = g.sort_values(by=sales_col, ascending=False).reset_index(drop=True)
+
+            if n_take:
+                g = g.head(n_take) if tb_flag == "top" else g.tail(n_take)
 
             fig = make_subplots(rows=1, cols=2, specs=[[{"secondary_y": True}, {"type":"table"}]],
                                 column_widths=[0.66,0.34], horizontal_spacing=0.03)
@@ -706,11 +773,15 @@ class PlotGenerator:
                             column_widths=[0.66,0.34], horizontal_spacing=0.03)
         if not metrics:
             grouped = table_df
+            if n_take:
+                grouped = grouped.head(n_take) if tb_flag == "top" else grouped.tail(n_take)
             fig.add_trace(go.Bar(x=grouped[label_col], y=grouped["Count"], name="Count", marker_color=_DARK_COLORS[0]), 1, 1)
             title = f"Count by {label_col}" + (f" — {which} {take} rows" if which!="all" else "")
         else:
             agg_map: Dict[str, str] = {m: (forced_stat or _default_agg_for_metric(m)) for m in metrics}
-            grouped = df.groupby(label_col, dropna=False).agg(agg_map).reset_index().sort_values(by=metrics[0], ascending=False).head(20)
+            grouped = df.groupby(label_col, dropna=False).agg(agg_map).reset_index().sort_values(by=metrics[0], ascending=False)
+            if n_take:
+                grouped = grouped.head(n_take) if tb_flag == "top" else grouped.tail(n_take)
             for i, m in enumerate(metrics):
                 disp = m if agg_map[m]=="sum" else f"{agg_map[m].title()} {m}"
                 fig.add_trace(go.Bar(

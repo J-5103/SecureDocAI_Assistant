@@ -1,3 +1,4 @@
+// src/components/VizChatInterface.tsx
 import React, {
   useState,
   useRef,
@@ -25,14 +26,14 @@ interface Message {
   sender: "user" | "ai";
   timestamp: string;
   imageUrl?: string;
-  /** Some API paths return plotImageUrl instead of imageUrl */
   plotImageUrl?: string;
+  imageUrls?: string[];
   imageAlt?: string;
 }
 
 interface VizDocument {
-  documentId: string;
-  name: string;
+  documentId: string; // internal id (not used for backend plotting)
+  name: string;       // actual filename with extension (what backend expects)
 }
 
 interface VizChatInterfaceProps {
@@ -47,11 +48,12 @@ interface VizChatInterfaceProps {
   isLoading?: boolean;
 }
 
-// stable key helper to avoid duplicates when merging lists
-const mkKey = (m: Message) =>
-  m.id || `${m.sender}|${m.timestamp}|${(m.text || "").slice(0, 80)}`;
+// plot-intent detector (same keywords backend uses)
+const PLOT_KEYWORDS = /\b(plot|graph|chart|bar|line|scatter|hist(?:ogram)?|pie|box|trend|first\s+\d+\s+rows?|last\s+\d+\s+rows?)\b/i;
 
-/* --------------------- helpers --------------------- */
+const mkKey = (m: Message) =>
+  m.id || `${m.sender}|${(m.text || "").slice(0, 80)}|${m.timestamp}`;
+
 const fileToDataUrl = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -59,6 +61,12 @@ const fileToDataUrl = (file: File): Promise<string> =>
     r.onerror = reject;
     r.readAsDataURL(file);
   });
+
+const isThinkingMsg = (m?: Message) => {
+  if (!m) return false;
+  const lettersOnly = (m.text || "").trim().toLowerCase().replace(/[^a-z]/g, "");
+  return lettersOnly === "thinking";
+};
 
 export const VizChatInterface = ({
   messages = [],
@@ -71,27 +79,33 @@ export const VizChatInterface = ({
   const [isCombineMode, setIsCombineMode] = useState(false);
   const [combineDialogOpen, setCombineDialogOpen] = useState(false);
   const [selectedCombineDocs, setSelectedCombineDocs] = useState<string[]>([]);
+  // NEW: let user force plot even if they didn’t type the word “plot”
+  const [forcePlot, setForcePlot] = useState<boolean>(true);
 
   // local attachments (images + PDFs)
   const [images, setImages] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]); // data URLs now
+  const [previews, setPreviews] = useState<string[]>([]);
   const [pdfNames, setPdfNames] = useState<string[]>([]);
   const imgInputRef = useRef<HTMLInputElement>(null);
 
-  // scrollable list container + sentinel
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
 
   const fileDocuments = documents;
 
-  /* --------------------- ALWAYS-SHOW WELCOME + MERGE --------------------- */
+  // id → name map (backend wants names)
+  const nameById = useMemo(() => {
+    const mp = new Map<string, string>();
+    (fileDocuments || []).forEach((d) => mp.set(d.documentId, d.name));
+    return mp;
+  }, [fileDocuments]);
+
   const welcomeText = useMemo(() => {
     if (!fileDocuments.length) return "Hello! I'm ready to help. What would you like to know?";
     const names = fileDocuments.map((d) => `"${d.name}"`).join(", ");
-    return `Hello! I'm ready to help you analyze ${names}. What would you like to know?`;
+    return `Hello! I'm ready to help you analyze ${names}. What would you like to see?`;
   }, [fileDocuments]);
 
   const welcomeMsg: Message = useMemo(
@@ -104,73 +118,17 @@ export const VizChatInterface = ({
     [welcomeText]
   );
 
-  // local buffer keeps welcome + optimistic user messages
-  const [localMsgs, setLocalMsgs] = useState<Message[]>([welcomeMsg]);
-
-  // persist local messages per selected file so the user's question doesn't vanish
-  const storageKey = useMemo(() => `vizLocal:${selectedDocId || "default"}`, [selectedDocId]);
-
-  // load from storage when selected file (context) changes
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(storageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length) {
-          setLocalMsgs(parsed);
-          return;
-        }
-      }
-    } catch {}
-    setLocalMsgs([welcomeMsg]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
-
-  // save local buffer whenever it changes
-  useEffect(() => {
-    try {
-      sessionStorage.setItem(storageKey, JSON.stringify(localMsgs));
-    } catch {}
-  }, [storageKey, localMsgs]);
-
-  // merge: keep welcome at top, then local, then server messages — de-duplicated
-  const mergedMessages = useMemo(() => {
+  const displayMessages = useMemo(() => {
+    const out: Message[] = [welcomeMsg, ...messages];
     const seen = new Set<string>();
-    const base = [welcomeMsg, ...localMsgs.filter((m) => mkKey(m) !== "welcome")];
-    const out: Message[] = [];
-    for (const m of [...base, ...messages]) {
+    return out.filter((m) => {
       const k = mkKey(m);
-      if (!seen.has(k)) {
-        seen.add(k);
-        out.push(m);
-      }
-    }
-    return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, welcomeMsg, localMsgs]);
-
-  // refresh the welcome when docs change (keeps it visible/updated)
-  useEffect(() => {
-    setLocalMsgs((prev) => {
-      const others = prev.filter((m) => mkKey(m) !== "welcome");
-      return [welcomeMsg, ...others];
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
     });
-  }, [welcomeMsg]);
+  }, [messages, welcomeMsg]);
 
-  /* --------------------- names / chips --------------------- */
-  const nameById = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const d of fileDocuments) m.set(d.documentId, d.name);
-    return m;
-  }, [fileDocuments]);
-
-  const chipNames = useMemo(() => {
-    if (isCombineMode) return selectedCombineDocs.map((id) => nameById.get(id) || id);
-    if (selectedDocId) return [nameById.get(selectedDocId) || selectedDocId];
-    return [];
-  }, [isCombineMode, selectedCombineDocs, selectedDocId, nameById]);
-
-  /* --------------------- Sticky bottom helpers --------------------- */
   const isNearBottom = useCallback((px = 120) => {
     const el = listRef.current;
     if (!el) return false;
@@ -184,7 +142,6 @@ export const VizChatInterface = ({
     bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "end" });
   }, []);
 
-  // initial jump to bottom on mount/refresh
   useLayoutEffect(() => {
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
@@ -196,12 +153,10 @@ export const VizChatInterface = ({
     );
   }, [scrollToBottom]);
 
-  // keep pinned when new messages append (user/ai)
   useEffect(() => {
     if (isNearBottom()) scrollToBottom(true);
-  }, [mergedMessages.length, isLoading, isNearBottom, scrollToBottom]);
+  }, [displayMessages.length, isLoading, isNearBottom, scrollToBottom]);
 
-  // stay pinned on DOM growth (images/markdown)
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
@@ -229,7 +184,7 @@ export const VizChatInterface = ({
     };
   }, [isNearBottom, scrollToBottom]);
 
-  // ensure a valid selected doc WHEN documents change (avoids loops)
+  // Ensure a valid selected doc on docs change
   useEffect(() => {
     if (!fileDocuments.length) {
       setSelectedDocId("");
@@ -242,16 +197,15 @@ export const VizChatInterface = ({
       setSelectedDocId(fileDocuments[0].documentId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileDocuments]); // intentionally only when documents change
+  }, [fileDocuments]);
 
-  /* --------------------- attachment helpers --------------------- */
+  // Attachments
   const looksLikeImage = useCallback(
     (f: File) =>
       (f.type && f.type.startsWith("image/")) ||
       /\.(png|jpe?g|webp|gif|bmp|tiff)$/i.test(f.name || ""),
     []
   );
-
   const looksLikePdf = useCallback(
     (f: File) =>
       (f.type && f.type.toLowerCase() === "application/pdf") || /\.pdf$/i.test(f.name || ""),
@@ -271,13 +225,12 @@ export const VizChatInterface = ({
           toSend.push(f);
           imgFiles.push(f);
         } else if (looksLikePdf(f)) {
-          toSend.push(f); // still send to backend (first page → PNG)
+          toSend.push(f);
           newPdfNames.push(f.name);
         }
       }
       if (toSend.length === 0) return;
 
-      // build data URLs for previews (never revoked, so they don't break)
       const dataUrls = await Promise.all(imgFiles.map(fileToDataUrl));
 
       setImages((p) => [...p, ...toSend]);
@@ -297,7 +250,6 @@ export const VizChatInterface = ({
         copy.splice(idx, 1);
         return copy;
       });
-      // remove the corresponding *image* file (not PDFs)
       setImages((prev) => {
         const imgIndexes = prev
           .map((f, i) => ({ i, f }))
@@ -339,85 +291,7 @@ export const VizChatInterface = ({
     if (imgInputRef.current) imgInputRef.current.value = "";
   }, []);
 
-  /* --------------------- Handlers --------------------- */
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      const trimmed = inputText.trim();
-      // allow sending if there's text OR attachments
-      if ((!trimmed && images.length === 0) || isLoading) return;
-
-      // optimistic echo: show the user's question immediately
-      if (trimmed) {
-        const optimistic: Message = {
-          id: `local-${Date.now()}`,
-          text: trimmed,
-          sender: "user",
-          timestamp: new Date().toISOString(),
-        };
-        setLocalMsgs((prev) => [...prev, optimistic]);
-      }
-
-      if (isNearBottom()) {
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() => {
-            scrollToBottom(true);
-            setTimeout(() => scrollToBottom(true), 0);
-          })
-        );
-      }
-
-      try {
-        if (isCombineMode && selectedCombineDocs.length > 0) {
-          await onSendMessage(trimmed, null, selectedCombineDocs, images);
-        } else if (!isCombineMode && selectedDocId) {
-          await onSendMessage(trimmed, selectedDocId, undefined, images);
-        } else if (images.length > 0) {
-          // allow image/PDF-only ask without forcing a file selection
-          await onSendMessage(trimmed, null, undefined, images);
-        } else {
-          return;
-        }
-      } finally {
-        // ALWAYS clear the composer after submit
-        setInputText("");
-        clearImages();
-        if (textareaRef.current) textareaRef.current.style.height = "auto";
-        requestAnimationFrame(() => setTimeout(() => scrollToBottom(true), 0));
-      }
-    },
-    [
-      inputText,
-      images,
-      isLoading,
-      isCombineMode,
-      selectedCombineDocs,
-      selectedDocId,
-      onSendMessage,
-      isNearBottom,
-      scrollToBottom,
-      clearImages,
-    ]
-  );
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (composingRef.current) return;
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        void handleSubmit(e as unknown as React.FormEvent);
-      }
-    },
-    [handleSubmit]
-  );
-
-  const handleTextareaChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputText(e.target.value);
-    const ta = e.target;
-    ta.style.height = "auto";
-    ta.style.height = Math.min(ta.scrollHeight, 120) + "px";
-  }, []);
-
+  // Dropdown change -> either single-file or open combine picker
   const handleDropdownChange = useCallback(
     (value: string) => {
       if (value === "combine") setCombineDialogOpen(true);
@@ -431,7 +305,6 @@ export const VizChatInterface = ({
     [isNearBottom, scrollToBottom]
   );
 
-  // shadcn Checkbox emits boolean | "indeterminate"
   const toggleCombineDoc = useCallback(
     (docId: string, checked?: boolean | "indeterminate") => {
       const willSelect =
@@ -465,40 +338,114 @@ export const VizChatInterface = ({
     setIsCombineMode(false);
     setSelectedCombineDocs([]);
     setSelectedDocId(fileDocuments[0]?.documentId || "");
-    // reset local bubbles to just the welcome and clear persisted cache for this context
-    try {
-      sessionStorage.removeItem(storageKey);
-    } catch {}
-    setLocalMsgs([welcomeMsg]);
     clearImages();
     if (isNearBottom()) requestAnimationFrame(() => scrollToBottom(true));
-  }, [fileDocuments, clearImages, isNearBottom, scrollToBottom, storageKey, welcomeMsg]);
+  }, [fileDocuments, clearImages, isNearBottom, scrollToBottom]);
 
-  // allow send if text OR attachments present; if no attachments, require context
+  // Submit -> ensure backend receives filenames for plotting
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      const raw = inputText.trim();
+
+      // Build final question (force plot if toggle is on and user didn't type plot-words)
+      const question =
+        forcePlot && raw && !PLOT_KEYWORDS.test(raw) ? `plot ${raw}` : raw;
+
+      // Nothing to send?
+      if ((!question && images.length === 0) || isLoading) return;
+
+      // Resolve filenames from selected ids
+      const singleFileName = selectedDocId ? nameById.get(selectedDocId) || selectedDocId : "";
+      const combinedNames =
+        selectedCombineDocs.length > 0 ? selectedCombineDocs.map((id) => nameById.get(id) || id) : [];
+
+      try {
+        if (isCombineMode && combinedNames.length > 0) {
+          await onSendMessage(question, null, combinedNames, images);
+        } else if (!isCombineMode && singleFileName) {
+          await onSendMessage(question, singleFileName, undefined, images);
+        } else if (images.length > 0) {
+          await onSendMessage(question, null, undefined, images);
+        } else {
+          return;
+        }
+      } finally {
+        setInputText("");
+        clearImages();
+        if (textareaRef.current) textareaRef.current.style.height = "auto";
+        requestAnimationFrame(() => setTimeout(() => scrollToBottom(true), 0));
+      }
+    },
+    [
+      inputText,
+      images,
+      isLoading,
+      isCombineMode,
+      selectedCombineDocs,
+      selectedDocId,
+      onSendMessage,
+      clearImages,
+      scrollToBottom,
+      nameById,
+      forcePlot,
+    ]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (composingRef.current) return;
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        void handleSubmit(e as unknown as React.FormEvent);
+      }
+    },
+    [handleSubmit]
+  );
+
+  const handleTextareaChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputText(e.target.value);
+    const ta = e.target;
+    ta.style.height = "auto";
+    ta.style.height = Math.min(ta.scrollHeight, 120) + "px";
+  }, []);
+
   const canSend =
     (inputText.trim() !== "" || images.length > 0) &&
     (images.length > 0 || (isCombineMode ? selectedCombineDocs.length > 0 : !!selectedDocId)) &&
     !isLoading;
 
-  /* --------------------- UI --------------------- */
+  const lastDisplayed = displayMessages[displayMessages.length - 1];
+  const showLoadingThinking =
+    isLoading && !(lastDisplayed && lastDisplayed.sender === "ai" && isThinkingMsg(lastDisplayed));
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* messages list */}
       <div ref={listRef} className="chat-body flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
-        {mergedMessages.map((message) => {
+        {displayMessages.map((message) => {
           const isAI = message.sender === "ai";
           const isGreeting = message.id === "welcome";
-          // unified width for visual alignment of Q&A
           const bubbleMaxWidth = "max-w-[75%]";
-          const displayImageUrl = message.imageUrl || message.plotImageUrl;
+
+          const imagesToShow = Array.from(
+            new Set(
+              [
+                ...(Array.isArray(message.imageUrls) ? message.imageUrls.filter(Boolean) : []),
+                ...(message.imageUrl ? [message.imageUrl] : []),
+                ...(message.plotImageUrl ? [message.plotImageUrl] : []),
+              ].filter(Boolean)
+            )
+          );
 
           return (
             <div
               key={mkKey(message)}
               className={`flex items-start space-x-3 animate-slide-up ${
-                message.sender === "user" ? "flex-row-reverse space-x-reverse" : ""
+                isAI ? "" : "flex-row-reverse space-x-reverse"
               }`}
             >
+              {/* avatar */}
               <div
                 className={`flex items-center justify-center w-8 h-8 rounded-full ${
                   isAI ? "bg-gradient-accent shadow-glow" : "bg-gradient-primary"
@@ -512,6 +459,7 @@ export const VizChatInterface = ({
                 )}
               </div>
 
+              {/* bubble */}
               <div
                 className={`${bubbleMaxWidth} p-4 rounded-lg shadow-soft break-words ${
                   isAI
@@ -521,28 +469,33 @@ export const VizChatInterface = ({
                     : "bg-gradient-primary text-primary-foreground"
                 }`}
               >
-                {!!displayImageUrl && (
-                  <a
-                    href={displayImageUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block mb-3"
-                    title="Open full size"
+                {!!imagesToShow.length && (
+                  <div
+                    className={`grid gap-2 mb-3 ${
+                      isAI
+                        ? "grid-cols-1"
+                        : imagesToShow.length > 1
+                        ? "grid-cols-2"
+                        : "grid-cols-1"
+                    }`}
                   >
-                    <img
-                      src={displayImageUrl}
-                      alt={message.imageAlt || "attachment"}
-                      loading="lazy"
-                      className={
-                        isAI
-                          ? "rounded-lg border border-border w-full max-w-[1100px] h-auto object-contain bg-white"
-                          : "rounded-lg border border-border max-w-[220px] sm:max-w-[320px] max-h-48 sm:max-h-64 w-auto h-auto object-contain bg-white"
-                      }
-                      onLoad={() => {
-                        if (isNearBottom()) requestAnimationFrame(() => scrollToBottom(true));
-                      }}
-                    />
-                  </a>
+                    {imagesToShow.map((u, i) => (
+                      <img
+                        key={`${u}-${i}`}
+                        src={u}
+                        alt={message.imageAlt || "attachment"}
+                        loading="lazy"
+                        className={
+                          isAI
+                            ? "rounded-lg border border-border w-full max-w-[1100px] h-auto object-contain bg-white"
+                            : "rounded-lg border border-border max-w-[320px] max-h-64 w-auto h-auto object-contain bg-white"
+                        }
+                        onLoad={() => {
+                          if (isNearBottom()) requestAnimationFrame(() => scrollToBottom(true));
+                        }}
+                      />
+                    ))}
+                  </div>
                 )}
 
                 {isAI ? (
@@ -589,7 +542,7 @@ export const VizChatInterface = ({
           );
         })}
 
-        {isLoading && (
+        {showLoadingThinking && (
           <div className="flex items-start space-x-3" aria-live="polite" aria-busy="true">
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-accent">
               <Bot className="w-5 h-5 text-accent-foreground animate-pulse" />
@@ -634,19 +587,30 @@ export const VizChatInterface = ({
                 </option>
               ))}
             </select>
+
+            {/* NEW: Force-plot toggle so user can just type conditions/columns */}
+            <label className="flex items-center gap-2 ml-3 text-xs">
+              <Checkbox
+                checked={forcePlot}
+                onCheckedChange={(v) => setForcePlot(Boolean(v))}
+                aria-label="Force plot"
+                disabled={isLoading}
+              />
+              Force plot
+            </label>
           </div>
         </div>
 
         {/* Context chips + ATTACH + previews + Clear */}
         <div className="mb-2 flex items-center gap-2 flex-wrap">
-          {chipNames.length > 0 && (
+          {chipNames(fileDocuments, isCombineMode, selectedCombineDocs, selectedDocId).length > 0 && (
             <>
               <span className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-muted text-foreground/80 border">
                 <LinkIcon className="w-3 h-3" />
                 Using:
               </span>
               <div className="flex items-center gap-2 flex-wrap max-h-20 overflow-y-auto">
-                {chipNames.map((n, i) => (
+                {chipNames(fileDocuments, isCombineMode, selectedCombineDocs, selectedDocId).map((n, i) => (
                   <span
                     key={`${n}-${i}`}
                     className="inline-flex items-center text-[11px] px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200"
@@ -658,7 +622,6 @@ export const VizChatInterface = ({
             </>
           )}
 
-          {/* Attach button (images + PDF) */}
           <input
             ref={imgInputRef}
             type="file"
@@ -676,10 +639,9 @@ export const VizChatInterface = ({
             title="Attach image(s) or PDF"
             aria-label="Attach image(s) or PDF"
           >
-            📎
+            📷
           </Button>
 
-          {/* image previews (data URLs) */}
           {previews.length > 0 && (
             <div className="flex items-center gap-2 overflow-x-auto">
               {previews.map((u, i) => (
@@ -705,7 +667,6 @@ export const VizChatInterface = ({
             </div>
           )}
 
-          {/* pdf chips */}
           {pdfNames.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
               {pdfNames.map((name, i) => (
@@ -751,7 +712,7 @@ export const VizChatInterface = ({
               onKeyDown={handleKeyDown}
               onCompositionStart={() => (composingRef.current = true)}
               onCompositionEnd={() => (composingRef.current = false)}
-              placeholder="Ask anything about your file(s) or image/PDF…"
+              placeholder='Ask for a plot, e.g. "bar of sales by region 2022" or "line sales over order date"'
               className="min-h-[2.5rem] max-h-[120px] resize-none pr-12 border-accent/30 focus:border-accent focus:ring-accent/20"
               rows={1}
               disabled={isLoading}
@@ -786,7 +747,7 @@ export const VizChatInterface = ({
             <DialogTitle id="combine-dialog-title">Select files to combine</DialogTitle>
           </DialogHeader>
 
-        <div className="space-y-2 max-h-[260px] overflow-y-auto" id="combine-dialog-description">
+          <div className="space-y-2 max-h-[260px] overflow-y-auto" id="combine-dialog-description">
             {fileDocuments.map((doc) => {
               const checked = selectedCombineDocs.includes(doc.documentId);
               return (
@@ -819,3 +780,17 @@ export const VizChatInterface = ({
     </div>
   );
 };
+
+// util to compute chip names
+function chipNames(
+  documents: VizDocument[],
+  isCombine: boolean,
+  selectedCombineDocs: string[],
+  selectedDocId: string
+) {
+  const nameById = new Map<string, string>();
+  for (const d of documents) nameById.set(d.documentId, d.name);
+  if (isCombine) return selectedCombineDocs.map((id) => nameById.get(id) || id);
+  if (selectedDocId) return [nameById.get(selectedDocId) || selectedDocId];
+  return [];
+}

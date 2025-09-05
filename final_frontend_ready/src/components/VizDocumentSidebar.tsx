@@ -2,7 +2,6 @@
 import React, { useRef, useState } from "react";
 import {
   Upload,
-  FileText,
   FileSpreadsheet,
   Loader2,
   CheckCircle2,
@@ -24,10 +23,27 @@ export interface VizDocument {
 }
 
 interface VizDocumentSidebarProps {
-  chatId: string; // kept for API symmetry, even if not used here
+  chatId: string;
   documentList: VizDocument[];
   onDocumentUpload: (files: FileList) => Promise<void> | void;
 }
+
+const ALLOWED_EXT = /\.(xlsx|xls|csv)$/i;
+
+const toFileList = (files: File[]): FileList => {
+  const dt = new DataTransfer();
+  files.forEach((f) => dt.items.add(f));
+  return dt.files;
+};
+
+const filterExcelCsv = (list: FileList | null): File[] => {
+  if (!list) return [];
+  const out: File[] = [];
+  for (const f of Array.from(list)) {
+    if (ALLOWED_EXT.test(f.name)) out.push(f);
+  }
+  return out;
+};
 
 export const VizDocumentSidebar: React.FC<VizDocumentSidebarProps> = ({
   chatId, // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -35,19 +51,19 @@ export const VizDocumentSidebar: React.FC<VizDocumentSidebarProps> = ({
   onDocumentUpload,
 }) => {
   const [dragActive, setDragActive] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const excelCsvInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragActive(false);
-    const files = e.dataTransfer?.files;
-    if (files?.length) onDocumentUpload(files);
+    const accepted = filterExcelCsv(e.dataTransfer?.files || null);
+    if (accepted.length) onDocumentUpload(toFileList(accepted));
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files?.length) onDocumentUpload(files);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    const accepted = filterExcelCsv(e.target.files);
+    if (accepted.length) onDocumentUpload(toFileList(accepted));
+    if (excelCsvInputRef.current) excelCsvInputRef.current.value = "";
   };
 
   const prettyDate = (iso: string) => {
@@ -62,8 +78,6 @@ export const VizDocumentSidebar: React.FC<VizDocumentSidebarProps> = ({
 
   const renderFileIcon = (type: VizDocument["type"]) => {
     switch (type) {
-      case "pdf":
-        return <FileText className="w-5 h-5 text-red-600 flex-shrink-0" aria-hidden="true" />;
       case "excel":
       case "csv":
         return <FileSpreadsheet className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />;
@@ -93,7 +107,7 @@ export const VizDocumentSidebar: React.FC<VizDocumentSidebarProps> = ({
       <div className="p-4 border-b border-border">
         <div
           className={cn(
-            "border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer",
+            "border-2 border-dashed rounded-xl p-6 text-center transition-all",
             dragActive
               ? "border-accent bg-accent/10"
               : "border-muted-foreground/30 hover:border-accent hover:bg-accent/5"
@@ -104,26 +118,36 @@ export const VizDocumentSidebar: React.FC<VizDocumentSidebarProps> = ({
           }}
           onDragLeave={() => setDragActive(false)}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
           role="button"
-          aria-label="Upload files"
+          aria-label="Upload Excel or CSV"
+          onClick={() => excelCsvInputRef.current?.click()}
         >
           <Upload className="w-8 h-8 mx-auto mb-3 text-muted-foreground" aria-hidden="true" />
-          <p className="text-sm font-medium mb-2">
-            Drop files here or{" "}
-            <label className="text-accent cursor-pointer hover:underline">
-              browse
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".pdf,.xlsx,.xls,.csv"
-                className="hidden"
-                onChange={handleFileInput}
-              />
-            </label>
+          <h3 className="text-sm font-semibold mb-1"> Import your data</h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            If you need some more data for visualization!
+            {/* Supported formats: <strong>.xlsx</strong>, <strong>.xls</strong>, <strong>.csv</strong>. */}
           </p>
-          <p className="text-xs text-muted-foreground">PDF, Excel, or CSV files supported</p>
+
+          <button
+            type="button"
+            onClick={() => excelCsvInputRef.current?.click()}
+            className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+            aria-label="Upload Excel or CSV files"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            Upload
+          </button>
+
+          {/* Hidden input (Excel/CSV only) */}
+          <input
+            ref={excelCsvInputRef}
+            type="file"
+            multiple
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={handleFileInput}
+          />
         </div>
       </div>
 
@@ -142,7 +166,7 @@ export const VizDocumentSidebar: React.FC<VizDocumentSidebarProps> = ({
         <div className="p-4 space-y-2">
           {documentList.length === 0 ? (
             <p className="text-center text-muted-foreground text-sm py-8">
-              No documents uploaded yet
+              No spreadsheets uploaded yet
             </p>
           ) : (
             documentList.map((doc) => (

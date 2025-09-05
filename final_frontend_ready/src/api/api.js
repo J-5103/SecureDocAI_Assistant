@@ -51,10 +51,8 @@ http.interceptors.response.use(
     const res = e?.response;
     const data = res?.data;
 
-    // Prefer FastAPI detail / error fields; fall back to raw
     let detail = data?.detail ?? data?.error ?? data?.message ?? data ?? e?.message;
 
-    // If detail is a JSON string, parse once more (some servers return JSON as string)
     if (typeof detail === "string") {
       const s = detail.trim();
       if (s.startsWith("{") || s.startsWith("[")) {
@@ -110,11 +108,26 @@ export const vizImageUrl = (apiPath) => {
   return `${base}/${path}`;
 };
 
+export const vizThumbUrl = (idOrPath) =>
+  vizImageUrl(
+    typeof idOrPath === "string" && !/[/.]/.test(idOrPath)
+      ? `/api/visualizations/${idOrPath}/thumb`
+      : idOrPath
+  );
+
+export const vizTableUrl = (idOrPath) =>
+  vizImageUrl(
+    typeof idOrPath === "string" && !/[/.]/.test(idOrPath)
+      ? `/api/visualizations/${idOrPath}/table`
+      : idOrPath
+  );
+
 const withAbsUrls = (items = []) =>
   items.map((m) => ({
     ...m,
     image_url: vizImageUrl(m.image_url),
     thumb_url: vizImageUrl(m.thumb_url),
+    table_csv_url: vizImageUrl(m.table_csv_url),
   }));
 
 const extOf = (name = "") => {
@@ -161,13 +174,26 @@ const CHAT_DOC_EXTS = new Set([
   ".jpg",
   ".jpeg",
 ]);
+
 const VIZ_DATA_EXTS = new Set([".xlsx", ".xls", ".csv"]);
-const IMG_EXTS = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
-// Vision also accepts PDF (backend converts first page → PNG)
+
+// Expanded to match backend and mobile captures
+const IMG_EXTS = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+  ".gif",
+  ".bmp",
+  ".tiff",
+  ".tif",
+]);
+
+// Vision also accepts PDF (backend can convert first page → PNG)
 const VISION_EXTS = new Set([...IMG_EXTS, ".pdf"]);
 
 /* =========================================
- * Normalizer for /api/ask & /api/viz/ask
+ * Normalizer for /api/* answers
  * =======================================*/
 const pickPlotUrl = (obj) => {
   if (!obj || typeof obj !== "object") return "";
@@ -196,39 +222,38 @@ const normalizeAnswer = (res) => {
 };
 
 /* =========================================
- * Chat (PDF/Docs) — Q&A
+ * DOCS Q&A (Vectorstore) — always /api/ask
  * =======================================*/
-export const askQuestion = async ({
-  question,
-  chatId,
-  documentId,
-  docIds,          // << NEW: array of selected doc_ids
-  combineDocs,     // (Excel combine) legacy
-  intent,
-}) => {
+
+const DOC_ASK_PATH = "/api/ask";
+
+export const askDocs = async ({ question, chatId, documentId, docIds }) => {
   const payload = {
     question: (question ?? "").trim(),
-    chat_id: chatId,
-    intent: intent || undefined,
+    chat_id: chatId ?? null,
   };
 
   if (Array.isArray(docIds) && docIds.length > 0) {
-    payload.doc_ids = docIds;
+    payload.doc_ids = docIds;               // vectorstore doc IDs
   } else if (documentId && documentId !== "combine") {
-    payload.document_id = documentId;
+    payload.document_id = documentId;       // single vectorstore doc ID
   }
 
-  if (Array.isArray(combineDocs) && combineDocs.length > 0) {
-    payload.combine_docs = combineDocs;
-  }
-
-  const { data } = await http.post("/api/ask", payload, {
+  const { data } = await http.post(DOC_ASK_PATH, payload, {
     headers: { "Content-Type": "application/json" },
   });
   return normalizeAnswer(data);
 };
 
-/* Multi-file upload tied to a chat (new endpoint) */
+/** Back-compat wrapper so older calls still work (also forwards combineDocs → doc_ids) */
+export const askQuestion = async (args = {}) => {
+  const { question, chatId, documentId, docIds, combineDocs } = args || {};
+  return askDocs({ question, chatId, documentId, docIds: docIds || combineDocs });
+};
+
+/* =========================================
+ * Multi-file upload tied to a chat (new endpoint)
+ * =======================================*/
 export const uploadToChat = async (chatId, files = []) => {
   if (!chatId) throw new Error("chatId is required.");
   if (!Array.isArray(files) || files.length === 0) throw new Error("No files selected.");
@@ -317,8 +342,10 @@ export const ollamaHealth = async () => {
 };
 
 /* =========================================
- * Visualization (Excel/CSV)
+ * Visualization (Excel/CSV) — NEW ROUTES
  * =======================================*/
+
+/** Upload a data file once (if you keep this UX) */
 export const excelUpload = async (file, chatId) => {
   if (!file) throw new Error("Please choose a file.");
   ensureAllowed(file, VIZ_DATA_EXTS, "Only Excel/CSV files are allowed (.xlsx, .xls, .csv).");
@@ -335,65 +362,7 @@ export const excelList = async (chatId) => {
   return data; // { files: [...] }
 };
 
-export const excelPlot = async (filePath, question, title, chatId) => {
-  const fd = new FormData();
-  if (filePath) {
-    ensureAllowed(lastSegment(filePath), VIZ_DATA_EXTS, "file_path must be .xlsx, .xls, or .csv");
-    fd.append("file_path", filePath);
-  }
-  fd.append("question", question);
-  if (title) fd.append("title", title);
-  if (chatId) fd.append("chat_id", chatId);
-
-  const { data } = await http.post("/api/excel/plot/", fd);
-  return {
-    ...data,
-    image_url: vizImageUrl(data?.image_url),
-    thumb_url: vizImageUrl(data?.thumb_url),
-    image_base64: data?.image_base64,
-  };
-};
-
-export const excelPlotCombine = async (filePaths = [], question, title, chatId) => {
-  if (!Array.isArray(filePaths) || filePaths.length < 2) {
-    throw new Error("At least two files are required to combine.");
-  }
-
-  const cleaned = filePaths.map((p) => lastSegment(p));
-  cleaned.forEach((name) =>
-    ensureAllowed(name, VIZ_DATA_EXTS, "file_paths must be .xlsx, .xls, or .csv")
-  );
-
-  const payload = { file_paths: filePaths, question, title, chat_id: chatId };
-  const { data } = await http.post("/api/excel/plot/combine", payload, {
-    headers: { "Content-Type": "application/json" },
-  });
-
-  return {
-    ...data,
-    image_url: vizImageUrl(data?.image_url),
-    thumb_url: vizImageUrl(data?.thumb_url),
-    image_base64: data?.image_base64,
-  };
-};
-
-export const vizList = async ({ chatId, q, limit, offset, order } = {}) => {
-  const params = {};
-  if (chatId) params.chat_id = chatId;
-  if (q) params.q = q;
-  if (limit != null) params.limit = limit;
-  if (offset != null) params.offset = offset;
-  if (order) params.order = order;
-
-  const { data } = await http.get("/api/visualizations/list", { params });
-
-  const items = Array.isArray(data) ? data : data?.items || [];
-  const total = Array.isArray(data) ? items.length : data?.total ?? items.length;
-  const chatIds = Array.isArray(data) ? [] : data?.chat_ids || [];
-
-  return { items: withAbsUrls(items), total, chatIds };
-};
-
+/** Single-file viz (ALWAYS uses the selected file the user picked) */
 export const vizGenerate = async ({ file, filePath, question, title, chatId }) => {
   const fd = new FormData();
   if (file) {
@@ -412,11 +381,110 @@ export const vizGenerate = async ({ file, filePath, question, title, chatId }) =
   if (data && typeof data === "object") {
     data.image_url = vizImageUrl(data.image_url);
     data.thumb_url = vizImageUrl(data.thumb_url);
+    data.table_csv_url = vizImageUrl(data.table_csv_url);
   }
   return data;
 };
 
-// Visualization Q&A (Excel/CSV)
+/** Legacy concat combine (kept, but now calls new route) */
+export const vizGenerateCombined = async ({ filePaths = [], question, title, chatId }) => {
+  if (!Array.isArray(filePaths) || filePaths.length < 2) {
+    throw new Error("At least two files are required to combine.");
+  }
+  // basic extension guard
+  filePaths.forEach((p) =>
+    ensureAllowed(lastSegment(p), VIZ_DATA_EXTS, "file_paths must be .xlsx, .xls, or .csv")
+  );
+
+  const fd = new FormData();
+  fd.append("question", question);
+  if (title) fd.append("title", title);
+  if (chatId) fd.append("chat_id", chatId);
+  fd.append("file_paths", JSON.stringify(filePaths)); // backend accepts JSON list string
+
+  const { data } = await http.post("/api/visualizations/generate-combined", fd);
+  if (data && typeof data === "object") {
+    data.image_url = vizImageUrl(data.image_url);
+    data.thumb_url = vizImageUrl(data.thumb_url);
+    data.table_csv_url = vizImageUrl(data.table_csv_url);
+  }
+  return data;
+};
+
+/** NEW: mapped combine (two selected files + explicit mapping spec) */
+export const vizGenerateCombinedMapped = async ({
+  question,
+  file1Path,
+  file2Path,
+  spec,        // { group_by:{source,column}, measure:{source,column,agg}, join:{left:{},right:{},how}, sheets?:{file1,file2} }
+  title,
+  chatId,
+  file1,       // optional File upload instead of path
+  file2,       // optional File upload instead of path
+}) => {
+  const fd = new FormData();
+  fd.append("question", question);
+  fd.append("spec_json", JSON.stringify(spec || {}));
+  if (title) fd.append("title", title);
+  if (chatId) fd.append("chat_id", chatId);
+
+  if (file1) {
+    ensureAllowed(file1, VIZ_DATA_EXTS, "file1: Only Excel/CSV files are allowed.");
+    fd.append("file1", file1);
+  } else if (file1Path) {
+    ensureAllowed(lastSegment(file1Path), VIZ_DATA_EXTS, "file1_path must be .xlsx, .xls, or .csv");
+    fd.append("file1_path", file1Path);
+  } else {
+    throw new Error("file1 or file1Path is required.");
+  }
+
+  if (file2) {
+    ensureAllowed(file2, VIZ_DATA_EXTS, "file2: Only Excel/CSV files are allowed.");
+    fd.append("file2", file2);
+  } else if (file2Path) {
+    ensureAllowed(lastSegment(file2Path), VIZ_DATA_EXTS, "file2_path must be .xlsx, .xls, or .csv");
+    fd.append("file2_path", file2Path);
+  } else {
+    throw new Error("file2 or file2Path is required.");
+  }
+
+  const { data } = await http.post("/api/visualizations/generate-combined-mapped", fd);
+  if (data && typeof data === "object") {
+    data.image_url = vizImageUrl(data.image_url);
+    data.thumb_url = vizImageUrl(data.thumb_url);
+    data.table_csv_url = vizImageUrl(data.table_csv_url);
+  }
+  return data;
+};
+
+/** Convenience wrappers for old callers (kept; routed to new endpoints) */
+export const excelPlot = async (filePath, question, title, chatId) =>
+  vizGenerate({ filePath, question, title, chatId });
+
+export const excelPlotCombine = async (filePaths = [], question, title, chatId) =>
+  vizGenerateCombined({ filePaths, question, title, chatId });
+
+/** List + helpers */
+export const vizList = async ({ chatId, q, limit, offset, order } = {}) => {
+  const params = {};
+  if (chatId) params.chat_id = chatId;
+  if (q) params.q = q;
+  if (limit != null) params.limit = limit;
+  if (offset != null) params.offset = offset;
+  if (order) params.order = order;
+
+  const { data } = await http.get("/api/visualizations/list", { params });
+
+  const items = Array.isArray(data) ? data : data?.items || [];
+  const total = Array.isArray(data) ? items.length : data?.total ?? items.length;
+  const chatIds = Array.isArray(data) ? [] : data?.chat_ids || [];
+
+  return { items: withAbsUrls(items), total, chatIds };
+};
+
+/* =========================================
+ * Visualization Q&A (Excel/CSV)
+ * =======================================*/
 export const askViz = async ({ question, chatId, fileId, fileName, filePath }) => {
   const payload = {
     question: (question ?? "").trim(),
@@ -457,22 +525,29 @@ export const chatUploadImages = async ({ chatId, text = "", files = [] }) => {
   fd.append("text", text);
   if (Array.isArray(files)) {
     files.forEach((f) => {
+      // allow PDFs too (for scanned business cards)
       ensureAllowed(
         f,
-        IMG_EXTS,
-        "Only image files are allowed (.png, .jpg, .jpeg, .webp, .gif)."
+        VISION_EXTS,
+        "Only image/PDF files are allowed (.png, .jpg, .jpeg, .webp, .gif, .bmp, .tiff, .tif, .pdf)."
       );
       fd.append("files", f, f.name);
     });
   }
   const { data } = await http.post("/api/chat", fd);
-  // data: { message_id, chat_id, text, attachments:[{filename,url}], created_at }
+
+  // Normalize both shapes: attachments[] and/or image_urls[]
+  const attachments = (data.attachments || []).map((a) => ({
+    ...a,
+    url: vizImageUrl(a.url),
+  }));
+
+  const image_urls = (data.image_urls || []).map((u) => vizImageUrl(u));
+
   return {
     ...data,
-    attachments: (data.attachments || []).map((a) => ({
-      ...a,
-      url: vizImageUrl(a.url),
-    })),
+    attachments,
+    image_urls,
   };
 };
 
@@ -486,23 +561,79 @@ export const chatHistory = async (chatId) => {
 };
 
 /* =========================================
- * Vision endpoint — /api/ask-image
- *   - askImage({ images?: File[], frontFile?, backFile?, prompt?, question?, text? })
- *   - askImage(File)  or askImage(FormData)
+ * Vision endpoint — /api/ask-image (fallback)
  * =======================================*/
+
+// helper: default prompt that handles unknown front/back order for 2 images
+const makeDefaultVisionPrompt = (imageCount = 1) => {
+  const COMMON = `
+You are a world-class OCR system for business cards. Read the provided image(s) EXACTLY as printed.
+- Auto-detect rotation/vertical text; rotate mentally if needed.
+- DO NOT guess or hallucinate. If something is not visible, omit that line.
+- Preserve original capitalization, punctuation, slashes and spacing in phone numbers.
+- Expand label abbreviations when presenting:
+  P / Ph / Tel / Off / M -> Phone
+  E / Email -> Email
+  W / Web / URL -> Website
+- If there are multiple phone numbers, output each on its own "Phone:" line, in the same order.
+- Use only plain text Markdown (NO code fences).
+`.trim();
+
+  if (imageCount <= 1) {
+    return `${COMMON}
+
+Return your answer in EXACTLY this template and wording (omit any line where the value is missing):
+
+Based on the image provided, here is the extracted text from the business card template:
+
+Left Side (Dark Background):
+Company Name: <as printed>
+Slogan: <as printed>
+
+Right Side (White Background):
+Name: <as printed>
+Position: <as printed>
+Website: <as printed>
+Email: <as printed>
+Address: <as printed>
+Phone: <as printed>
+Phone: <as printed>
+`.trim();
+  }
+
+  // two images; order unknown — ALWAYS output Back first, then Front
+  return `${COMMON}
+
+There are TWO images of the same card, but their upload order is UNKNOWN.
+
+DETECTION (do not include this section in output):
+- FRONT has name/title/contact cluster (phone/email/website), often with logo.
+- BACK has address/tagline/legal/office info or large artwork/QR.
+
+Return your answer in EXACTLY this structure and wording:
+
+Of course. Here is the extracted text from the two images of the business card.
+
+Image 1 (Back of the Card)
+<write the BACK side’s lines verbatim, original order & line breaks>
+
+Image 2 (Front of the Card)
+<write the FRONT side’s lines verbatim, original order & line breaks>
+`.trim();
+};
+
 export const askImage = async (arg) => {
   let fd = null;
-  // default prompt; backend will also receive 'question' (user’s typed text)
-  let prompt =
-    "Extract key information from this image. Provide a concise summary and a JSON if possible.";
-  let question = ""; // << will be included for 'image + question' UX
-  let text = "";      // alias some backends expect
+  // default prompt (will be overridden below for 2 images)
+  let prompt = "Extract key information from this image. Provide a concise summary and a JSON if possible.";
+  let question = "";
+  let text = "";
 
   const pushFirstAsFrontAliases = (f) => {
     fd.append("front_image", f, f.name);
     fd.append("frontFile", f, f.name);
-    fd.append("file", f, f.name);   // some servers expect 'file'
-    fd.append("files", f, f.name);  // some servers expect 'files'
+    fd.append("file", f, f.name);
+    fd.append("files", f, f.name);
   };
   const pushSecondAsBackAliases = (f) => {
     fd.append("back_image", f, f.name);
@@ -513,35 +644,41 @@ export const askImage = async (arg) => {
   if (isFormData(arg)) {
     fd = arg;
     if (!fd.has("prompt")) fd.append("prompt", prompt);
-    // if UI added question/text we keep them; else they can be added by caller
-
   } else if (isFile(arg)) {
     ensureAllowed(arg, VISION_EXTS, "Only images or PDF are allowed for vision.");
     fd = new FormData();
-    fd.append("prompt", prompt);
+    fd.append("prompt", makeDefaultVisionPrompt(1));
     fd.append("images", arg, arg.name);
     fd.append("images[]", arg, arg.name);
     pushFirstAsFrontAliases(arg);
-
   } else if (arg && typeof arg === "object") {
-    const { images, frontFile, backFile = null, prompt: p, question: q, text: t } = arg;
+    const { images, frontFile, backFile = null, prompt: p, question: q, text: t, order = "auto" } = arg;
     if (p) prompt = String(p);
     if (q) question = String(q);
     if (t) text = String(t);
 
     fd = new FormData();
-    fd.append("prompt", prompt);
 
     if (Array.isArray(images) && images.length) {
+      if (!p) prompt = makeDefaultVisionPrompt(images.length);
+      fd.append("prompt", prompt);
+
       images.forEach((f) => {
         ensureAllowed(f, VISION_EXTS, "Only images or PDF are allowed for vision.");
         fd.append("images", f, f.name);
         fd.append("images[]", f, f.name);
       });
+
       pushFirstAsFrontAliases(images[0]);
       if (images[1]) pushSecondAsBackAliases(images[1]);
-
+      if (images.length >= 2 && order === "auto") {
+        fd.append("order_unknown", "true");
+        fd.append("detect_front_back", "true");
+      }
     } else if (frontFile || backFile) {
+      if (!p) prompt = makeDefaultVisionPrompt(frontFile && backFile ? 2 : 1);
+      fd.append("prompt", prompt);
+
       if (frontFile) {
         ensureAllowed(frontFile, VISION_EXTS, "Only images or PDF are allowed for vision.");
         pushFirstAsFrontAliases(frontFile);
@@ -553,6 +690,10 @@ export const askImage = async (arg) => {
         pushSecondAsBackAliases(backFile);
         fd.append("images", backFile, backFile.name);
         fd.append("images[]", backFile, backFile.name);
+        if (order === "auto") {
+          fd.append("order_unknown", "true");
+          fd.append("detect_front_back", "true");
+        }
       }
     } else {
       throw new Error("Provide images[], or frontFile/backFile, or a single File.");
@@ -561,22 +702,77 @@ export const askImage = async (arg) => {
     throw new Error("Invalid argument for askImage");
   }
 
-  // Always include the user's text so backend can link image + question
   if (!fd.has("question") && question) fd.append("question", question);
   if (!fd.has("text") && (text || question)) fd.append("text", text || question);
 
-  const { data } = await http.post("/api/ask-image", fd);
-  // normalize response
+  const { data } = await http.post("/api/ask-image", fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+
+  const normalizedAnswer =
+    data?.data?.whatsapp ?? data?.answer ?? data?.text ?? "";
+
   return {
     status: data?.status ?? "ok",
     data: {
-      whatsapp: data?.data?.whatsapp ?? data?.answer ?? "",
+      whatsapp: normalizedAnswer,
       json: data?.data?.json ?? null,
       image_urls: (data?.data?.image_urls || []).map((u) => vizImageUrl(u)),
     },
+    answer: normalizedAnswer,
     meta: data?.meta || {},
     session_id: data?.session_id || null,
   };
+};
+
+/* =========================================
+ * Gemini Business Card extraction + vCard
+ * =======================================*/
+
+/**
+ * Extract structured contact info from a business card image using Gemini (server-side).
+ * Accepts optional `prompt` (used by ChatManager).
+ */
+export const extractBusinessCard = async ({ file, returnVcard = true, prompt = "" }) => {
+  if (!file) throw new Error("Please choose an image/PDF of the business card.");
+  ensureAllowed(
+    file,
+    VISION_EXTS,
+    "Only image/PDF files are allowed (.png, .jpg, .jpeg, .webp, .gif, .bmp, .tiff, .tif, .pdf)."
+  );
+  const fd = new FormData();
+  fd.append("file", file);
+  if (prompt) fd.append("prompt", String(prompt));
+
+  const { data } = await http.post(
+    `/api/cards/extract?return_vcard=${returnVcard ? "true" : "false"}`,
+    fd,
+    { headers: { "Content-Type": "multipart/form-data" } }
+  );
+
+  if (data?.vcard_url) data.vcard_url = vizImageUrl(data.vcard_url);
+  if (data?.vcard_url && !data?.vcardUrl) data.vcardUrl = data.vcard_url;
+
+  return data;
+};
+
+/** Convenience alias so callers can do cardsExtract(file) or cardsExtract({file}) */
+export const cardsExtract = async (arg) => {
+  if (arg instanceof File) return extractBusinessCard({ file: arg, returnVcard: true });
+  if (arg && typeof arg === "object" && arg.file) return extractBusinessCard(arg);
+  throw new Error("cardsExtract: pass a File or { file, returnVcard? }");
+};
+
+/**
+ * Build a .vcf from a JSON "card" (e.g., after user edits).
+ */
+export const vcardFromJson = async (card) => {
+  if (!card || typeof card !== "object") throw new Error("card JSON is required.");
+  const { data } = await http.post("/api/cards/from-json", { card }, {
+    headers: { "Content-Type": "application/json" },
+  });
+  if (data?.vcard_url) data.vcard_url = vizImageUrl(data.vcard_url);
+  return data;
 };
 
 /* =========================================
@@ -590,6 +786,101 @@ export const visionAsk = async ({ prompt, imageUrls = [], sessionId = null }) =>
   if (sessionId) payload.session_id = sessionId;
 
   const { data } = await http.post("/api/vision/ask", payload, {
+    headers: { "Content-Type": "application/json" },
+  });
+  return data;
+};
+
+/* =========================================
+ * DB: chat sessions + messages persistence
+ * =======================================*/
+
+/**
+ * Ensure a chat row exists (source: "chat" | "viz").
+ * Hits backend that stores into chat_sessions table.
+ */
+export const dbEnsureChat = async ({
+  chatId,
+  source = "chat",
+  name = null,
+  createdAt = null,
+} = {}) => {
+  if (!chatId) throw new Error("dbEnsureChat: chatId is required.");
+  const payload = {
+    chat_id: String(chatId),
+    source,
+    name,
+    created_at: createdAt || new Date().toISOString(),
+  };
+  const { data } = await http.post("/api/db/chat/ensure", payload, {
+    headers: { "Content-Type": "application/json" },
+  });
+  return data;
+};
+
+/**
+ * Append one message (role: "user" | "ai") into chat_messages.
+ * Extras supported: imageUrl, imageUrls[], tableCsvUrl, kind
+ */
+export const dbAppendChatMessage = async ({
+  chatId,
+  source = "chat",
+  role,
+  text = "",
+  imageUrl,
+  imageUrls,
+  tableCsvUrl,
+  kind,
+  timestamp, // optional ISO string
+} = {}) => {
+  if (!chatId) throw new Error("dbAppendChatMessage: chatId is required.");
+  if (!role) throw new Error("dbAppendChatMessage: role is required.");
+  const payload = {
+    chat_id: String(chatId),
+    source,
+    role,
+    text: String(text || ""),
+  };
+  if (imageUrl) payload.image_url = imageUrl;
+  if (Array.isArray(imageUrls) && imageUrls.length) payload.image_urls = imageUrls;
+  if (tableCsvUrl) payload.table_csv_url = tableCsvUrl;
+  if (kind) payload.kind = kind;
+  if (timestamp) payload.timestamp = timestamp;
+
+  const { data } = await http.post("/api/db/chat/append", payload, {
+    headers: { "Content-Type": "application/json" },
+  });
+  return data;
+};
+
+/**
+ * Optional bulk save: send entire chat session payload to backend to persist.
+ * Mirrors DBHandler.save_full_chat_dump
+ */
+export const dbSaveFullChatDump = async ({ session, source = "chat" } = {}) => {
+  if (!session || !session.id) throw new Error("dbSaveFullChatDump: session is required.");
+  const { data } = await http.post(
+    "/api/db/chat/dump",
+    { source, session },
+    { headers: { "Content-Type": "application/json" } }
+  );
+  return data;
+};
+
+/**
+ * Save/Upsert a row in `documents` table.
+ * Backend expects: { id?, file_name, file_path }
+ * If `id` is omitted/null, backend can derive it from filename.
+ */
+export const saveDocumentRecord = async ({ id = null, fileName, filePath }) => {
+  if (!fileName) throw new Error("saveDocumentRecord: fileName is required.");
+  if (!filePath) throw new Error("saveDocumentRecord: filePath is required.");
+  const payload = {
+    id,
+    file_name: String(fileName),
+    file_path: String(filePath),
+  };
+  const { data } = await http.post("/api/db/documents/insert", payload, {
     headers: { "Content-Type": "application/json" },
   });
   return data;

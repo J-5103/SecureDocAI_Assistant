@@ -3,7 +3,7 @@ import json
 import os
 import time
 
-BASE_URL = "http://192.168.0.110:8000"  # 🔁 Replace with your actual FastAPI server IP if needed
+BASE_URL = "http://192.168.0.109:8000"  # 🔁 Replace with your actual FastAPI server IP if needed
 EXCEL_FOLDER = "excel_test"       # 🗂 Folder with Excel or CSV files
 
 def upload_excel(file_path):

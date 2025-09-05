@@ -1,0 +1,23 @@
+{
+  "chat_id": "1756903356691vovsfy6",
+  "docs": [
+    {
+      "doc_id": "support_vector_machine-e12abfec",
+      "file_name": "Support Vector Machine .pdf",
+      "ext": ".pdf",
+      "size": 8984120,
+      "stored_path": "uploaded_docs/1756903356691vovsfy6/support_vector_machine-e12abfec.pdf",
+      "vector_dir": "vectorstores/1756903356691vovsfy6/support_vector_machine-e12abfec",
+      "created_at": "2025-09-03T12:42:36.862956Z"
+    },
+    {
+      "doc_id": "statistics_notes-4c5e4f30",
+      "file_name": "Statistics Notes.pdf",
+      "ext": ".pdf",
+      "size": 4941548,
+      "stored_path": "uploaded_docs/1756903356691vovsfy6/statistics_notes-4c5e4f30.pdf",
+      "vector_dir": "vectorstores/1756903356691vovsfy6/statistics_notes-4c5e4f30",
+      "created_at": "2025-09-03T12:42:39.766925Z"
+    }
+  ]
+}

@@ -1,5 +1,473 @@
 [
   {
+    "id": "301275e38250471bba4a14f3a10be405",
+    "title": "Bar • Sales vs Category",
+    "kind": "bar",
+    "x": "Category",
+    "y": "Sales",
+    "image_url": "/api/visualizations/301275e38250471bba4a14f3a10be405/image",
+    "thumb_url": "/api/visualizations/301275e38250471bba4a14f3a10be405/thumb",
+    "table_csv_url": "/api/visualizations/301275e38250471bba4a14f3a10be405/table",
+    "created_at": "2025-09-04T12:26:49.745096Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1756883857787",
+    "question": "\r\nDATA IS READ-ONLY.\r\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\r\n- Reuse existing columns; if needed, create locals (tmp variables) only.\r\n- Do not write to disk.\r\n- Respect user's requested chart type, x/y fields, filters, and aggregation.\r\n- If multiple sheets exist, pick the one whose columns best match the request (e.g., has Sales/Profit/Date for sales time-series).\r\n\r\n\r\nMap common columns case-insensitively (examples/synonyms):\r\n- date/time: order_date, date, orderdate, txn_date, ship_date, year, month, quarter\r\n- category: category, cat, product_category\r\n- subcategory: sub-category, subcategory, sub_cat, product_subcategory\r\n- product: product_name, item, sku, product\r\n- region: region, state, province, city, market\r\n- segment: segment, customer_segment\r\n- customer: customer_name, customer, client\r\n- sales: sales, sale_amount, revenue, net_sales, sales_amount, amount\r\n- profit: profit, net_profit, margin, gross_profit, profit_amount\r\n- quantity: quantity, qty, units_sold, order_quantity\r\n- discount: discount, disc\r\n- ship_mode: ship_mode, shipping_mode\r\n- salary/comp: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\r\n- experience: experience, years_experience, yoe, yrs_exp, exp\r\n(Feel free to use other obvious matches when present.)\r\n\r\nCreate EXACTLY the chart the user asked for:\r\n\"give me line plot for payment mode and sales\"\r\n- Choose appropriate axes/encodings; label axes and add a clear title.\r\n- Apply grouping/aggregation if the question implies it (sum of sales by category, etc.).\r\n- If dates exist, sort chronologically and format nicely.\r\n- Avoid adding any extra commentary in the image; just render the chart."
+  },
+  {
+    "id": "d1188dbbb63a43e9a077560f1f1a9881",
+    "title": "Pie • Category",
+    "kind": "pie",
+    "x": "Category",
+    "y": "Sales",
+    "image_url": "/api/visualizations/d1188dbbb63a43e9a077560f1f1a9881/image",
+    "thumb_url": "/api/visualizations/d1188dbbb63a43e9a077560f1f1a9881/thumb",
+    "table_csv_url": "/api/visualizations/d1188dbbb63a43e9a077560f1f1a9881/table",
+    "created_at": "2025-09-04T12:25:54.308722Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1756883857787",
+    "question": "\r\nDATA IS READ-ONLY.\r\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\r\n- Reuse existing columns; if needed, create locals (tmp variables) only.\r\n- Do not write to disk.\r\n- Respect user's requested chart type, x/y fields, filters, and aggregation.\r\n- If multiple sheets exist, pick the one whose columns best match the request (e.g., has Sales/Profit/Date for sales time-series).\r\n\r\n\r\nMap common columns case-insensitively (examples/synonyms):\r\n- date/time: order_date, date, orderdate, txn_date, ship_date, year, month, quarter\r\n- category: category, cat, product_category\r\n- subcategory: sub-category, subcategory, sub_cat, product_subcategory\r\n- product: product_name, item, sku, product\r\n- region: region, state, province, city, market\r\n- segment: segment, customer_segment\r\n- customer: customer_name, customer, client\r\n- sales: sales, sale_amount, revenue, net_sales, sales_amount, amount\r\n- profit: profit, net_profit, margin, gross_profit, profit_amount\r\n- quantity: quantity, qty, units_sold, order_quantity\r\n- discount: discount, disc\r\n- ship_mode: ship_mode, shipping_mode\r\n- salary/comp: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\r\n- experience: experience, years_experience, yoe, yrs_exp, exp\r\n(Feel free to use other obvious matches when present.)\r\n\r\nCreate EXACTLY the chart the user asked for:\r\n\"give me pie plot  for sub-category and profit\"\r\n- Choose appropriate axes/encodings; label axes and add a clear title.\r\n- Apply grouping/aggregation if the question implies it (sum of sales by category, etc.).\r\n- If dates exist, sort chronologically and format nicely.\r\n- Avoid adding any extra commentary in the image; just render the chart."
+  },
+  {
+    "id": "d4dedfc2c7214ac3aaa1305f6f196a77",
+    "title": "Pie • Category",
+    "kind": "pie",
+    "x": "Category",
+    "y": "Sales",
+    "image_url": "/api/visualizations/d4dedfc2c7214ac3aaa1305f6f196a77/image",
+    "thumb_url": "/api/visualizations/d4dedfc2c7214ac3aaa1305f6f196a77/thumb",
+    "table_csv_url": "/api/visualizations/d4dedfc2c7214ac3aaa1305f6f196a77/table",
+    "created_at": "2025-09-04T12:25:06.930249Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1756883857787",
+    "question": "\r\nDATA IS READ-ONLY.\r\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\r\n- Reuse existing columns; if needed, create locals (tmp variables) only.\r\n- Do not write to disk.\r\n- Respect user's requested chart type, x/y fields, filters, and aggregation.\r\n- If multiple sheets exist, pick the one whose columns best match the request (e.g., has Sales/Profit/Date for sales time-series).\r\n\r\n\r\nMap common columns case-insensitively (examples/synonyms):\r\n- date/time: order_date, date, orderdate, txn_date, ship_date, year, month, quarter\r\n- category: category, cat, product_category\r\n- subcategory: sub-category, subcategory, sub_cat, product_subcategory\r\n- product: product_name, item, sku, product\r\n- region: region, state, province, city, market\r\n- segment: segment, customer_segment\r\n- customer: customer_name, customer, client\r\n- sales: sales, sale_amount, revenue, net_sales, sales_amount, amount\r\n- profit: profit, net_profit, margin, gross_profit, profit_amount\r\n- quantity: quantity, qty, units_sold, order_quantity\r\n- discount: discount, disc\r\n- ship_mode: ship_mode, shipping_mode\r\n- salary/comp: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\r\n- experience: experience, years_experience, yoe, yrs_exp, exp\r\n(Feel free to use other obvious matches when present.)\r\n\r\nCreate EXACTLY the chart the user asked for:\r\n\"give me pie plot for profit and region\"\r\n- Choose appropriate axes/encodings; label axes and add a clear title.\r\n- Apply grouping/aggregation if the question implies it (sum of sales by category, etc.).\r\n- If dates exist, sort chronologically and format nicely.\r\n- Avoid adding any extra commentary in the image; just render the chart."
+  },
+  {
+    "id": "261a4e482695415c9ea290eee129f358",
+    "title": "Pie • Category",
+    "kind": "pie",
+    "x": "Category",
+    "y": "Sales",
+    "image_url": "/api/visualizations/261a4e482695415c9ea290eee129f358/image",
+    "thumb_url": "/api/visualizations/261a4e482695415c9ea290eee129f358/thumb",
+    "table_csv_url": "/api/visualizations/261a4e482695415c9ea290eee129f358/table",
+    "created_at": "2025-09-04T12:24:36.130501Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1756883857787",
+    "question": "\r\nDATA IS READ-ONLY.\r\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\r\n- Reuse existing columns; if needed, create locals (tmp variables) only.\r\n- Do not write to disk.\r\n- Respect user's requested chart type, x/y fields, filters, and aggregation.\r\n- If multiple sheets exist, pick the one whose columns best match the request (e.g., has Sales/Profit/Date for sales time-series).\r\n\r\n\r\nMap common columns case-insensitively (examples/synonyms):\r\n- date/time: order_date, date, orderdate, txn_date, ship_date, year, month, quarter\r\n- category: category, cat, product_category\r\n- subcategory: sub-category, subcategory, sub_cat, product_subcategory\r\n- product: product_name, item, sku, product\r\n- region: region, state, province, city, market\r\n- segment: segment, customer_segment\r\n- customer: customer_name, customer, client\r\n- sales: sales, sale_amount, revenue, net_sales, sales_amount, amount\r\n- profit: profit, net_profit, margin, gross_profit, profit_amount\r\n- quantity: quantity, qty, units_sold, order_quantity\r\n- discount: discount, disc\r\n- ship_mode: ship_mode, shipping_mode\r\n- salary/comp: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\r\n- experience: experience, years_experience, yoe, yrs_exp, exp\r\n(Feel free to use other obvious matches when present.)\r\n\r\nCreate EXACTLY the chart the user asked for:\r\n\"give me pie plot for sales and profit\"\r\n- Choose appropriate axes/encodings; label axes and add a clear title.\r\n- Apply grouping/aggregation if the question implies it (sum of sales by category, etc.).\r\n- If dates exist, sort chronologically and format nicely.\r\n- Avoid adding any extra commentary in the image; just render the chart."
+  },
+  {
+    "id": "0649015612dc450d81bdd1e5d0fb0f40",
+    "title": "Bar • Sales vs Region",
+    "kind": "bar",
+    "x": "Region",
+    "y": "Sales",
+    "image_url": "/api/visualizations/0649015612dc450d81bdd1e5d0fb0f40/image",
+    "thumb_url": "/api/visualizations/0649015612dc450d81bdd1e5d0fb0f40/thumb",
+    "table_csv_url": "/api/visualizations/0649015612dc450d81bdd1e5d0fb0f40/table",
+    "created_at": "2025-09-04T12:23:52.185548Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1756883857787",
+    "question": "\r\nDATA IS READ-ONLY.\r\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\r\n- Reuse existing columns; if needed, create locals (tmp variables) only.\r\n- Do not write to disk.\r\n- Respect user's requested chart type, x/y fields, filters, and aggregation.\r\n- If multiple sheets exist, pick the one whose columns best match the request (e.g., has Sales/Profit/Date for sales time-series).\r\n\r\n\r\nMap common columns case-insensitively (examples/synonyms):\r\n- date/time: order_date, date, orderdate, txn_date, ship_date, year, month, quarter\r\n- category: category, cat, product_category\r\n- subcategory: sub-category, subcategory, sub_cat, product_subcategory\r\n- product: product_name, item, sku, product\r\n- region: region, state, province, city, market\r\n- segment: segment, customer_segment\r\n- customer: customer_name, customer, client\r\n- sales: sales, sale_amount, revenue, net_sales, sales_amount, amount\r\n- profit: profit, net_profit, margin, gross_profit, profit_amount\r\n- quantity: quantity, qty, units_sold, order_quantity\r\n- discount: discount, disc\r\n- ship_mode: ship_mode, shipping_mode\r\n- salary/comp: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\r\n- experience: experience, years_experience, yoe, yrs_exp, exp\r\n(Feel free to use other obvious matches when present.)\r\n\r\nCreate EXACTLY the chart the user asked for:\r\n\"give me bar plot of Sales by Region\"\r\n- Choose appropriate axes/encodings; label axes and add a clear title.\r\n- Apply grouping/aggregation if the question implies it (sum of sales by category, etc.).\r\n- If dates exist, sort chronologically and format nicely.\r\n- Avoid adding any extra commentary in the image; just render the chart."
+  },
+  {
+    "id": "3326b868cd3d437d99faacace82e3abc",
+    "title": "Bar • Sales,Profit vs Region",
+    "kind": "bar",
+    "x": "Region",
+    "y": "Sales,Profit",
+    "image_url": "/api/visualizations/3326b868cd3d437d99faacace82e3abc/image",
+    "thumb_url": "/api/visualizations/3326b868cd3d437d99faacace82e3abc/thumb",
+    "created_at": "2025-09-03T04:16:36.804791Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1756871798859",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns; if needed, use locals.\n- Do not write to disk.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, yoe, yrs_exp, exp\n\nCreate the chart: \"give me bar plot for sales by region\"."
+  },
+  {
+    "id": "538d4cb126a14423a4763ce2dac4f3d1",
+    "title": "Pie • Year",
+    "kind": "pie",
+    "x": "Year",
+    "y": "Sales",
+    "image_url": "/api/visualizations/538d4cb126a14423a4763ce2dac4f3d1/image",
+    "thumb_url": "/api/visualizations/538d4cb126a14423a4763ce2dac4f3d1/thumb",
+    "created_at": "2025-09-02T11:32:05.827217Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns; if needed, use locals.\n- Do not write to disk.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, yoe, yrs_exp, exp\n\nCreate the chart: \"give pie plot for sales and profit\"."
+  },
+  {
+    "id": "bf48a70dddd3413299e26309017e6e3e",
+    "title": "Pie • Discount",
+    "kind": "pie",
+    "x": "Discount",
+    "y": "Sales",
+    "image_url": "/api/visualizations/bf48a70dddd3413299e26309017e6e3e/image",
+    "thumb_url": "/api/visualizations/bf48a70dddd3413299e26309017e6e3e/thumb",
+    "created_at": "2025-09-02T11:30:41.901080Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns; if needed, use locals.\n- Do not write to disk.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, yoe, yrs_exp, exp\n\nCreate the chart: \"give pie plot for sales and profit\"."
+  },
+  {
+    "id": "c06882be0fa54e498e42c62a67798164",
+    "title": "Line • ['Sales', 'Profit', 'Revenue'] vs Discount",
+    "kind": "line",
+    "x": "Discount",
+    "y": [
+      "Sales",
+      "Profit",
+      "Revenue"
+    ],
+    "image_url": "/api/visualizations/c06882be0fa54e498e42c62a67798164/image",
+    "thumb_url": "/api/visualizations/c06882be0fa54e498e42c62a67798164/thumb",
+    "created_at": "2025-09-02T11:30:02.531835Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns; if needed, use locals.\n- Do not write to disk.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, yoe, yrs_exp, exp\n\nCreate the chart: \"give me line plot for sales and revenue\"."
+  },
+  {
+    "id": "aaf97f6390bf4971a0ec3bef944eac9a",
+    "title": "Line • Sales vs Year",
+    "kind": "line",
+    "x": "Year",
+    "y": "Sales",
+    "image_url": "/api/visualizations/aaf97f6390bf4971a0ec3bef944eac9a/image",
+    "thumb_url": "/api/visualizations/aaf97f6390bf4971a0ec3bef944eac9a/thumb",
+    "created_at": "2025-09-02T11:15:22.255151Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns; if needed, use locals.\n- Do not write to disk.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, yoe, yrs_exp, exp\n\nCreate the chart: \"give me line plot for sales and revenue\"."
+  },
+  {
+    "id": "70cc68163ae84740af67ab542e1175f2",
+    "title": "Pie • Year",
+    "kind": "pie",
+    "x": "Year",
+    "y": "Sales",
+    "image_url": "/api/visualizations/70cc68163ae84740af67ab542e1175f2/image",
+    "thumb_url": "/api/visualizations/70cc68163ae84740af67ab542e1175f2/thumb",
+    "created_at": "2025-09-02T11:14:19.641638Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns; if needed, use locals.\n- Do not write to disk.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, yoe, yrs_exp, exp\n\nCreate the chart: \"give pie plot for sales and profit\"."
+  },
+  {
+    "id": "25abebb06f1f4d069bfaaa9249b8ad5f",
+    "title": "Pie • Product",
+    "kind": "pie",
+    "x": "Product",
+    "y": "Sales",
+    "image_url": "/api/visualizations/25abebb06f1f4d069bfaaa9249b8ad5f/image",
+    "thumb_url": "/api/visualizations/25abebb06f1f4d069bfaaa9249b8ad5f/thumb",
+    "created_at": "2025-09-02T11:12:52.315109Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns; if needed, use locals.\n- Do not write to disk.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, yoe, yrs_exp, exp\n\nCreate the chart: \"give me pie plot for product and sales\"."
+  },
+  {
+    "id": "601fc35b1a0d415883dfff3a65e5e786",
+    "title": "Pie • Region",
+    "kind": "pie",
+    "x": "Region",
+    "y": "Sales",
+    "image_url": "/api/visualizations/601fc35b1a0d415883dfff3a65e5e786/image",
+    "thumb_url": "/api/visualizations/601fc35b1a0d415883dfff3a65e5e786/thumb",
+    "created_at": "2025-09-02T10:15:11.643809Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns; if needed, use locals.\n- Do not write to disk.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, yoe, yrs_exp, exp\n\nCreate the chart: \"give me pie plot for sale by region\"."
+  },
+  {
+    "id": "af6cd087879646fca15c742068c64f68",
+    "title": "Pie • Region",
+    "kind": "pie",
+    "x": "Region",
+    "y": "Sales",
+    "image_url": "/api/visualizations/af6cd087879646fca15c742068c64f68/image",
+    "thumb_url": "/api/visualizations/af6cd087879646fca15c742068c64f68/thumb",
+    "created_at": "2025-09-02T10:14:49.096874Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns; if needed, use locals.\n- Do not write to disk.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, yoe, yrs_exp, exp\n\nCreate the chart: \"give me pie plot for sale by region\"."
+  },
+  {
+    "id": "034ee77e040247138878cf10ff773343",
+    "title": "Hist • Sales",
+    "kind": "hist",
+    "x": "Sales",
+    "y": "frequency",
+    "image_url": "/api/visualizations/034ee77e040247138878cf10ff773343/image",
+    "thumb_url": "/api/visualizations/034ee77e040247138878cf10ff773343/thumb",
+    "created_at": "2025-09-02T10:10:19.453844Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns; if needed, use locals.\n- Do not write to disk.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, yoe, yrs_exp, exp\n\nCreate the chart: \"give me hist plot of sales and profit\"."
+  },
+  {
+    "id": "d8d5edf5cd3c4727b7647354d380b52b",
+    "title": "Line • Sales vs Profit",
+    "kind": "line",
+    "x": "Profit",
+    "y": "Sales",
+    "image_url": "/api/visualizations/d8d5edf5cd3c4727b7647354d380b52b/image",
+    "thumb_url": "/api/visualizations/d8d5edf5cd3c4727b7647354d380b52b/thumb",
+    "created_at": "2025-09-02T10:09:55.488170Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns; if needed, use locals.\n- Do not write to disk.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, yoe, yrs_exp, exp\n\nCreate the chart: \"give me line plot for sales and profit\"."
+  },
+  {
+    "id": "b1ad27c6022946e98d8fa251974df13f",
+    "title": "Box • Value",
+    "kind": "box",
+    "x": null,
+    "y": "Sales",
+    "image_url": "/api/visualizations/b1ad27c6022946e98d8fa251974df13f/image",
+    "thumb_url": "/api/visualizations/b1ad27c6022946e98d8fa251974df13f/thumb",
+    "created_at": "2025-09-02T10:07:40.192764Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns; if needed, use locals.\n- Do not write to disk.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, yoe, yrs_exp, exp\n\nCreate the chart: \"give me box plot for sales and profit\"."
+  },
+  {
+    "id": "418a9951ac27431bb807f6679a871ec9",
+    "title": "Line • Sales vs Profit",
+    "kind": "line",
+    "x": "Profit",
+    "y": "Sales",
+    "image_url": "/api/visualizations/418a9951ac27431bb807f6679a871ec9/image",
+    "thumb_url": "/api/visualizations/418a9951ac27431bb807f6679a871ec9/thumb",
+    "created_at": "2025-09-02T10:07:03.554049Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns; if needed, use locals.\n- Do not write to disk.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, yoe, yrs_exp, exp\n\nCreate the chart: \"give me line plot for sales and profit\"."
+  },
+  {
+    "id": "919afc2920f843d0a467e7f6efe79361",
+    "title": "Pie • Year",
+    "kind": "pie",
+    "x": "Year",
+    "y": "Sales",
+    "image_url": "/api/visualizations/919afc2920f843d0a467e7f6efe79361/image",
+    "thumb_url": "/api/visualizations/919afc2920f843d0a467e7f6efe79361/thumb",
+    "created_at": "2025-09-01T12:49:27.223161Z",
+    "source_file": "single_product_region_category.xlsx",
+    "source_files": [
+      "single_product_region_category.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755847384537",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns. If you must transform, make a local Series or use df.assign(**with a unique, temporary name**), but prefer locals.\n- Do not write to disk. Just build the plot and return it.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, years_of_experience, yoe, yrs_exp, exp, experience_years\nClean numbers (strip currency/commas; convert \"10 yrs\" -> 10) before plotting.\n\nCreate exactly the chart user asked (e.g., \"yhyj\"). If ambiguous, choose the best matching columns and proceed."
+  },
+  {
+    "id": "759b3a97f18844078c4226131cd55a3d",
+    "title": "Bar • Sales,Price vs Year",
+    "kind": "bar",
+    "x": "Year",
+    "y": "Sales,Price",
+    "image_url": "/api/visualizations/759b3a97f18844078c4226131cd55a3d/image",
+    "thumb_url": "/api/visualizations/759b3a97f18844078c4226131cd55a3d/thumb",
+    "created_at": "2025-09-01T07:07:11.874171Z",
+    "source_file": "Updated_SuperStore_Sales_with_Price.xlsx",
+    "source_files": [
+      "Updated_SuperStore_Sales_with_Price.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns. If you must transform, make a local Series or use df.assign(**with a unique, temporary name**), but prefer locals.\n- Do not write to disk. Just build the plot and return it.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, years_of_experience, yoe, yrs_exp, exp, experience_years\nClean numbers (strip currency/commas; convert \"10 yrs\" -> 10) before plotting.\n\nCreate exactly the chart user asked (e.g., \"give me bar plot of year 2018 for price and revenue\"). If ambiguous, choose the best matching columns and proceed."
+  },
+  {
+    "id": "7cdff50174ab45ce84226b58d8ba825f",
+    "title": "Bar • Sales,Profit vs State",
+    "kind": "bar",
+    "x": "State",
+    "y": "Sales,Profit",
+    "image_url": "/api/visualizations/7cdff50174ab45ce84226b58d8ba825f/image",
+    "thumb_url": "/api/visualizations/7cdff50174ab45ce84226b58d8ba825f/thumb",
+    "created_at": "2025-09-01T07:04:40.706312Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns. If you must transform, make a local Series or use df.assign(**with a unique, temporary name**), but prefer locals.\n- Do not write to disk. Just build the plot and return it.\n\nABSOLUTE BAN: do not use DataFrame.insert(), df[\"...\"]=..., or overwrite any column names.\nUse only existing columns; if you need a helper, use a local variable (NOT df.assign).\nIf suitable columns are not obvious, list columns and your picks, then plot.\nUser request: give me bar plot of year 2018 for price and revenue"
+  },
+  {
+    "id": "5a2cc2bdc6fc4449be9f11b24334a896",
+    "title": "Pie • Region",
+    "kind": "pie",
+    "x": "Region",
+    "y": "Sales",
+    "image_url": "/api/visualizations/5a2cc2bdc6fc4449be9f11b24334a896/image",
+    "thumb_url": "/api/visualizations/5a2cc2bdc6fc4449be9f11b24334a896/thumb",
+    "created_at": "2025-09-01T06:04:40.085307Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns. If you must transform, make a local Series or use df.assign(**with a unique, temporary name**), but prefer locals.\n- Do not write to disk. Just build the plot and return it.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, years_of_experience, yoe, yrs_exp, exp, experience_years\nClean numbers (strip currency/commas; convert \"10 yrs\" -> 10) before plotting.\n\nCreate exactly the chart user asked (e.g., \"give me pie plot for sale by region\"). If ambiguous, choose the best matching columns and proceed."
+  },
+  {
+    "id": "4ca13a53d6b644f5aa645c47e6207b45",
+    "title": "Pie • Region",
+    "kind": "pie",
+    "x": "Region",
+    "y": "Sales",
+    "image_url": "/api/visualizations/4ca13a53d6b644f5aa645c47e6207b45/image",
+    "thumb_url": "/api/visualizations/4ca13a53d6b644f5aa645c47e6207b45/thumb",
+    "created_at": "2025-09-01T05:53:56.185615Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns. If you must transform, make a local Series or use df.assign(**with a unique, temporary name**), but prefer locals.\n- Do not write to disk. Just build the plot and return it.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, years_of_experience, yoe, yrs_exp, exp, experience_years\nClean numbers (strip currency/commas; convert \"10 yrs\" -> 10) before plotting.\n\nCreate exactly the chart user asked (e.g., \"give me pie plot for sale by region\"). If ambiguous, choose the best matching columns and proceed."
+  },
+  {
+    "id": "3f2a84ceada343c0b6d5c989b0156146",
+    "title": "Pie • Region",
+    "kind": "pie",
+    "x": "Region",
+    "y": "Sales",
+    "image_url": "/api/visualizations/3f2a84ceada343c0b6d5c989b0156146/image",
+    "thumb_url": "/api/visualizations/3f2a84ceada343c0b6d5c989b0156146/thumb",
+    "created_at": "2025-09-01T05:42:43.033010Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns. If you must transform, make a local Series or use df.assign(**with a unique, temporary name**), but prefer locals.\n- Do not write to disk. Just build the plot and return it.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, years_of_experience, yoe, yrs_exp, exp, experience_years\nClean numbers (strip currency/commas; convert \"10 yrs\" -> 10) before plotting.\n\nCreate exactly the chart user asked (e.g., \"give me pie plot for sale by region\"). If ambiguous, choose the best matching columns and proceed."
+  },
+  {
+    "id": "ae304163079342a8b59ad46abef9b9f4",
+    "title": "Pie • Region",
+    "kind": "pie",
+    "x": "Region",
+    "y": "Sales",
+    "image_url": "/api/visualizations/ae304163079342a8b59ad46abef9b9f4/image",
+    "thumb_url": "/api/visualizations/ae304163079342a8b59ad46abef9b9f4/thumb",
+    "created_at": "2025-09-01T05:17:02.223090Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns. If you must transform, make a local Series or use df.assign(**with a unique, temporary name**), but prefer locals.\n- Do not write to disk. Just build the plot and return it.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, years_of_experience, yoe, yrs_exp, exp, experience_years\nClean numbers (strip currency/commas; convert \"10 yrs\" -> 10) before plotting.\n\nCreate exactly the chart user asked (e.g., \"give me pie plot for sale by region\"). If ambiguous, choose the best matching columns and proceed."
+  },
+  {
+    "id": "7553ce44e4634dcd85e8a00e059b2b67",
+    "title": "Pie • Region",
+    "kind": "pie",
+    "x": "Region",
+    "y": "Sales",
+    "image_url": "/api/visualizations/7553ce44e4634dcd85e8a00e059b2b67/image",
+    "thumb_url": "/api/visualizations/7553ce44e4634dcd85e8a00e059b2b67/thumb",
+    "created_at": "2025-09-01T04:55:46.883804Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns. If you must transform, make a local Series or use df.assign(**with a unique, temporary name**), but prefer locals.\n- Do not write to disk. Just build the plot and return it.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, years_of_experience, yoe, yrs_exp, exp, experience_years\nClean numbers (strip currency/commas; convert \"10 yrs\" -> 10) before plotting.\n\nCreate exactly the chart user asked (e.g., \"give me pie plot for sale by region\"). If ambiguous, choose the best matching columns and proceed."
+  },
+  {
+    "id": "6e47c11c25194eb399c1bf85a63a1352",
+    "title": "Pie • Region",
+    "kind": "pie",
+    "x": "Region",
+    "y": "Sales",
+    "image_url": "/api/visualizations/6e47c11c25194eb399c1bf85a63a1352/image",
+    "thumb_url": "/api/visualizations/6e47c11c25194eb399c1bf85a63a1352/thumb",
+    "created_at": "2025-09-01T04:36:35.069863Z",
+    "source_file": "SuperStore Sales DataSet.xlsx",
+    "source_files": [
+      "SuperStore Sales DataSet.xlsx"
+    ],
+    "combined": false,
+    "chat_id": "1755684043422",
+    "question": "DATA IS READ-ONLY.\n- Never call DataFrame.insert, never assign back to df to create/overwrite columns.\n- Reuse existing columns. If you must transform, make a local Series or use df.assign(**with a unique, temporary name**), but prefer locals.\n- Do not write to disk. Just build the plot and return it.\n\n\nTry to map case-insensitively:\n- sales: sales, sale_amount, revenue, net_sales, sales_amount\n- profit: profit, net_profit, margin, gross_profit, profit_amount\n- salary: salary, salary_usd, annual_salary, ctc, compensation, pay, income, wage, \"salary($)\", salary_in_usd\n- experience: experience, years_experience, years_of_experience, yoe, yrs_exp, exp, experience_years\nClean numbers (strip currency/commas; convert \"10 yrs\" -> 10) before plotting.\n\nCreate exactly the chart user asked (e.g., \"give me pie plot for sale by region\"). If ambiguous, choose the best matching columns and proceed."
+  },
+  {
     "id": "6c7cd1a174f04d009c87d2d3bff6b0f7",
     "title": "Pie • State",
     "kind": "pie",

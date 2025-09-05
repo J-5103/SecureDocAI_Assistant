@@ -66,7 +66,10 @@ class QuestionAnswerPipeline:
             expanded_question = expander.find_similar_words(question)
 
             ql = question.lower()
-            is_cost_question = any(kw in ql for kw in ["cost", "price", "charges", "amount", "budget"])
+            is_cost_question = any(
+                kw in ql
+                for kw in ["cost", "price", "charges", "amount", "budget", "fee", "bill", "expense"]
+            )
 
             # =================== MULTI-DOC MODE (selected) ===================
             if combine_docs and len(combine_docs) > 0:
@@ -76,16 +79,21 @@ class QuestionAnswerPipeline:
                     chat_id=chat_id,
                     document_id=None,
                     combine_docs=combine_docs,  # these are doc_ids/folder names under vectorstores/<chat_id>/
-                    k=8,
+                    k=12,  # a bit wider for multi-doc coverage
                 )
                 if not context.strip():
                     raise RuntimeError("No relevant content found in the selected documents.")
 
                 combined_contexts = self.sanitize_text(context)
+
+                # Pass the concrete doc IDs/names we actually retrieved to help the model cite correctly.
+                used_doc_lines = "\n".join(f"• {d}" for d in (used_docs or []))
+                doc_hint = f"\nKnown document identifiers for citation:\n{used_doc_lines}\n" if used_docs else ""
+
                 prompt = (
-                    self.build_cost_compare_prompt(question, combined_contexts)
+                    self.build_cost_compare_prompt(question, combined_contexts, doc_hint)
                     if is_cost_question
-                    else self.build_multi_doc_compare_prompt(question, combined_contexts)
+                    else self.build_multi_doc_compare_prompt(question, combined_contexts, doc_hint)
                 )
                 print(f"📄 Context from {len(used_docs)} selected documents being sent to model.")
                 answer = self.call_ollama(prompt)
@@ -111,13 +119,13 @@ class QuestionAnswerPipeline:
                     chat_id=chat_id,
                     document_id=stem,   # folder/doc key (matches vectorstores/<chat_id>/<stem>)
                     combine_docs=None,
-                    k=8,
+                    k=10,
                 )
                 if not context or not context.strip():
                     raise RuntimeError("No relevant content found in the document.")
 
                 sanitized_context = self.sanitize_text(context)
-                prompt = self.build_single_doc_prompt(question, sanitized_context)
+                prompt = self.build_single_doc_prompt(question, sanitized_context, stem)
                 print(f"📄 Sending prompt to model from single document: {stem}")
                 answer = self.call_ollama(prompt)
 
@@ -143,16 +151,19 @@ class QuestionAnswerPipeline:
                 chat_id=chat_id,
                 document_id=None,
                 combine_docs=[],  # [] => "all docs" (RAGPipeline interprets this)
-                k=8,
+                k=12,
             )
             if not context.strip():
                 raise RuntimeError("No relevant content found across chat documents.")
 
             combined_contexts = self.sanitize_text(context)
+            used_doc_lines = "\n".join(f"• {d}" for d in (used_docs or []))
+            doc_hint = f"\nKnown document identifiers for citation:\n{used_doc_lines}\n" if used_docs else ""
+
             prompt = (
-                self.build_cost_compare_prompt(question, combined_contexts)
+                self.build_cost_compare_prompt(question, combined_contexts, doc_hint)
                 if is_cost_question
-                else self.build_multi_doc_compare_prompt(question, combined_contexts)
+                else self.build_multi_doc_compare_prompt(question, combined_contexts, doc_hint)
             )
             answer = self.call_ollama(prompt)
             return (answer, used_docs) if return_sources else answer
@@ -161,14 +172,29 @@ class QuestionAnswerPipeline:
             print(f"❌ Pipeline Error: {str(e)}")
             return (f"❌ Backend Error: {str(e)}", []) if return_sources else f"❌ Backend Error: {str(e)}"
 
-    # ---------------- prompts ----------------
+    # ---------------- prompt builders (table-aware & citation-guarded) ----------------
 
-    def build_single_doc_prompt(self, question: str, context: str) -> str:
+    def _table_skills(self) -> str:
+        """
+        Reusable instructions that teach the model to read/normalize tabular context.
+        """
+        return (
+            "If the context includes tables (markdown tables, CSV-like lines, or PDF-extracted rows):\n"
+            "• Treat each row as data; infer headers from surrounding text if missing.\n"
+            "• Preserve units and numbers; normalize currencies but keep the original symbol (e.g., $/₹).\n"
+            "• When quoting evidence, you may quote a cell or a short row snippet.\n"
+            "• If page/section markers like 'p. 3' or 'Page: 3' appear near the text, include them in the table.\n"
+        )
+
+    def build_single_doc_prompt(self, question: str, context: str, doc_name: str) -> str:
         return f"""
-You are a highly knowledgeable assistant. Answer ONLY from the provided document content.
+You are a precise assistant answering ONLY from the provided document content.
 
-Document Content:
------------------
+Document Identifier:
+- {doc_name}
+
+Document Content (verbatim snippets & table fragments):
+-------------------------------------------------------
 {context}
 
 User Question:
@@ -177,77 +203,92 @@ User Question:
 
 Instructions:
 -------------
-- Do NOT include filenames or metadata.
-- Focus strictly on the content for your answer.
-- Use concise bullet points or a short structured paragraph.
-- If the answer isn't present, say "Not found in the provided document."
-"""
+- Answer strictly from the document content above; do NOT invent facts.
+- Prefer short, structured bullet points or a tight paragraph.
+- {_safe_strip_margin(self._table_skills())}
+- If the answer is not present, reply: "Not found in the provided document."
+- Do not include file paths.
 
-    def build_multi_doc_compare_prompt(self, question: str, combined_contexts: str) -> str:
+Output:
+-------
+Provide the best possible answer concisely. If helpful, include a tiny Markdown table.
+""".strip()
+
+    def build_multi_doc_compare_prompt(self, question: str, combined_contexts: str, doc_hint: str = "") -> str:
         return f"""
-You are comparing multiple PDFs. Produce a concise, decision-ready answer in this exact format:
+You are comparing multiple documents. Use ONLY the context below to produce a decision-ready comparison.
 
-# Executive Summary
-• 2–4 bullet points with the key conclusions and critical differences.
-
-# Comparison Table
-Create a markdown table with columns:
-| Criteria | Doc Name | Evidence (quote or paraphrase) | Page/Section |
-Only include the most important 6–10 criteria.
-
-# Key Differences / Conflicts
-• Bullet points listing where documents disagree and why.
-
-# Gaps / Missing Info
-• What’s unclear or missing across the PDFs.
-
-# Recommendation
-• 1–2 sentences on the best option or next steps, considering trade-offs.
-
-Rules:
-- Use ONLY the provided content.
-- Cite doc name and page/section where possible.
-- Keep it under ~300–500 words.
-
-Context from the PDFs:
-----------------------
+{doc_hint}
+Context (verbatim snippets & table fragments from all selected docs):
+--------------------------------------------------------------------
 {combined_contexts}
 
 User Question:
 --------------
 {question}
-"""
 
-    def build_cost_compare_prompt(self, question: str, combined_contexts: str) -> str:
-        return f"""
-You are a finance assistant extracting and comparing costs from multiple PDFs.
-
-Output format:
+Output format (use ALL sections and keep headings exactly):
 # Executive Summary
-• 2–4 bullets on total/relative costs and biggest drivers.
+• 3–6 bullet points capturing the main conclusions and most important differences.
+
+# Comparison Table
+Create a compact markdown table with columns exactly:
+| Criteria | Doc Name | Evidence (quote or paraphrase) | Page/Section |
+- Include the most important 6–12 rows.
+- Criteria can be Education, Skills, Experience, Achievements, Dates, Costs, etc.
+- Doc Name must match the identifiers provided.
+- Evidence should be short and specific (quote or paraphrase).
+- Page/Section should use any page/section markers present in the context.
+
+# Key Differences / Conflicts
+• Bullet points where documents disagree or differ materially, with brief justification.
+
+# Gaps / Missing Info
+• Bullet points for unclear, missing, or contradictory parts.
+
+# Recommendation
+• 1–2 sentences suggesting the best option or next steps, with trade-offs.
+
+Rules:
+- Do NOT hallucinate; if something is not found, say "Not stated".
+- {_safe_strip_margin(self._table_skills())}
+- Keep the total under ~500 words.
+""".strip()
+
+    def build_cost_compare_prompt(self, question: str, combined_contexts: str, doc_hint: str = "") -> str:
+        return f"""
+You are a finance analyst extracting and comparing costs from multiple documents. Use ONLY the context below.
+
+{doc_hint}
+Context (verbatim snippets & table fragments):
+----------------------------------------------
+{combined_contexts}
+
+User Question:
+--------------
+{question}
+
+Output format (use ALL sections and keep headings exactly):
+# Executive Summary
+• 3–5 bullets summarizing totals, major drivers, and notable differences.
 
 # Comparison Table
 | Cost Item | Doc Name | Amount | Evidence (quote/paraphrase) | Page/Section |
+- Amount must include the currency symbol exactly as shown (e.g., $, ₹, Rs).
+- If a document lacks costs for an item, write "Not stated".
 
 # Notes & Assumptions
 • Any normalization, ranges, or missing values.
 
 # Recommendation
-• Best option and why, including trade-offs.
+• Brief guidance on lowest TCO / most reasonable option with trade-offs.
 
 Rules:
-- Extract only explicit costs (e.g., "$20,000", "₹50,000", "Rs. 1L").
-- If a document lacks costs, say so.
-- Stay within ~300–500 words.
-
-Context from the PDFs:
-----------------------
-{combined_contexts}
-
-User Question:
---------------
-{question}
-"""
+- Extract only explicit numeric costs (e.g., "$20,000", "₹50,000").
+- Do NOT guess numbers; if absent, say "Not stated".
+- {_safe_strip_margin(self._table_skills())}
+- Keep the total under ~500 words.
+""".strip()
 
     # ---------------- llm call ----------------
 
@@ -263,18 +304,22 @@ User Question:
             safe_prompt = self.sanitize_text(prompt)
             payload = {
                 "model": model,
-                "system": "You are a helpful assistant. Only use the provided content.",
+                "system": (
+                    "You are a meticulous analyst. Use ONLY the provided context. "
+                    "If information is missing, explicitly say so. Keep answers precise."
+                ),
                 "prompt": safe_prompt,
                 "stream": False,
                 "keep_alive": "10m",
                 "options": {
-                    "temperature": 0.2,
-                    "num_predict": 400,
-                    "num_ctx": 3072,
+                    "temperature": 0.15,
+                    "top_p": 0.9,
+                    "num_predict": 700,   # allow a full table + sections
+                    "num_ctx": 6144,      # larger context for multi-doc
                 },
             }
             print(f"📡 Sending prompt to Ollama at {url} with model '{model}' ...")
-            response = requests.post(url, json=payload, timeout=200)
+            response = requests.post(url, json=payload, timeout=240)
             response.raise_for_status()
 
             result = (response.json().get("response") or "").strip()
@@ -287,3 +332,8 @@ User Question:
         except Exception as e:
             print(f"❌ Ollama Error: {str(e)}")
             return f"❌ LLM Error: {str(e)}"
+
+
+def _safe_strip_margin(s: str) -> str:
+    """Utility: remove leading spaces from a multi-line snippet for cleaner prompts."""
+    return "\n".join(line.strip() for line in s.splitlines())

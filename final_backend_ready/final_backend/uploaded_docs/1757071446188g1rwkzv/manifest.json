@@ -1,0 +1,23 @@
+{
+  "chat_id": "1757071446188g1rwkzv",
+  "docs": [
+    {
+      "doc_id": "decision_tree_notes-a4725190",
+      "file_name": "Decision Tree Notes \ud83d\udcdd .pdf",
+      "ext": ".pdf",
+      "size": 4394612,
+      "stored_path": "uploaded_docs/1757071446188g1rwkzv/decision_tree_notes-a4725190.pdf",
+      "vector_dir": "vectorstores/1757071446188g1rwkzv/decision_tree_notes-a4725190",
+      "created_at": "2025-09-05T11:24:06.297390Z"
+    },
+    {
+      "doc_id": "support_vector_machine-8b972ef9",
+      "file_name": "Support Vector Machine .pdf",
+      "ext": ".pdf",
+      "size": 8984120,
+      "stored_path": "uploaded_docs/1757071446188g1rwkzv/support_vector_machine-8b972ef9.pdf",
+      "vector_dir": "vectorstores/1757071446188g1rwkzv/support_vector_machine-8b972ef9",
+      "created_at": "2025-09-05T11:24:09.052903Z"
+    }
+  ]
+}
