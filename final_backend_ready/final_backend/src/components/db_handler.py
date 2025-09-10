@@ -1,10 +1,12 @@
 # src/utils/db_handler.py
+import os
 import sys
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Iterable, Tuple
-import psycopg2
-from psycopg2 import sql
-from psycopg2.extras import execute_values
+
 import pandas as pd
+import psycopg2
+from psycopg2.extras import execute_values
 
 from src.logger import logging
 from src.exception import CustomException
@@ -18,6 +20,8 @@ class DBHandler:
       - Save documents / processed text
       - Save chat sessions & messages (Chat + Viz)
       - Save business-card contacts (normalized) + sync to flat table
+      - NEW: List/export contacts per chat to Excel
+      - NEW: Basic getters for chat + messages
     """
     def __init__(self):
         try:
@@ -313,7 +317,10 @@ class DBHandler:
             inserted = cur.rowcount if cur.rowcount is not None else 0
 
             # update message_count with actual total
-            cur.execute("UPDATE chat_sessions SET message_count = (SELECT COUNT(*) FROM chat_messages WHERE chat_id = %s), updated_at = now() WHERE id = %s", (chat_id, chat_id))
+            cur.execute(
+                "UPDATE chat_sessions SET message_count = (SELECT COUNT(*) FROM chat_messages WHERE chat_id = %s), updated_at = now() WHERE id = %s",
+                (chat_id, chat_id),
+            )
             self.conn.commit()
             cur.close()
             return inserted
@@ -350,6 +357,62 @@ class DBHandler:
             return inserted
         except Exception as e:
             raise CustomException(e, sys)
+
+    # ---------- NEW: read helpers used by /chat routes ----------
+
+    def get_chat(self, chat_id: str) -> Dict[str, Any]:
+        """
+        Fetch a chat row from chat_sessions.
+        """
+        q = """
+        SELECT id, source, name, created_at, last_message, message_count, updated_at
+        FROM chat_sessions
+        WHERE id = %s
+        """
+        cur = self._cursor()
+        try:
+            cur.execute(q, (chat_id,))
+            row = cur.fetchone()
+            if not row:
+                return {}
+            keys = ["id", "source", "name", "created_at", "last_message", "message_count", "updated_at"]
+            return dict(zip(keys, row))
+        finally:
+            cur.close()
+
+    def get_messages(
+        self,
+        chat_id: str,
+        source: Optional[str] = None,
+        limit: Optional[int] = None,
+        asc: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch messages for a chat (optionally filter by source).
+        """
+        base = """
+        SELECT id, chat_id, source, sender, text, image_url, image_urls, image_alt, status, ts
+        FROM chat_messages
+        WHERE chat_id = %s
+        """
+        params: List[Any] = [chat_id]
+        if source:
+            base += " AND source = %s"
+            params.append(source)
+        order = "ASC" if asc else "DESC"
+        base += f" ORDER BY ts {order}"
+        if limit and isinstance(limit, int) and limit > 0:
+            base += " LIMIT %s"
+            params.append(limit)
+
+        cur = self._cursor()
+        try:
+            cur.execute(base, tuple(params))
+            rows = cur.fetchall() or []
+            keys = ["id", "chat_id", "source", "sender", "text", "image_url", "image_urls", "image_alt", "status", "ts"]
+            return [dict(zip(keys, r)) for r in rows]
+        finally:
+            cur.close()
 
     # ------------------ business card contacts ------------------
 
@@ -539,6 +602,131 @@ class DBHandler:
             raise CustomException(e, sys)
         finally:
             cur.close()
+
+    # ---------- NEW: flat list + rebuild + Excel export ----------
+
+    def list_contacts_flat(
+        self,
+        chat_id: str,
+        source: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Return rows from business_contacts_flat for a chat (optionally filter by source).
+        """
+        q = """
+        SELECT contact_id, chat_id, source, names, titles, companies, phones, emails, websites, addresses,
+               raw_text, attachment_urls, created_at, updated_at
+        FROM business_contacts_flat
+        WHERE chat_id = %s
+        """
+        params: List[Any] = [chat_id]
+        if source:
+            q += " AND source = %s"
+            params.append(source)
+        q += " ORDER BY created_at DESC"
+
+        cur = self._cursor()
+        try:
+            cur.execute(q, tuple(params))
+            rows = cur.fetchall() or []
+            cols = [
+                "contact_id", "chat_id", "source", "names", "titles", "companies",
+                "phones", "emails", "websites", "addresses",
+                "raw_text", "attachment_urls", "created_at", "updated_at"
+            ]
+            return [dict(zip(cols, r)) for r in rows]
+        finally:
+            cur.close()
+
+    def rebuild_flat_for_chat(self, chat_id: str) -> int:
+        """
+        Recompute flat rows for all contacts in a chat.
+        """
+        cur = self._cursor()
+        try:
+            cur.execute("SELECT id FROM card_contacts WHERE chat_id = %s", (chat_id,))
+            ids = [r[0] for r in (cur.fetchall() or [])]
+            for cid in ids:
+                self._upsert_flat_for_contact(cid)
+            self.conn.commit()
+            return len(ids)
+        except Exception:
+            self.conn.rollback()
+            raise
+        finally:
+            cur.close()
+
+    def export_contacts_to_excel(
+        self,
+        chat_id: str,
+        source: Optional[str] = None,
+        out_dir: str = "static/exports",
+        filename_prefix: str = "business_cards",
+    ) -> Dict[str, str]:
+        """
+        Build a clean Excel for all contacts in a chat and return:
+          { "file_path": "<abs>", "api_path": "/static/exports/<file>" }
+        """
+        # get flat rows (rebuild if empty)
+        rows = self.list_contacts_flat(chat_id, source=source)
+        if not rows:
+            self.rebuild_flat_for_chat(chat_id)
+            rows = self.list_contacts_flat(chat_id, source=source)
+
+        if not rows:
+            raise CustomException(f"No contacts found for chat_id={chat_id}", sys)
+
+        def join_list(x: Any) -> str:
+            if x is None:
+                return ""
+            if isinstance(x, list):
+                return ", ".join([str(v) for v in x if v is not None and str(v).strip() != ""])
+            return str(x or "")
+
+        data = []
+        for r in rows:
+            name = (r.get("names") or [])
+            title = (r.get("titles") or [])
+            company = (r.get("companies") or [])
+            addr = (r.get("addresses") or [])
+
+            data.append({
+                "Full Name": name[0] if name else "",
+                "Company": company[0] if company else "",
+                "Title": title[0] if title else "",
+                "Phones": join_list(r.get("phones")),
+                "Emails": join_list(r.get("emails")),
+                "Websites": join_list(r.get("websites")),
+                "Address": addr[0] if addr else "",
+                "Source": r.get("source") or "",
+                "Chat ID": r.get("chat_id") or "",
+                "Created At": r.get("created_at"),
+            })
+
+        df = pd.DataFrame(data, columns=[
+            "Full Name", "Company", "Title", "Phones", "Emails", "Websites",
+            "Address", "Source", "Chat ID", "Created At"
+        ])
+
+        # ensure directory
+        os.makedirs(out_dir, exist_ok=True)
+        stamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        file_name = f"{filename_prefix}_{chat_id}_{stamp}.xlsx"
+        abs_path = os.path.abspath(os.path.join(out_dir, file_name))
+        api_path = f"/{out_dir.strip('/')}" + f"/{file_name}"
+
+        # write with XlsxWriter if available; fallback to openpyxl
+        engine = "xlsxwriter"
+        try:
+            with pd.ExcelWriter(abs_path, engine=engine) as writer:
+                df.to_excel(writer, index=False, sheet_name="Contacts")
+        except Exception:
+            # fallback
+            with pd.ExcelWriter(abs_path, engine="openpyxl") as writer:
+                df.to_excel(writer, index=False, sheet_name="Contacts")
+
+        logging.info(f"📤 Exported {len(df)} contacts to {abs_path}")
+        return {"file_path": abs_path, "api_path": api_path}
 
     # ------------------ close ------------------
 

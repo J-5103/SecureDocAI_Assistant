@@ -1,49 +1,52 @@
-fastapi
-uvicorn
+# --- Web stack (Pydantic v2) ---
+fastapi>=0.115,<1
+starlette>=0.37,<1
+uvicorn[standard]==0.35.0
+typing-extensions>=4.7,<5
+pydantic>=2.11,<3
+pydantic-settings>=2.7,<3
 
-pandas
-openpyxl
-# google-genai>=1.0.0
-seaborn
-matplotlib
-langchain
-pydantic>=2.5
-google-generativeai>=0.7.2
-openai
-google-genai==0.3.0
-# or
-# google-generativeai>=0.7.0
-
-# .env load ke liye (agar already nahi hai)
-python-dotenv==1.0.0
-
-# REST fallback requests use karega agar available ho (warna urllib se karega)
-requests==2.31.0
-
-pdfplumber           # Extract text from PDFs
-tabula-py            # Extract tables from PDFs
-python-docx          # Read .docx files
-openpyxl             # Read Excel (.xlsx)
-pandas               # For data manipulation
-numpy
-gpt4all
-
-transformers         # For using pretrained models like BERT, DistilBERT, etc.
-torch                # Required for model inference
-langchain            # For RAG pipelines and retrieval
+# --- LLM / RAG ---
+langchain==0.2.17
 langchain-community
 langchain-huggingface
 langchain-groq
-faiss-cpu            # Vector database (local retrieval)
+langsmith>=0.1.147
+faiss-cpu
 
-matplotlib           # For static plots
-seaborn              # For statistical plotting
-plotly               # For interactive plotting
+# --- Google clients (both v2-era) ---
+google-genai==0.3.0
+google-generativeai>=0.7.2
 
-python-multipart     # For file uploads
-aiofiles             # For async file handling
+# --- OpenAI client (optional) ---
+openai>=1.0,<2
 
-psycopg2-binary
+# --- Data / plotting ---
+pandas
+numpy
+openpyxl
+xlrd==1.2.0          # NEW: legacy .xls reader (pandas engine)
+XlsxWriter>=3.2.0    # NEW: optional, better Excel writing
+matplotlib
+seaborn
+plotly
+# kaleido               # Optional: enable Plotly static image export
+
+# --- PDF / DOC tooling ---
+pymupdf>=1.24,<2        # for `import fitz`
+pdfplumber
+tabula-py               # needs Java (JRE) installed
+python-docx
 pypdf
 
-#-e .
+# --- File uploads / IO ---
+python-multipart
+aiofiles
+Pillow>=10.3.0        # NEW: image metadata (width/height) for uploads
+requests==2.31.0
+python-dotenv==1.0.0
+
+# --- Optional local models ---
+gpt4all
+transformers
+torch                    # CPU wheel will install; pin only if you know your CUDA

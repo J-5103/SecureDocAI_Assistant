@@ -28,7 +28,7 @@ export const setApiBase = (url) => {
 
 const http = axios.create({
   baseURL: API_BASE,
-  timeout: 200000,
+  timeout: 2000000,
   withCredentials: false,
   transformResponse: [
     (data) => {
@@ -159,6 +159,17 @@ const ensureAllowed = (fileOrName, allowed, errMsg) => {
 
 const isFile = (v) => typeof File !== "undefined" && v instanceof File;
 const isFormData = (v) => typeof FormData !== "undefined" && v instanceof FormData;
+
+// Parse a filename from Content-Disposition header
+const filenameFromContentDisposition = (cd = "", fallback = "download.bin") => {
+  try {
+    const mStar = /filename\*\s*=\s*UTF-8''([^;]+)/i.exec(cd);
+    if (mStar?.[1]) return decodeURIComponent(mStar[1]);
+    const m = /filename\s*=\s*"?([^"]+)"?/i.exec(cd);
+    if (m?.[1]) return m[1];
+  } catch {}
+  return fallback;
+};
 
 /* =========================================
  * Allowed extensions (must match backend)
@@ -730,10 +741,16 @@ export const askImage = async (arg) => {
  * =======================================*/
 
 /**
- * Extract structured contact info from a business card image using Gemini (server-side).
- * Accepts optional `prompt` (used by ChatManager).
+ * Extract structured contact info from a business card image.
+ * NEW: accepts `chatId` so rows are tracked per-chat for export.
  */
-export const extractBusinessCard = async ({ file, returnVcard = true, prompt = "" }) => {
+export const extractBusinessCard = async ({
+  file,
+  returnVcard = true,
+  prompt = "",
+  chatId = null,
+  chat_id = null, // alias accepted
+}) => {
   if (!file) throw new Error("Please choose an image/PDF of the business card.");
   ensureAllowed(
     file,
@@ -743,12 +760,16 @@ export const extractBusinessCard = async ({ file, returnVcard = true, prompt = "
   const fd = new FormData();
   fd.append("file", file);
   if (prompt) fd.append("prompt", String(prompt));
+  const cid = chatId || chat_id;
+  if (cid) fd.append("chat_id", String(cid));
 
-  const { data } = await http.post(
-    `/api/cards/extract?return_vcard=${returnVcard ? "true" : "false"}`,
-    fd,
-    { headers: { "Content-Type": "multipart/form-data" } }
-  );
+  const qs = new URLSearchParams();
+  qs.set("return_vcard", returnVcard ? "true" : "false");
+  if (cid) qs.set("chat_id", String(cid)); // backend can accept either form-data or query
+
+  const { data } = await http.post(`/api/cards/extract?${qs.toString()}`, fd, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 
   if (data?.vcard_url) data.vcard_url = vizImageUrl(data.vcard_url);
   if (data?.vcard_url && !data?.vcardUrl) data.vcardUrl = data.vcard_url;
@@ -773,6 +794,34 @@ export const vcardFromJson = async (card) => {
   });
   if (data?.vcard_url) data.vcard_url = vizImageUrl(data.vcard_url);
   return data;
+};
+
+/** NEW: list extracted cards for a chat (robust to either route) */
+export const cardsList = async (chatId) => {
+  if (!chatId) throw new Error("chatId is required.");
+  try {
+    const { data } = await http.get(`/api/chats/${encodeURIComponent(chatId)}/cards`);
+    return data?.items || data?.cards || data || [];
+  } catch {
+    const { data } = await http.get("/api/cards/list", { params: { chat_id: chatId } });
+    return data?.items || data?.cards || data || [];
+  }
+};
+
+/** NEW: export extracted cards for a chat (xlsx|csv|vcf|zip). Returns {blob, filename}. */
+export const cardsExport = async ({ chatId, format = "xlsx" } = {}) => {
+  if (!chatId) throw new Error("chatId is required.");
+  const fmt = String(format || "xlsx").toLowerCase();
+  const allowed = new Set(["xlsx", "csv", "vcf", "zip"]);
+  if (!allowed.has(fmt)) throw new Error('format must be one of: "xlsx", "csv", "vcf", "zip".');
+
+  const url = `/api/chats/${encodeURIComponent(chatId)}/cards/export?format=${encodeURIComponent(fmt)}`;
+  const res = await http.get(url, { responseType: "blob" });
+  const blob = res.data;
+  const cd = res.headers?.["content-disposition"] || res.headers?.get?.("content-disposition");
+  const fallbackName = `business-cards-${chatId}-${new Date().toISOString().slice(0, 10)}.${fmt}`;
+  const filename = filenameFromContentDisposition(cd, fallbackName);
+  return { blob, filename };
 };
 
 /* =========================================

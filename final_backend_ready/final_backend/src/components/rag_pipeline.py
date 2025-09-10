@@ -45,7 +45,7 @@ class RAGPipeline:
         self,
         vector_store_path: str = "vectorstores",
         ollama_url: str = "http://192.168.0.88:11434/api/generate",
-        model_name: str = "llama3:8b",
+        model_name: str = "openbmb/minicpm-v4.5:latest",
     ):
         device = "cuda" if (_TORCH_AVAILABLE and torch.cuda.is_available()) else "cpu"  # type: ignore[attr-defined]
         print(f"Initializing RAGPipeline with device: {device}")
@@ -446,7 +446,7 @@ class RAGPipeline:
                     "num_ctx": 3072,
                 },
             }
-            response = requests.post(self.ollama_url, json=payload, timeout=120)
+            response = requests.post(self.ollama_url, json=payload, timeout=2000)
             response.raise_for_status()
 
             answer = response.json().get("response", "") or ""

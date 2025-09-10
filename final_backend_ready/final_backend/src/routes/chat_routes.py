@@ -1,21 +1,128 @@
 # src/routes/chat_routes.py
 from __future__ import annotations
 
+import json
+import os
+import re
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-
 from uuid import uuid4
+
+# Optional: get image dimensions if Pillow is available
+try:
+    from PIL import Image  # type: ignore
+except Exception:  # pragma: no cover
+    Image = None  # type: ignore
 
 # Import your DB helper
 from src.components.db_handler import DBHandler
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-# ---------- Pydantic models ----------
+# ---------- Config / paths ----------
+UPLOADS_ROOT = Path(os.environ.get("UPLOADS_DIR", "uploads")).resolve()
+CHAT_UPLOADS_DIR = UPLOADS_ROOT / "chat"
+CHAT_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
+MANIFESTS_DIR = CHAT_UPLOADS_DIR / "_manifests"
+MANIFESTS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Allowed (match frontend api.js)
+IMG_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff", ".tif"}
+VISION_EXTS = IMG_EXTS | {".pdf"}
+
+
+def _ext_of(name: str) -> str:
+    i = name.rfind(".")
+    return name[i:].lower() if i >= 0 else ""
+
+
+def _ensure_allowed(filename: str):
+    ext = _ext_of(filename or "")
+    if ext not in VISION_EXTS:
+        raise HTTPException(
+            400,
+            f"Only image/PDF files are allowed "
+            f"({', '.join(sorted(VISION_EXTS))}). Got: {filename}",
+        )
+
+
+def _safe_name(name: str) -> str:
+    return re.sub(r"[^\w.\-]+", "_", (name or "upload.bin")).strip("._") or "upload.bin"
+
+
+def _chat_dir(chat_id: str) -> Path:
+    safe = re.sub(r"[^a-zA-Z0-9_\-]", "_", chat_id or "default")
+    p = CHAT_UPLOADS_DIR / safe
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+def _manifest_path(chat_id: str) -> Path:
+    safe = re.sub(r"[^a-zA-Z0-9_\-]", "_", chat_id or "default")
+    return MANIFESTS_DIR / f"{safe}.json"
+
+
+def _save_file(chat_id: str, up: UploadFile) -> dict:
+    _ensure_allowed(up.filename or "")
+    base_dir = _chat_dir(chat_id)
+    unique = f"{uuid4().hex[:8]}-{_safe_name(up.filename or 'upload')}"
+    abs_path = base_dir / unique
+
+    # Save file
+    with abs_path.open("wb") as f:
+        f.write(up.file.read())
+
+    # Try to get dims for images
+    width = height = None
+    if Image is not None and _ext_of(unique) in IMG_EXTS:
+        try:
+            with Image.open(abs_path) as im:
+                width, height = im.size
+        except Exception:
+            pass
+
+    rel_url = f"/uploads/chat/{_safe_name(chat_id)}/{unique}"
+
+    return {
+        "name": up.filename or unique,
+        "size": abs_path.stat().st_size,
+        "content_type": up.content_type or "",
+        "url": rel_url,
+        "width": width,
+        "height": height,
+        "saved_path": str(abs_path),
+    }
+
+
+def _append_manifest(chat_id: str, entries: List[dict]):
+    mp = _manifest_path(chat_id)
+    try:
+        cur = json.loads(mp.read_text("utf-8"))
+    except Exception:
+        cur = {"messages": []}
+
+    # We store each upload as one "message" with its attachments
+    cur["messages"].append(
+        {
+            "id": uuid4().hex,
+            "sender": "user",
+            "text": "(image attached)",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "attachments": [
+                {k: v for k, v in e.items() if k != "saved_path"} for e in entries
+            ],
+        }
+    )
+    mp.write_text(json.dumps(cur, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+# ---------- Pydantic models (existing) ----------
 SourceType = Literal["chat", "viz"]
 
 
@@ -45,7 +152,96 @@ class BulkMessagesIn(BaseModel):
     messages: List[MessageIn]
 
 
-# ---------- Routes ----------
+# ---------- New: upload endpoint to match frontend chatUploadImages() ----------
+
+@router.post("")
+async def upload_to_chat(
+    chat_id: str = Form(...),
+    text: str = Form(default=""),
+    files: List[UploadFile] = File(default=None),
+):
+    """
+    Accepts multiple files, saves under /uploads/chat/{chat_id}/, and returns:
+    {
+      status: "ok",
+      chat_id,
+      text,
+      attachments: [{name, url, size, content_type, width?, height?}, ...],
+      image_urls: ["..."]
+    }
+    Also appends a simple manifest row and (optionally) upserts a DB message.
+    """
+    try:
+        saved: List[dict] = []
+        for up in files or []:
+            saved.append(_save_file(chat_id, up))
+
+        # Persist lightweight manifest for /chat/history
+        if saved:
+            _append_manifest(chat_id, saved)
+
+        # Optional: upsert a single message in DB with the normalized URLs (matches your existing schema)
+        try:
+            if saved:
+                db = DBHandler()
+                db.upsert_messages(
+                    chat_id=chat_id,
+                    source="chat",
+                    messages=[
+                        {
+                            "id": str(uuid4()),
+                            "sender": "user",
+                            "text": (text or "(image attached)").strip(),
+                            "image_urls": [e["url"] for e in saved],
+                            "timestamp": datetime.now(timezone.utc),
+                        }
+                    ],
+                )
+        except Exception:
+            # DB is optional for this path; ignore failures
+            pass
+
+        # Shape expected by frontend api.js (it re-normalizes urls to absolute)
+        attachments = [
+            {k: v for k, v in e.items() if k != "saved_path"} for e in saved
+        ]
+        image_urls = [e["url"] for e in saved]
+
+        return JSONResponse(
+            {
+                "status": "ok",
+                "chat_id": chat_id,
+                "text": text,
+                "attachments": attachments,
+                "image_urls": image_urls,
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
+
+
+@router.get("/history")
+async def chat_history(chat_id: str = Query(..., description="Chat id to list uploads for")):
+    """
+    Return a simple history view reconstructed from the manifest created by /chat uploads.
+    The frontend normalizer maps each message's attachments and absolute-izes the urls.
+    """
+    mp = _manifest_path(chat_id)
+    if not mp.exists():
+        return {"chat_id": chat_id, "messages": []}
+
+    try:
+        data = json.loads(mp.read_text("utf-8"))
+        messages = data.get("messages", [])
+    except Exception:
+        messages = []
+
+    return {"chat_id": chat_id, "messages": messages}
+
+
+# ---------- Existing routes (kept) ----------
 
 @router.post("/create", response_model=CreateChatRes)
 async def create_chat(payload: CreateChatReq | None = None):

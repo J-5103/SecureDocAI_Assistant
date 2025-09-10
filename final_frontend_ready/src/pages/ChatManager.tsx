@@ -113,7 +113,7 @@ async function urlToFile(
   return new File([blob], name, { type });
 }
 
-/* ---------- strict business-card prompt (kept for parity) ---------- */
+/* ---------- strict business-card prompt ---------- */
 const buildCardPrompt = (userText: string) => `
 You are an OCR + contact extractor for business cards.
 Return only what the card prints; no guessing. If a field is missing, omit it.
@@ -124,7 +124,6 @@ User request: ${userText || "Extract contact details from this card"}
 type CardItem = {
   first_name?: string;
   last_name?: string;
-  // name?: string; // (optional if your backend returns a single "name")
   organization?: string;
   job_title?: string;
   phones?: string[];
@@ -227,7 +226,6 @@ function smartMergeContacts(items: CardItem[]): CardItem[] {
       const curNm = fullNameOf(cur).raw.split(/\s+/);
       const [afn, aln] = [accNm[0] || "", accNm.slice(1).join(" ") || ""];
       const [fn, ln] = [curNm[0] || "", curNm.slice(1).join(" ") || ""];
-
       return {
         first_name: pickLongest(afn, fn),
         last_name: pickLongest(aln, ln),
@@ -248,9 +246,7 @@ function smartMergeContacts(items: CardItem[]): CardItem[] {
   return out.sort((a, b) => norm(fullNameOf(a).raw).localeCompare(norm(fullNameOf(b).raw)));
 }
 
-/* ---------- VizChat-style pretty formatter (no raw JSON)
- * Shows "Contact 1/2..." ONLY when >1 contacts after merge ----------
- */
+/* ---------- VizChat-style pretty formatter ---------- */
 function formatContactsViz(items: CardItem[] = [], meta: { totalImages?: number } = {}): string {
   const { totalImages = 0 } = meta;
   if (!items.length) return `No details found from ${totalImages} image${totalImages > 1 ? "s" : ""}.`;
@@ -328,7 +324,7 @@ export const ChatManager = () => {
     selectedChatRef.current = selectedChat;
   }, [selectedChat]);
 
-  /* ---- image-answer cache (same image => same answer forever) ---- */
+  /* ---- image-answer cache ---- */
   const readImgAnsCache = (): Record<string, string> => {
     if (!chatId) return {};
     try {
@@ -701,7 +697,7 @@ export const ChatManager = () => {
     };
 
     try {
-      /** A) Vision / Image flow — now supports MULTIPLE images */
+      /** A) Vision / Image flow — supports MULTIPLE images */
       if (hasImages) {
         // 1) Upload all images (server should return attachments[] or image_urls[])
         let serverUrls: string[] = [];
@@ -747,6 +743,9 @@ export const ChatManager = () => {
             file,
             returnVcard: true,
             prompt: buildCardPrompt(text),
+            // NEW: include chat id so backend saves rows per chat
+            chatId: selectedChat.id,
+            chat_id: selectedChat.id,
           });
           const items = normalizeToItems(r);
           if (items.length) {
@@ -766,7 +765,7 @@ export const ChatManager = () => {
           }
         }
 
-        // 4) Build final VizChat-style message (merge to avoid duplicate Contact 1/2)
+        // 4) Build final message (merged to avoid duplicate Contact 1/2)
         let finalText = "";
         if (allItems.length) {
           const merged = smartMergeContacts(allItems);
@@ -833,6 +832,9 @@ export const ChatManager = () => {
                 file,
                 returnVcard: true,
                 prompt: buildCardPrompt(text),
+                // NEW: include chat id so backend saves rows per chat
+                chatId: selectedChat.id,
+                chat_id: selectedChat.id,
               });
               const items = normalizeToItems(r);
               const merged = smartMergeContacts(items);
@@ -941,6 +943,8 @@ export const ChatManager = () => {
                 name: d.name,
               }))}
               isLoading={isAsking}
+              // NEW: provide chat info for per-chat Excel export button in ChatInterface
+              {...({ chatId: selectedChat.id, chatTitle: selectedChat.name } as any)}
             />
           </div>
         </div>

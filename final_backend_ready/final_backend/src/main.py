@@ -1,4 +1,10 @@
 # src/main.py
+from src.utils.pydantic_bridge import apply_pydantic_v1_bridge
+apply_pydantic_v1_bridge()
+
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Body, Query, BackgroundTasks
+# ...
+
 import os, shutil, re, uuid, json, base64, mimetypes, importlib, io, difflib
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime
@@ -138,8 +144,8 @@ if _frontend_origins:
 else:
     _allowed_origins = [
         "http://192.168.0.109:3000",
-        "http://192.168.62.133:3000",
-        "http://192.168.0.109:5173",
+        "http://192.168.0.109:3000",
+        # "http://192.168.0.109:5173",
         "http://192.168.0.88:3000",
         "http://192.168.0.88:5173",
         "http://localhost:3000",

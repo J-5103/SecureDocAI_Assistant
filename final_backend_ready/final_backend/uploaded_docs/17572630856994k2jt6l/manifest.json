@@ -1,0 +1,23 @@
+{
+  "chat_id": "17572630856994k2jt6l",
+  "docs": [
+    {
+      "doc_id": "data_science_for_engineers-725925f1",
+      "file_name": "Data Science for Engineers.pdf",
+      "ext": ".pdf",
+      "size": 1259559,
+      "stored_path": "uploaded_docs/17572630856994k2jt6l/data_science_for_engineers-725925f1.pdf",
+      "vector_dir": "vectorstores/17572630856994k2jt6l/data_science_for_engineers-725925f1",
+      "created_at": "2025-09-07T16:38:05.761827Z"
+    },
+    {
+      "doc_id": "ai-driven_intelligent_skill-based_role_recommendation-265a09b3",
+      "file_name": "AI-Driven Intelligent Skill-Based Role Recommendation.pdf",
+      "ext": ".pdf",
+      "size": 100567,
+      "stored_path": "uploaded_docs/17572630856994k2jt6l/ai-driven_intelligent_skill-based_role_recommendation-265a09b3.pdf",
+      "vector_dir": "vectorstores/17572630856994k2jt6l/ai-driven_intelligent_skill-based_role_recommendation-265a09b3",
+      "created_at": "2025-09-07T16:38:07.818453Z"
+    }
+  ]
+}

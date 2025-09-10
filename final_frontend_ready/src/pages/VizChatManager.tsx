@@ -46,23 +46,28 @@ type VizChat = {
 /* ========================= Local storage ========================= */
 const VIZ_CHAT_STORAGE = "vizChats";
 const docsKeyFor = (id: string) => `documents:${id}`;
-const vizMapKeyFor = (id: string) => `vizFilePathMap:${id}`; // id -> file_path
+const vizMapKeyFor = (id: string) => `vizFilePathMap:${id}`;
 const imgAnsCacheKeyFor = (id: string) => `vizImgAnswerCache:${id}`;
 
 const safeMsgs = (m: unknown): VizMsg[] => (Array.isArray(m) ? (m as VizMsg[]) : []);
 const cleanFileName = (s?: string) =>
   (String(s || "").split(/[?#]/)[0].split(/[/\\]/).pop() || "").trim().replace(/["']/g, "");
 
-/** keep tableCsvUrl & kind while sanitizing */
+/** de-dupe helper */
+const dedupUrls = (arr?: string[]) =>
+  Array.from(new Set((arr || []).map((u) => String(u || "").trim()).filter(Boolean)));
+
+/** keep tableCsvUrl & kind; DO NOT strip data:/blob:. also, if imageUrls exists, clear imageUrl to avoid double render */
 const sanitizeChats = (chats: VizChat[]): VizChat[] =>
   chats.map((c) => ({
     ...c,
     messages: safeMsgs(c.messages).map((m) => {
-      const imgs = Array.isArray(m.imageUrls) ? m.imageUrls.filter((u) => !/^data:|^blob:/i.test(u)) : undefined;
-      const single = typeof m.imageUrl === "string" && !/^data:|^blob:/i.test(m.imageUrl) ? m.imageUrl : undefined;
+      const imgs = dedupUrls(m.imageUrls);
+      const single =
+        imgs && imgs.length ? undefined : typeof m.imageUrl === "string" ? m.imageUrl : undefined;
       const csvUrl = (m as any).tableCsvUrl || (m as any).table_csv_url || undefined;
       const kind = (m as any).kind || undefined;
-      return { ...m, imageUrls: imgs, imageUrl: single, tableCsvUrl: csvUrl, kind };
+      return { ...m, imageUrls: imgs && imgs.length ? imgs : undefined, imageUrl: single, tableCsvUrl: csvUrl, kind };
     }),
   }));
 
@@ -94,7 +99,7 @@ function mergeDocs(chatId: string, incoming: VizDocument[]): VizDocument[] {
   return merged;
 }
 
-/* ========================= DB persistence (NEW) ========================= */
+/* ========================= DB persistence ========================= */
 type AppendExtras = {
   image_url?: string;
   image_urls?: string[];
@@ -115,9 +120,7 @@ async function ensureVizChat(params: { chatId: string; name?: string; createdAt?
         created_at: params.createdAt ?? new Date().toISOString(),
       }),
     });
-  } catch {
-    /* best-effort; don't block UI */
-  }
+  } catch {}
 }
 
 async function appendVizEvent(params: {
@@ -139,9 +142,7 @@ async function appendVizEvent(params: {
         ...(params.extras || {}),
       }),
     });
-  } catch {
-    /* best-effort */
-  }
+  } catch {}
 }
 
 /* ========================= UI scroll ========================= */
@@ -186,7 +187,7 @@ const fileToDataUrl = (file: File): Promise<string> =>
     r.readAsDataURL(file);
   });
 
-/* ========================= Legacy plot prompts (fallback only) ========================= */
+/* ========================= Prompts & helpers (unchanged) ========================= */
 const BASE_READONLY = `
 DATA IS READ-ONLY.
 - Never call DataFrame.insert, never assign back to df to create/overwrite columns.
@@ -225,7 +226,7 @@ const DIAGNOSTIC_PROMPT = (userText: string) =>
 const extractImageFrom = (res: any): string =>
   res?.plotImageUrl || res?.image_url || (res?.image_base64 ? `data:image/png;base64,${res.image_base64}` : "");
 
-/* ========================= Vision: business-card helpers (copied from ChatManager) ========================= */
+/* ========================= Business-card helpers (unchanged) ========================= */
 const buildCardPrompt = (userText: string) =>
   `You are an OCR + contact extractor for business cards.
 Return only what the card prints; no guessing. If a field is missing, omit it.
@@ -258,7 +259,7 @@ const norm = (s?: string) => (s || "").toLowerCase().replace(/\s+/g, " ").trim()
 const fullNameOf = (it: CardItem) => {
   const fn = (it.first_name || "").trim();
   const ln = (it.last_name || "").trim();
-  const raw = (fn || ln) ? `${fn} ${ln}`.trim() : "";
+  const raw = fn || ln ? `${fn} ${ln}`.trim() : "";
   return { raw, key: norm(raw) };
 };
 const pickLongest = (a?: string, b?: string) => {
@@ -333,7 +334,7 @@ function smartMergeContacts(items: CardItem[]): CardItem[] {
   for (const [, arr] of groups.entries()) out.push(mergeGroup(arr));
   return out.sort((a, b) => norm(fullNameOf(a).raw).localeCompare(norm(fullNameOf(b).raw)));
 }
-function formatContactsViz(items: CardItem[] = [], meta: { totalImages?: number } = {}): string {
+function formatContactsViz(items: CardItem[] = [], meta: { totalImages?: number } = {}) {
   const { totalImages = 0 } = meta;
   if (!items.length) return `No details found from ${totalImages} image${totalImages > 1 ? "s" : ""}.`;
   const single = items.length === 1;
@@ -369,14 +370,18 @@ const pickExtractorText = (r: any) => {
   return String(txt || "").trim();
 };
 
-/* Toggle: avoid uploading attachments to server in Viz chat (previews only) */
-const SHOULD_UPLOAD_ATTACHMENTS = false;
+/* Upload attachments to persist images */
+const SHOULD_UPLOAD_ATTACHMENTS = true;
 
 /* ========================= Intent helpers ========================= */
 const KPI_AGG_RE = /\b(sum|total|overall|avg|average|mean|median|max|maximum|min|minimum|count|how many|number of)\b/i;
 const DIMENSION_HINT_RE =
   /\b(by|per|vs|versus|against|wise|breakdown|split|group(ed)? by|region|state|city|country|segment|category|subcategory|product|customer|payment|ship|month|year|week|day|date|time|over time|trend)\b/i;
 const isKpiIntent = (txt: string) => KPI_AGG_RE.test(txt || "") && !DIMENSION_HINT_RE.test(txt || "");
+
+/* Helpers */
+const isImageFile = (f: File) =>
+  !!f && (f.type?.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(f.name || ""));
 
 /* ========================= Component ========================= */
 export const VizChatManager = () => {
@@ -388,7 +393,6 @@ export const VizChatManager = () => {
   const [documents, setDocuments] = useState<VizDocument[]>([]);
   const [selectedChat, setSelectedChat] = useState<VizChat | null>(null);
 
-  // documentId -> server file_path mapping
   const [vizFilePathMap, setVizFilePathMap] = useState<Record<string, string>>({});
 
   const [showNewChatDialog] = useState(false);
@@ -413,7 +417,7 @@ export const VizChatManager = () => {
     setTimeout(() => go(false), 350);
   }, []);
 
-  /* small cache so same image isn't re-parsed */
+  /* image-answer cache */
   const readImgAnsCache = (): Record<string, string> => {
     if (!chatId) return {};
     try {
@@ -469,11 +473,11 @@ export const VizChatManager = () => {
       const parsed: VizChat[] = saved ? JSON.parse(saved) : [];
       const normalized = parsed.map((c) => ({
         ...c,
-        messages: safeMsgs((c as any).messages),
+        messages: safeMsgs(c.messages),
         messageCount:
           typeof (c as any).messageCount === "number"
             ? (c as any).messageCount
-            : safeMsgs((c as any).messages).length,
+            : safeMsgs(c.messages).length,
       }));
       setVizChatSessions(normalized);
     } catch {
@@ -574,7 +578,6 @@ export const VizChatManager = () => {
     setSelectedChat(chat);
     setDocuments([]);
 
-    // ensure row in documents_chat (source='viz')
     ensureVizChat({ chatId: id, name: chat.name, createdAt: chat.createdAt });
 
     navigate(`/visualizations/chat/${id}`, { replace: true });
@@ -583,7 +586,7 @@ export const VizChatManager = () => {
   const uploadFile = async (file: File, targetChatId: string): Promise<VizDocument> => {
     const type = getDocType(file.name);
     if (type === "excel") {
-      const up = await excelUpload(file, targetChatId); // { file_path, chat_id, message }
+      const up = await excelUpload(file, targetChatId);
       const docId = generateId();
       if (up?.file_path) saveVizFilePath(docId, up.file_path);
       return {
@@ -594,7 +597,7 @@ export const VizChatManager = () => {
         uploadDate: new Date().toISOString(),
         status: "ready",
         chatId: targetChatId,
-        documentId: docId, // path via vizFilePathMap
+        documentId: docId,
       } as VizDocument;
     } else {
       const formData = new FormData();
@@ -614,6 +617,44 @@ export const VizChatManager = () => {
     }
   };
 
+  /** append a message */
+  const appendMessageToCurrent = (msg: VizMsg) => {
+    if (!selectedChat) return;
+    setVizChatSessions((prev) =>
+      prev.map((c) => {
+        if (c.id !== selectedChat.id) return c;
+        const msgs = [...safeMsgs(c.messages), msg];
+        return { ...c, messages: msgs, lastMessage: msg.text, messageCount: msgs.length };
+      })
+    );
+    setSelectedChat((cur) => {
+      if (!cur) return cur;
+      const msgs = [...safeMsgs(cur.messages), msg];
+      return { ...cur, messages: msgs, lastMessage: msg.text, messageCount: msgs.length };
+    });
+  };
+
+  /** REPLACE message.imageUrls with provided urls (no merge -> fixes double copy) */
+  const setMessageImageUrls = (msgId: string, urls: string[]) => {
+    const clean = dedupUrls(urls);
+    setVizChatSessions((prev) =>
+      prev.map((c) => {
+        if (!selectedChat || c.id !== selectedChat.id) return c;
+        const msgs = safeMsgs(c.messages).map((m) =>
+          m.id === msgId ? { ...m, imageUrl: undefined, imageUrls: clean, imageAlt: "attachments" } : m
+        );
+        return { ...c, messages: msgs };
+      })
+    );
+    setSelectedChat((cur) => {
+      if (!cur || cur.id !== selectedChat?.id) return cur;
+      const msgs = safeMsgs(cur.messages).map((m) =>
+        m.id === msgId ? { ...m, imageUrl: undefined, imageUrls: clean, imageAlt: "attachments" } : m
+      );
+      return { ...cur, messages: msgs };
+    });
+  };
+
   const handleDocumentUpload = async (files: FileList) => {
     if (!chatId) {
       toast({ title: "Error", description: "Chat ID is missing." });
@@ -623,6 +664,40 @@ export const VizChatManager = () => {
     for (const file of Array.from(files)) {
       try {
         uploaded.push(await uploadFile(file, chatId));
+
+        // show ONLY one copy: preview first, then REPLACE with server URL
+        if (isImageFile(file) && selectedChat) {
+          const preview = await fileToDataUrl(file);
+          const msgId = generateId();
+          const imgMsg: VizMsg = {
+            id: msgId,
+            text: "(uploaded image)",
+            sender: "user",
+            timestamp: new Date().toISOString(),
+            imageUrls: [preview],
+            imageAlt: "attachment",
+          };
+          appendMessageToCurrent(imgMsg);
+          appendVizEvent({ chatId: selectedChat.id, role: "user", text: imgMsg.text });
+
+          if (SHOULD_UPLOAD_ATTACHMENTS) {
+            try {
+              const up = await chatUploadImages({ chatId: selectedChat.id, text: "(image)", files: [file] });
+              const urls =
+                (up?.attachments || []).map((a: any) => a?.url || a?.file_path).filter(Boolean) || [];
+              if (urls.length) {
+                // REPLACE preview with server URL(s)
+                setMessageImageUrls(msgId, urls);
+                appendVizEvent({
+                  chatId: selectedChat.id,
+                  role: "user",
+                  text: "(image attached)",
+                  extras: { image_urls: urls },
+                });
+              }
+            } catch {}
+          }
+        }
       } catch (error: any) {
         toast({
           title: "Upload Failed",
@@ -693,7 +768,7 @@ export const VizChatManager = () => {
       text: text.trim(),
       sender: "user",
       timestamp: new Date().toISOString(),
-      imageUrls: previewUrls.length ? previewUrls : undefined,
+      imageUrls: previewUrls.length ? dedupUrls(previewUrls) : undefined,
       imageAlt: previewUrls.length ? "attachments" : undefined,
     };
 
@@ -707,7 +782,6 @@ export const VizChatManager = () => {
     setVizChatSessions((prev) => prev.map((c) => (c.id === chatSnapshot.id ? chatSnapshot : c)));
     setSelectedChat(chatSnapshot);
 
-    // persist user message (text only)
     appendVizEvent({ chatId: chatSnapshot.id, role: "user", text: userMsg.text });
 
     const thinkingId = generateId();
@@ -745,7 +819,6 @@ export const VizChatManager = () => {
         return next;
       });
 
-      // persist AI final answer (with extras)
       const aiText = String(patch.text || "").trim();
       if (aiText) {
         const extras: AppendExtras = {};
@@ -758,13 +831,15 @@ export const VizChatManager = () => {
       requestAnimationFrame(() => requestAnimationFrame(() => nudgeBottom(true)));
     };
 
+    // REPLACE previews with server URLs (no merge) to avoid double copies
     const replaceUserImageUrls = (urls?: string[]) => {
       if (!urls || !urls.length) return;
+      const clean = dedupUrls(urls);
       setVizChatSessions((prev) =>
         prev.map((c) => {
           if (c.id !== chatSnapshot.id) return c;
           const msgs = safeMsgs(c.messages).map((m) =>
-            m.id === userMsgId ? { ...m, imageUrls: urls, imageAlt: "attachments" } : m
+            m.id === userMsgId ? { ...m, imageUrl: undefined, imageUrls: clean, imageAlt: "attachments" } : m
           );
           return { ...c, messages: msgs };
         })
@@ -772,7 +847,7 @@ export const VizChatManager = () => {
       setSelectedChat((cur) => {
         if (!cur || cur.id !== chatSnapshot.id) return cur;
         const msgs = safeMsgs(cur.messages).map((m) =>
-          m.id === userMsgId ? { ...m, imageUrls: urls, imageAlt: "attachments" } : m
+          m.id === userMsgId ? { ...m, imageUrl: undefined, imageUrls: clean, imageAlt: "attachments" } : m
         );
         const next = { ...cur, messages: msgs };
         chatSnapshot = next;
@@ -781,24 +856,21 @@ export const VizChatManager = () => {
     };
 
     try {
-      /* ===== Vision: business card ===== */
+      /* ===== Vision path (images with message) ===== */
       if (imageFiles.length) {
-        // (optional) upload to server to persist; disabled for demo to avoid extra GETs
         let serverUrls: string[] = [];
         if (SHOULD_UPLOAD_ATTACHMENTS) {
           try {
-            const up = await chatUploadImages({ chatId: selectedChat.id, text, files: imageFiles.slice(0, 4) });
-            const urls = (up?.attachments || []).map((a: any) => a?.url).filter(Boolean);
+            const up = await chatUploadImages({ chatId: selectedChat.id, text, files: imageFiles.slice(0, 6) });
+            const urls =
+              (up?.attachments || []).map((a: any) => a?.url || a?.file_path).filter(Boolean) || [];
             if (urls?.length) {
               serverUrls = urls;
-              replaceUserImageUrls(urls);
+              replaceUserImageUrls(urls); // REPLACE previews -> server
             }
-          } catch {
-            /* ignore; previews already shown */
-          }
+          } catch {}
         }
 
-        // use cache where available
         const perImageBlocks: string[] = [];
         const itemsAll: CardItem[] = [];
 
@@ -810,10 +882,13 @@ export const VizChatManager = () => {
             perImageBlocks.push(cached);
             continue;
           }
+          // NEW: include chat id so backend can persist per-chat card rows
           const r = await extractBusinessCard({
             file: f,
             returnVcard: false,
             prompt: buildCardPrompt(text),
+            chatId: selectedChat.id,  // <-- NEW
+            chat_id: selectedChat.id, // <-- NEW (for APIs expecting snake_case)
           });
           const items = normalizeToItems(r);
           if (items.length) {
@@ -896,9 +971,7 @@ export const VizChatManager = () => {
             kind,
           });
           return;
-        } catch (e) {
-          console.warn("vizGenerate failed, using legacy path:", e);
-        }
+        } catch (e) {}
 
         // Legacy fallbacks
         const fileName = cleanFileName(doc?.name);
@@ -968,7 +1041,6 @@ export const VizChatManager = () => {
           replaceThinking({ text: answerText, imageUrl: plotUrl, imageAlt: "Generated plot" });
         }
       } else {
-        // non-excel Q&A
         const res = await askQuestion({
           chatId: selectedChat.id,
           documentId: documentId || undefined,
@@ -1040,6 +1112,9 @@ export const VizChatManager = () => {
                 onSendMessage={onSendWrapper}
                 documents={documents}
                 isLoading={isAsking}
+                /* NEW: provide chat info for per-chat Excel export button */
+                chatId={selectedChat.id}
+                chatTitle={selectedChat.name}
               />
             </div>
           </div>

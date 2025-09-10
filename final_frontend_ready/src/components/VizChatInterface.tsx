@@ -46,6 +46,11 @@ interface VizChatInterfaceProps {
   ) => Promise<void> | void;
   documents?: VizDocument[];
   isLoading?: boolean;
+
+  /** NEW: used for per-chat Excel export */
+  chatId?: string;
+  /** Optional, used for filename when exporting */
+  chatTitle?: string;
 }
 
 // plot-intent detector (same keywords backend uses)
@@ -73,6 +78,8 @@ export const VizChatInterface = ({
   onSendMessage,
   documents = [],
   isLoading = false,
+  chatId,          // NEW
+  chatTitle,       // NEW
 }: VizChatInterfaceProps) => {
   const [inputText, setInputText] = useState("");
   const [selectedDocId, setSelectedDocId] = useState<string>("");
@@ -87,6 +94,8 @@ export const VizChatInterface = ({
   const [previews, setPreviews] = useState<string[]>([]);
   const [pdfNames, setPdfNames] = useState<string[]>([]);
   const imgInputRef = useRef<HTMLInputElement>(null);
+
+  const [downloading, setDownloading] = useState(false); // NEW: export state
 
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -419,6 +428,36 @@ export const VizChatInterface = ({
   const showLoadingThinking =
     isLoading && !(lastDisplayed && lastDisplayed.sender === "ai" && isThinkingMsg(lastDisplayed));
 
+  // NEW: Export cards (Excel) for this chat
+  const handleExportCards = useCallback(async () => {
+    if (!chatId) {
+      alert("Chat ID is missing for export.");
+      return;
+    }
+    try {
+      setDownloading(true);
+      const res = await fetch(`/api/chats/${encodeURIComponent(chatId)}/cards/export`);
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || "Export failed");
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const base = (chatTitle || chatId || "chat").replace(/[^\w\-]+/g, "_");
+      a.href = url;
+      a.download = `${base}-cards.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err?.message || "Export failed");
+    } finally {
+      setDownloading(false);
+    }
+  }, [chatId, chatTitle]);
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* messages list */}
@@ -598,6 +637,21 @@ export const VizChatInterface = ({
               />
               Force plot
             </label>
+          </div>
+
+          {/* NEW: Export cards (Excel) button */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCards}
+              disabled={!chatId || isLoading || downloading}
+              title="Download all business-card data uploaded in this chat as Excel"
+              aria-label="Export cards to Excel"
+            >
+              <FileText className="w-3 h-3 mr-2" />
+              {downloading ? "Exporting…" : "Export cards"}
+            </Button>
           </div>
         </div>
 

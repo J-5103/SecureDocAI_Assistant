@@ -16,7 +16,7 @@ vectorstore = FAISS.load_local("vectorstore/faiss_index/", embeddings, allow_dan
 async def call_llama(prompt):
     response = requests.post(
         "http://192.168.0.88:11434/api/generate",
-        json={"model": "llama3:8b", "prompt": prompt, "stream": False}
+        json={"model": "minicpm-v:latest", "prompt": prompt, "stream": False}
     )
     return response.json()["response"]
 

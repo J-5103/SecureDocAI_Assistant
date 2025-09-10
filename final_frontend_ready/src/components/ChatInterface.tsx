@@ -44,6 +44,11 @@ interface ChatInterfaceProps {
   ) => void | Promise<void>;
   documents?: Document[];
   isLoading?: boolean;
+
+  /** NEW: current chat id for per-chat card export & for parent to tag uploads */
+  chatId?: string;
+  /** NEW: optional pretty title for the export file name */
+  chatTitle?: string;
 }
 
 /* -------------------- Image reduction helpers -------------------- */
@@ -149,6 +154,8 @@ export const ChatInterface = ({
   onSendMessage,
   documents = [],
   isLoading = false,
+  chatId,       // NEW
+  chatTitle,    // NEW
 }: ChatInterfaceProps) => {
   const [inputText, setInputText] = useState("");
   const [selectedDocId, setSelectedDocId] = useState<string>("");
@@ -168,6 +175,9 @@ export const ChatInterface = ({
 
   // drag & drop highlight
   const [isDragging, setIsDragging] = useState(false);
+
+  // NEW: export loading state
+  const [downloading, setDownloading] = useState(false);
 
   // ---- memo helpers ----
   const nameById = useMemo(() => {
@@ -375,6 +385,7 @@ export const ChatInterface = ({
       const trimmed = inputText.trim();
       if ((!trimmed && images.length === 0) || isLoading) return;
 
+      // NOTE: your parent should include `chatId` when sending images for card extraction
       if (isCombineMode && selectedDocIds.length > 0) {
         await onSendMessage(trimmed, null, selectedDocIds, images);
       } else if (!isCombineMode && selectedDocId) {
@@ -468,6 +479,36 @@ export const ChatInterface = ({
     () => Math.round(images.reduce((s, f) => s + f.size, 0) / 1024),
     [images]
   );
+
+  // NEW: Export cards (Excel) for this chat
+  const handleExportCards = useCallback(async () => {
+    if (!chatId) {
+      alert("Chat ID is missing for export.");
+      return;
+    }
+    try {
+      setDownloading(true);
+      const res = await fetch(`/api/chats/${encodeURIComponent(chatId)}/cards/export`);
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || "Export failed");
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const base = (chatTitle || chatId || "chat").replace(/[^\w\-]+/g, "_");
+      a.href = url;
+      a.download = `${base}-cards.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err?.message || "Export failed");
+    } finally {
+      setDownloading(false);
+    }
+  }, [chatId, chatTitle]);
 
   // ---- UI ----
   return (
@@ -588,7 +629,7 @@ export const ChatInterface = ({
 
       {/* controls */}
       <div className="p-4 border-t border-gray-200 bg-white">
-        {/* row 1: select */}
+        {/* row 1: select + Export */}
         <div className="flex items-center gap-2 mb-2">
           <select
             className="px-2 py-1 border rounded text-sm bg-white text-gray-800"
@@ -612,6 +653,22 @@ export const ChatInterface = ({
               {images.length} file{images.length > 1 ? "s" : ""} • {totalImageKB} KB
             </span>
           )}
+
+          {/* NEW: Export cards (Excel) for this chat */}
+          <div className="ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCards}
+              disabled={!chatId || isLoading || downloading}
+              title="Download all business-card data uploaded in this chat as Excel"
+              aria-label="Export cards to Excel"
+              className="border-gray-300 text-gray-700"
+            >
+              <FileText className="w-3 h-3 mr-2" />
+              {downloading ? "Exporting…" : "Export cards"}
+            </Button>
+          </div>
         </div>
 
         {/* row 2: chips + attach + previews + Clear */}
