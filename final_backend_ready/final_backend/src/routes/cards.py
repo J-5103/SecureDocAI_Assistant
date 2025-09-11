@@ -1,17 +1,14 @@
 # routers/cards.py
 # FastAPI router for business-card extraction + listing + export
 # --------------------------------------------------------------
-# In your main app:
+# main.py:
 #   from routers import cards
 #   app.include_router(cards.router)        # /api/cards/*
-#   app.include_router(cards.chats_router)  # /api/chats/* (cards endpoints)
+#   app.include_router(cards.chats_router)  # /api/chats/*
 #   app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 #
-# Optional deps (auto-detected if installed):
+# Optional deps:
 #   pip install pillow pytesseract pdfplumber openpyxl
-#
-# Env:
-#   UPLOADS_DIR (default: ./uploads)
 
 from __future__ import annotations
 
@@ -70,12 +67,10 @@ UPLOADS_ROOT = Path(os.environ.get("UPLOADS_DIR", "uploads")).resolve()
 CARDS_DIR = UPLOADS_ROOT / "cards"
 CARDS_DIR.mkdir(parents=True, exist_ok=True)
 
-# Per-chat JSON store (simple persistence without DB)
 def chat_cards_path(chat_id: str) -> Path:
     safe = re.sub(r"[^a-zA-Z0-9_\-]", "_", chat_id or "default")
     return CARDS_DIR / f"{safe}.json"
 
-# Allowed file types (same as frontend)
 IMG_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff", ".tif"}
 VISION_EXTS = IMG_EXTS | {".pdf"}
 
@@ -156,12 +151,11 @@ def _save_upload(file: UploadFile) -> Tuple[str, Path]:
 
 def _read_text_from_pdf(path: Path) -> str:
     if pdfplumber is None:
-        # minimal fallback
         return ""
     try:
         text_chunks = []
         with pdfplumber.open(str(path)) as pdf:
-            for page in pdf.pages[:2]:  # first 2 pages are plenty for cards
+            for page in pdf.pages[:2]:
                 t = page.extract_text() or ""
                 if t.strip():
                     text_chunks.append(t)
@@ -174,7 +168,6 @@ def _ocr_image(path: Path) -> str:
         return ""
     try:
         img = Image.open(path)
-        # quick normalize
         if img.mode not in ("L", "RGB"):
             img = img.convert("RGB")
         return pytesseract.image_to_string(img) or ""
@@ -182,9 +175,7 @@ def _ocr_image(path: Path) -> str:
         return ""
 
 EMAIL_RE = re.compile(r"[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}", re.I)
-PHONE_RE = re.compile(
-    r"(?:\+?\d{1,3}[\s\-]?)?(?:\(?\d{2,4}\)?[\s\-]?)?\d{3,4}[\s\-]?\d{3,4}"
-)
+PHONE_RE = re.compile(r"(?:\+?\d{1,3}[\s\-]?)?(?:\(?\d{2,4}\)?[\s\-]?)?\d{3,4}[\s\-]?\d{3,4}")
 URL_RE = re.compile(
     r"(?:https?://|www\.)[A-Z0-9._\-\/~%+#?=&]+|[A-Z0-9._\-]+\.[A-Z]{2,}(?:/[^\s]*)?",
     re.I,
@@ -197,25 +188,20 @@ def _first_two_nonempty_lines(text: str) -> Tuple[str, str]:
     return a, b
 
 def _guess_name_and_org(text: str) -> Tuple[str, str, str]:
-    """Heuristic: first non-empty lines often are Name / Title or Company."""
     a, b = _first_two_nonempty_lines(text)
-    # If line has 2–4 capitalized words -> name
     def looks_like_name(s: str) -> bool:
         parts = [p for p in re.split(r"[\s,]+", s) if p]
         caps = sum(1 for p in parts if p[:1].isupper())
         return 1 <= len(parts) <= 4 and caps >= max(1, len(parts) - 1)
     first_name, last_name, org = "", "", ""
-
     if looks_like_name(a):
         parts = a.split()
         if parts:
             first_name = parts[0]
             last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
-        # org might be the next line if it's UPPERCASE-ish
         if b and (b.isupper() or b.istitle() or len(b) > 3):
             org = b
     else:
-        # maybe org first (logo line), then name
         if b and looks_like_name(b):
             parts = b.split()
             first_name = parts[0]
@@ -243,7 +229,6 @@ def _parse_text_to_card(text: str) -> CardItem:
     webs = _dedup(URL_RE.findall(text or ""))
 
     fn, ln, org = _guess_name_and_org(text or "")
-    # Very rough job title guess (line containing 'Manager', 'Director', etc.)
     title = ""
     for line in (text or "").splitlines():
         l = line.strip()
@@ -271,7 +256,6 @@ def _store_card(chat_id: Optional[str], rec: CardRecord) -> None:
             data = {"items": []}
     except Exception:
         data = {"items": []}
-    # append
     items = data.get("items", [])
     items.append(rec.model_dump(by_alias=True))
     data["items"] = items
@@ -293,14 +277,12 @@ def _make_vcard(item: CardItem) -> str:
         lines.append(f"URL:{w}")
     if item.address:
         a = item.address
-        # ADR: PO Box;Extended;Street;City;Region;PostalCode;Country
         adr = f";;{a.street or ''};{a.city or ''};{a.state or ''};{a.postal_code or ''};{a.country or ''}"
         lines.append(f"ADR;TYPE=WORK:{adr}")
     lines.append("END:VCARD")
     return "\n".join(lines)
 
 def _write_vcard_file(item: CardItem, base_name: str) -> str:
-    """Write .vcf into /uploads/cards/, return relative URL."""
     safe = re.sub(r"[^\w.\-]+", "_", base_name or "contact")
     vcf_name = f"{safe}.vcf"
     vcf_path = CARDS_DIR / vcf_name
@@ -325,7 +307,7 @@ async def cards_extract(
 ):
     """
     Extract contact details from an uploaded business-card image/PDF.
-    Returns: { data: { items: [...] }, vcard_url? }
+    Returns: { status, data:{ items:[CardItem] }, vcard_url? }
     Also persists a normalized record in per-chat JSON.
     """
     rel_url, abs_path = _save_upload(file)
@@ -334,20 +316,12 @@ async def cards_extract(
     text = ""
     if ext == ".pdf":
         text = _read_text_from_pdf(abs_path)
-        # If PDF text is empty and pytesseract available, try OCR first page via Pillow if possible
-        if not text and pytesseract and Image:
-            # crude: let PIL try to open (will fail for PDF), skip silently
-            pass
     else:
         text = _ocr_image(abs_path) if pytesseract and Image else ""
 
-    # If OCR produced nothing, keep minimal
     parsed = _parse_text_to_card(text) if text else CardItem()
-
-    # Always attach source_url
     parsed.source_url = rel_url
 
-    # Build record for storage
     rec = CardRecord(
         **parsed.model_dump(),
         id=uuid.uuid4().hex,
@@ -360,7 +334,6 @@ async def cards_extract(
 
     vcard_url = None
     if return_vcard:
-        # Use the best display name (file stem if no name)
         base_name = (
             f"{parsed.first_name or ''}-{parsed.last_name or ''}".strip("-_")
             or Path(file.filename or "contact").stem
@@ -368,14 +341,11 @@ async def cards_extract(
         vcard_url = _write_vcard_file(parsed, base_name)
         rec.vcard_url = vcard_url
 
-    # Persist
     try:
         _store_card(chat_id or "default", rec)
     except Exception as e:
-        # Non-fatal: still return extraction result
         print("[cards] persist failed:", e)
 
-    # Response shape expected by frontend
     return JSONResponse(
         {
             "status": "ok",
@@ -384,20 +354,42 @@ async def cards_extract(
         }
     )
 
-
 @router.post("/from-json")
 async def cards_from_json(card: CardItem):
-    """
-    Build a .vcf file from a provided JSON card object.
-    Returns: { vcard_url }
-    """
-    # Compose base name
+    """Build a .vcf file from a provided JSON card object."""
     base = f"{(card.first_name or '').strip()}_{(card.last_name or '').strip()}".strip("_") or "contact"
     vcard_url = _write_vcard_file(card, base)
     return {"vcard_url": vcard_url}
 
+# ---- Back-compat list endpoint used by some clients -------------------------
+@router.get("/list")
+async def cards_list(chat_id: str = Query(...)):
+    """Return cards for a chat via /api/cards/list?chat_id=... (compat shim)."""
+    p = chat_cards_path(chat_id)
+    if not p.exists():
+        return {"items": []}
+    try:
+        data = json.loads(p.read_text("utf-8"))
+        items = data.get("items", [])
+    except Exception:
+        items = []
+    # Normalize to CardItem shape
+    out = []
+    for it in items:
+        out.append({
+            "first_name": it.get("first_name"),
+            "last_name": it.get("last_name"),
+            "organization": it.get("organization"),
+            "job_title": it.get("job_title"),
+            "phones": it.get("phones") or [],
+            "emails": it.get("emails") or [],
+            "websites": it.get("websites") or [],
+            "address": it.get("address"),
+            "source_url": it.get("source_url"),
+        })
+    return {"items": out}
 
-# ---- Chat-scoped cards listing & export -------------------------------------
+# ---- Chat-scoped listing ----------------------------------------------------
 
 @chats_router.get("/{chat_id}/cards")
 async def chat_cards_list(chat_id: str):
@@ -409,11 +401,9 @@ async def chat_cards_list(chat_id: str):
         items = data.get("items", [])
     except Exception:
         items = []
-    # Normalize minimal schema back to CardItem
     normalized = []
     for it in items:
-        # tolerate records saved as CardRecord
-        item = {
+        normalized.append({
             "first_name": it.get("first_name"),
             "last_name": it.get("last_name"),
             "organization": it.get("organization"),
@@ -423,10 +413,10 @@ async def chat_cards_list(chat_id: str):
             "websites": it.get("websites") or [],
             "address": it.get("address"),
             "source_url": it.get("source_url"),
-        }
-        normalized.append(item)
+        })
     return {"items": normalized}
 
+# ---- Export helpers ---------------------------------------------------------
 
 def _flatten_for_rows(item: CardItem) -> dict:
     addr = item.address or Address()
@@ -445,25 +435,31 @@ def _flatten_for_rows(item: CardItem) -> dict:
         "country": addr.country or "",
     }
 
-def _load_cards(chat_id: str) -> List[CardItem]:
+def _load_cards_raw(chat_id: str) -> List[dict]:
     p = chat_cards_path(chat_id)
     if not p.exists():
         return []
     try:
-        raw = json.loads(p.read_text("utf-8")).get("items", [])
+        return json.loads(p.read_text("utf-8")).get("items", [])
     except Exception:
-        raw = []
+        return []
+
+def _load_cards_filtered(chat_id: str, include_ids: Optional[set[str]] = None, indices: Optional[set[int]] = None) -> List[CardItem]:
+    """
+    Load CardItem list optionally filtered by record 'id' or 1-based index.
+    """
+    raw = _load_cards_raw(chat_id)
     items: List[CardItem] = []
-    for it in raw:
+    for idx, it in enumerate(raw, start=1):
+        if include_ids and it.get("id") not in include_ids:
+            continue
+        if indices and idx not in indices:
+            continue
+        # normalize into CardItem
         try:
-            items.append(CardItem.model_validate(it))
+            items.append(CardItem.model_validate({k: it.get(k) for k in CardItem.model_fields.keys()}))
         except Exception:
-            # tolerate record rows (CardRecord)
-            try:
-                minimal = {k: it.get(k) for k in CardItem.model_fields.keys()}
-                items.append(CardItem.model_validate(minimal))
-            except Exception:
-                pass
+            pass
     return items
 
 def _make_csv_bytes(items: List[CardItem]) -> bytes:
@@ -471,18 +467,9 @@ def _make_csv_bytes(items: List[CardItem]) -> bytes:
     writer = csv.DictWriter(
         buf,
         fieldnames=[
-            "first_name",
-            "last_name",
-            "organization",
-            "job_title",
-            "phones",
-            "emails",
-            "websites",
-            "street",
-            "city",
-            "state",
-            "postal_code",
-            "country",
+            "first_name","last_name","organization","job_title",
+            "phones","emails","websites",
+            "street","city","state","postal_code","country",
         ],
     )
     writer.writeheader()
@@ -492,24 +479,13 @@ def _make_csv_bytes(items: List[CardItem]) -> bytes:
 
 def _make_xlsx_bytes(items: List[CardItem]) -> bytes:
     if openpyxl is None or Workbook is None:
-        # Fallback: return CSV bytes; caller may adjust content-type/filename
         return _make_csv_bytes(items)
     wb = Workbook()
     ws = wb.active
     ws.title = "Contacts"
     headers = [
-        "first_name",
-        "last_name",
-        "organization",
-        "job_title",
-        "phones",
-        "emails",
-        "websites",
-        "street",
-        "city",
-        "state",
-        "postal_code",
-        "country",
+        "first_name","last_name","organization","job_title",
+        "phones","emails","websites","street","city","state","postal_code","country",
     ]
     ws.append(headers)
     for it in items:
@@ -521,20 +497,52 @@ def _make_xlsx_bytes(items: List[CardItem]) -> bytes:
     return out.read()
 
 def _make_vcf_bytes(items: List[CardItem]) -> bytes:
-    vcards = []
-    for it in items:
-        vcards.append(_make_vcard(it))
-    content = "\n".join(vcards)
-    return content.encode("utf-8")
+    vcards = [_make_vcard(it) for it in items]
+    return ("\n".join(vcards)).encode("utf-8")
+
+# ---- Export (whole chat or a single card) -----------------------------------
 
 @chats_router.get("/{chat_id}/cards/export")
-async def chat_cards_export(chat_id: str, format: str = Query("xlsx", regex="^(csv|xlsx|vcf|zip)$")):
+async def chat_cards_export(
+    chat_id: str,
+    format: str = Query("xlsx", regex="^(csv|xlsx|vcf|zip)$"),
+    # NEW: filter to a single/selected card(s)
+    card_id: Optional[str] = Query(default=None, description="Export only this card id"),
+    id: Optional[List[str]] = Query(default=None, description="Repeatable query param: ?id=...&id=..."),
+    index: Optional[int] = Query(default=None, ge=1, description="1-based index of the card to export"),
+):
     """
-    Export the chat's extracted cards as CSV / XLSX / VCF / ZIP (CSV + individual VCFs).
+    Export the chat's extracted cards as CSV / XLSX / VCF / ZIP.
+    By default exports **all** cards in the chat.
+    You can export a specific card using either:
+      - ?card_id=<id>
+      - ?id=<id>&id=<id2> (repeatable)
+      - ?index=1         (1-based)
     """
-    items = _load_cards(chat_id)
+
+    include_ids: Optional[set[str]] = None
+    indices: Optional[set[int]] = None
+
+    ids_from_params: List[str] = []
+    if card_id:
+        ids_from_params.append(card_id)
+    if id:
+        ids_from_params.extend([x for x in id if x])
+
+    if ids_from_params:
+        include_ids = set(ids_from_params)
+    if index is not None:
+        indices = {index}
+
+    # load (optionally filtered)
+    items = _load_cards_filtered(chat_id, include_ids=include_ids, indices=indices)
+
     safe_chat = re.sub(r"[^a-zA-Z0-9_\-]", "_", chat_id)
     dt = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+
+    # Graceful empty export
+    if not items:
+        items = []  # produce an empty file with headers
 
     if format == "csv":
         data = _make_csv_bytes(items)
@@ -547,7 +555,6 @@ async def chat_cards_export(chat_id: str, format: str = Query("xlsx", regex="^(c
 
     if format == "xlsx":
         data = _make_xlsx_bytes(items)
-        # if openpyxl not available, we returned CSV bytes; set name accordingly
         if openpyxl is None:
             fname = f"business-cards-{safe_chat}-{dt}.csv"
             media = "text/csv; charset=utf-8"
@@ -572,9 +579,7 @@ async def chat_cards_export(chat_id: str, format: str = Query("xlsx", regex="^(c
     # format == "zip"
     mem = io.BytesIO()
     with zipfile.ZipFile(mem, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        # CSV
         zf.writestr("business-cards.csv", _make_csv_bytes(items))
-        # Individual VCFs
         for idx, it in enumerate(items, 1):
             base = (it.first_name or "") + "-" + (it.last_name or "")
             base = re.sub(r"[^\w.\-]+", "_", base).strip("_") or f"contact-{idx}"

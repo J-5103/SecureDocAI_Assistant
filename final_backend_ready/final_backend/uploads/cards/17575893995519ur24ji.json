@@ -1,0 +1,763 @@
+{
+  "items": [
+    {
+      "id": "e8cc6921cc694e07842cc4bc8c8dc5bb",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:17:18Z",
+      "raw_text": "W WorkIndia\nIndia's Largest Job Portal\nin\nEloquent Info Solutions Pvt Ltd\nRakesh Senma\nKey Account Manager\n+91 8320313740\nrakeshbhai.senma@workindia.in\nCorp. Office :\n#1789, (H1902),\n19th Main Road, Sector 4\nHSR Layout, Bengaluru\nKarnataka - 560 102\nwww.workindia.in",
+      "vcard_url": "/static/vcards/Rakesh_Senma.vcf",
+      "payload_json": null,
+      "first_name": "Rakesh",
+      "last_name": "Senma",
+      "organization": "Eloquent Info Solutions Pvt Ltd",
+      "job_title": "Key Account Manager",
+      "phones": [
+        "+91 8320313740"
+      ],
+      "emails": [
+        "rakeshbhai.senma@workindia.in"
+      ],
+      "websites": [
+        "www.workindia.in"
+      ],
+      "address": {
+        "street": "#1789, (H1902), 19th Main Road, Sector 4",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "postal_code": "560 102",
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/d36f7b2ff7b44be58d4b89b5c66b0b71.jpg"
+    },
+    {
+      "id": "3dc093f5080742f9b4f3b658a78a0c08",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:17:55Z",
+      "raw_text": "TECH TIME OUTSOURCING SERVICES\n5th Floor, Chandaniwas, Opp Karnavati Hospital,\nNr. Hariharanand Ashram,\nEllisbridge, Ahmedabad-380006.\nPh. No.: (079) 4890 2649",
+      "vcard_url": "/static/vcards/contact.vcf",
+      "payload_json": null,
+      "first_name": null,
+      "last_name": null,
+      "organization": "TECH TIME OUTSOURCING SERVICES",
+      "job_title": null,
+      "phones": [
+        "(079) 4890 2649"
+      ],
+      "emails": [],
+      "websites": [],
+      "address": {
+        "street": "5th Floor, Chandaniwas, Opp Karnavati Hospital,Nr. Hariharanand Ashram,",
+        "city": "Ahmedabad",
+        "state": null,
+        "postal_code": "380006",
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/4cc4d563639145ea803b71cb3646deb5.jpg"
+    },
+    {
+      "id": "7d3ee8883de24b01b3d6438c3057af04",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:18:07Z",
+      "raw_text": "Tech Time\nOUTSOURCING SERVICES\nChirag Brahmbhatt\n99254 75878\ntechtimeoutsourcing@gmail.com",
+      "vcard_url": "/static/vcards/Chirag_Brahmbhatt.vcf",
+      "payload_json": null,
+      "first_name": "Chirag",
+      "last_name": "Brahmbhatt",
+      "organization": "Tech Time",
+      "job_title": "OUTSOURCING SERVICES",
+      "phones": [
+        "99254 75878"
+      ],
+      "emails": [
+        "techtimeoutsourcing@gmail.com"
+      ],
+      "websites": [],
+      "address": {
+        "street": null,
+        "city": null,
+        "state": null,
+        "postal_code": null,
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/f476a0f3a27945c3bd68801adf886743.jpg"
+    },
+    {
+      "id": "0ba97e4c033d4025b8f0b0836aa466a5",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:18:42Z",
+      "raw_text": "kotak\nKotak Mahindra Bank\nSumit Gohel\nDeputy Manager - Trade Relationship Manager\nM +91 9974686268 sumit.gohel@kotak.com\nKotak Mahindra Bank Ltd.\n7th Floor Venus Amadeus\nNr. Jodhpur Cross Road\nSatellite\nAhmedabad - 380015, India\nwww.kotak.com",
+      "vcard_url": "/static/vcards/Sumit_Gohel.vcf",
+      "payload_json": null,
+      "first_name": "Sumit",
+      "last_name": "Gohel",
+      "organization": "Kotak Mahindra Bank",
+      "job_title": "Deputy Manager - Trade Relationship Manager",
+      "phones": [
+        "+91 9974686268"
+      ],
+      "emails": [
+        "sumit.gohel@kotak.com"
+      ],
+      "websites": [
+        "www.kotak.com"
+      ],
+      "address": {
+        "street": "7th Floor Venus Amadeus\nNr. Jodhpur Cross Road",
+        "city": "Ahmedabad",
+        "state": "Satellite",
+        "postal_code": "380015",
+        "country": "India"
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/820da3c80cb94c8da3d39d98b3b58467.jpg"
+    },
+    {
+      "id": "e316ccb70bf04339b6cbd11331470c96",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:19:11Z",
+      "raw_text": "Arkoo Atelier\ninfuse design with passion",
+      "vcard_url": "/static/vcards/contact.vcf",
+      "payload_json": null,
+      "first_name": null,
+      "last_name": null,
+      "organization": "Arkoo Atelier",
+      "job_title": null,
+      "phones": [],
+      "emails": [],
+      "websites": [],
+      "address": {
+        "street": null,
+        "city": null,
+        "state": null,
+        "postal_code": null,
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/8f0bd58473bc43349abead18ea587009.jpg"
+    },
+    {
+      "id": "713aa7e6e1c44c1bbfcd1438234d8d61",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:19:22Z",
+      "raw_text": "Minal Shah\nINTERIOR DESIGNER\nARKOO ATELIER PVT. LTD.\nAE/624, Ganesh Glory 11, Off. S.G. Highway, Ahmd\n+91-9998421593\nEminal@arkooatelier.com\nWwww.arkooatelier.com",
+      "vcard_url": "/static/vcards/Minal_Shah.vcf",
+      "payload_json": null,
+      "first_name": "Minal",
+      "last_name": "Shah",
+      "organization": "ARKOO ATELIER PVT. LTD.",
+      "job_title": "INTERIOR DESIGNER",
+      "phones": [
+        "+91-9998421593"
+      ],
+      "emails": [
+        "minal@arkooatelier.com"
+      ],
+      "websites": [
+        "www.arkooatelier.com"
+      ],
+      "address": {
+        "street": "E/624, Ganesh Glory 11, Off. S.G. Highway",
+        "city": "Ahmd",
+        "state": null,
+        "postal_code": null,
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/ff6aad4fedf942afa422e9a54af432a4.jpg"
+    },
+    {
+      "id": "f68f7e18a9ce4d728073c9adae7d7907",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:20:59Z",
+      "raw_text": "Indusind Bank Ltd.\nGround Floor, Shop No.1, 2 Vraj Residency,\nNear Vishwas City-6, Satyame Vista To 100ft Road,\nGota, Ahmedabad - 382481, India.\nMobile: +91 76228 91413\nEmail : solanki.hitesh@indusind.com\nVisit us at www.indusind.com\nPrinted on 100% recycled paper",
+      "vcard_url": "/static/vcards/contact.vcf",
+      "payload_json": null,
+      "first_name": null,
+      "last_name": null,
+      "organization": "Indusind Bank Ltd.",
+      "job_title": null,
+      "phones": [
+        "+91 76228 91413"
+      ],
+      "emails": [
+        "solanki.hitesh@indusind.com"
+      ],
+      "websites": [
+        "www.indusind.com"
+      ],
+      "address": {
+        "street": "Ground Floor, Shop No.1, 2 Vraj Residency,",
+        "city": "Ahmedabad",
+        "state": null,
+        "postal_code": "382481",
+        "country": "India"
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/98349f89bd684e0d9b1d59902d7d273e.jpg"
+    },
+    {
+      "id": "748dae1cc99343d7a49e2e44082fca17",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:21:09Z",
+      "raw_text": "Solanki Hitesh\nSenior Business Development Manager\nBusiness Development Team\nIndusInd Bank",
+      "vcard_url": "/static/vcards/Solanki_Hitesh.vcf",
+      "payload_json": null,
+      "first_name": "Solanki",
+      "last_name": "Hitesh",
+      "organization": "IndusInd Bank",
+      "job_title": "Senior Business Development Manager\nBusiness Development Team",
+      "phones": [],
+      "emails": [],
+      "websites": [],
+      "address": {
+        "street": null,
+        "city": null,
+        "state": null,
+        "postal_code": null,
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/d5ec193cb74a4cc29d97aad90cc8d92d.jpg"
+    },
+    {
+      "id": "fdaf335ed9c842a3833074bf3d38aaf3",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:21:57Z",
+      "raw_text": "mealbe\nOnline Food Search & Ordering\nEcosystem for Native & Captive\nAudiences",
+      "vcard_url": "/static/vcards/contact.vcf",
+      "payload_json": null,
+      "first_name": null,
+      "last_name": null,
+      "organization": "mealbe",
+      "job_title": null,
+      "phones": [],
+      "emails": [],
+      "websites": [],
+      "address": {
+        "street": null,
+        "city": null,
+        "state": null,
+        "postal_code": null,
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/2d31501cf78e4934ad9edd7ef551efb5.jpg"
+    },
+    {
+      "id": "8c412472cd364e0cbe2146ae9ed0ab74",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:22:08Z",
+      "raw_text": "Satya Mehta\nCo-Founder\n9099720214 | satya@mealpe.org\nwww.mealpe.app\nB 701, Empire Business Hub, Science City Road\nAhmedabad - 380060",
+      "vcard_url": "/static/vcards/Satya_Mehta.vcf",
+      "payload_json": null,
+      "first_name": "Satya",
+      "last_name": "Mehta",
+      "organization": null,
+      "job_title": "Co-Founder",
+      "phones": [
+        "9099720214"
+      ],
+      "emails": [
+        "satya@mealpe.org"
+      ],
+      "websites": [
+        "www.mealpe.app"
+      ],
+      "address": {
+        "street": "B 701, Empire Business Hub, Science City Road",
+        "city": "Ahmedabad",
+        "state": null,
+        "postal_code": "380060",
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/72a0c7b024034e96b6daa960d2192770.jpg"
+    },
+    {
+      "id": "e4a555bf00784903aa7504392e8ea320",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:22:37Z",
+      "raw_text": "Hire on apna.co",
+      "vcard_url": "/static/vcards/contact.vcf",
+      "payload_json": null,
+      "first_name": null,
+      "last_name": null,
+      "organization": null,
+      "job_title": null,
+      "phones": [],
+      "emails": [],
+      "websites": [
+        "apna.co"
+      ],
+      "address": {
+        "street": null,
+        "city": null,
+        "state": null,
+        "postal_code": null,
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/a061094aa6dc4405be1e2d2d2266f075.jpg"
+    },
+    {
+      "id": "2c9818acd33640608cd65406f2cf571f",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:23:01Z",
+      "raw_text": "Rohit Gautam\nBusiness Development Executive\n+91 8118805352\n☑ rohit.goutam@apna.co\nAkemps Building, 1st Main Rd,\n◎ Ashwini Layout, Ejipura,\nBengaluru, Karnataka 560047\napna",
+      "vcard_url": "/static/vcards/Rohit_Gautam.vcf",
+      "payload_json": null,
+      "first_name": "Rohit",
+      "last_name": "Gautam",
+      "organization": null,
+      "job_title": "Business Development Executive",
+      "phones": [
+        "+91 8118805352"
+      ],
+      "emails": [
+        "rohit.goutam@apna.co"
+      ],
+      "websites": [
+        "apna.co"
+      ],
+      "address": {
+        "street": "Akemps Building, 1st Main Rd",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "postal_code": "560047",
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/e73f15cc0a9e47de8ac5ad398b0558f8.jpg"
+    },
+    {
+      "id": "6c037ff978214471967669e9dfef7719",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:23:37Z",
+      "raw_text": "Harshad D. Barot\nSr. Sales Manager\nBiznotel\nBY PRIDE\nBIZNOTEL BY PRIDE MOTERA\nMotera Stadium Rd, next to\nRadiance Residency, Motera,\nAhmedabad, Gujarat 380005\nM: +91 99241 22268\nE: sales.motera@biznotelbypride.com\nW: www.pridehotel.com",
+      "vcard_url": "/static/vcards/Harshad_D._Barot.vcf",
+      "payload_json": null,
+      "first_name": "Harshad",
+      "last_name": "Barot",
+      "organization": "Biznotel BY PRIDE",
+      "job_title": "Sr. Sales Manager",
+      "phones": [
+        "+91 99241 22268"
+      ],
+      "emails": [
+        "sales.motera@biznotelbypride.com"
+      ],
+      "websites": [
+        "www.pridehotel.com"
+      ],
+      "address": {
+        "street": "Motera Stadium Rd, next to Radiance Residency, Motera,",
+        "city": "Ahmedabad",
+        "state": "Gujarat",
+        "postal_code": "380005",
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/6c0591a3017f409e9435bfa8c8bbecab.jpg"
+    },
+    {
+      "id": "667ae0a5f55f459fb51f06be2cb0017d",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:24:06Z",
+      "raw_text": "CHIRAG MEWADA\nMob: 9925243426\n4691\nALL TYPE\nOF\nFURNITURE\nAND\nINTERIOR\nWORKS\nCHIRAG FURNITURE\nNr. Gota Overbridge,\nOpp. S. G. Business Hub, S. G. Highway,\nGota, Ahmedabad - 382481.\nEmail: chiragfurniture81@gmail.com",
+      "vcard_url": "/static/vcards/CHIRAG_MEWADA.vcf",
+      "payload_json": null,
+      "first_name": "CHIRAG",
+      "last_name": "MEWADA",
+      "organization": "CHIRAG FURNITURE",
+      "job_title": null,
+      "phones": [
+        "9925243426"
+      ],
+      "emails": [
+        "chiragfurniture81@gmail.com"
+      ],
+      "websites": [],
+      "address": {
+        "street": "Nr. Gota Overbridge, Opp. S. G. Business Hub, S. G. Highway,",
+        "city": "Gota, Ahmedabad",
+        "state": null,
+        "postal_code": "382481",
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/0a901c59877441ca8b8ad79d0c7bcebe.jpg"
+    },
+    {
+      "id": "af50d13f1b9b40b3bf23e0c70697c24c",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:24:43Z",
+      "raw_text": "M\nBansari Dodeja\nFinancial consultant (LAP & MSME loan)\n☑ lendingmachine77@gmail.com\n오 E-1226, Ganesh Glory 11,\nJagatpur Road, Ahmedabad-382470.\n+91 6355659478",
+      "vcard_url": "/static/vcards/Bansari_Dodeja.vcf",
+      "payload_json": null,
+      "first_name": "Bansari",
+      "last_name": "Dodeja",
+      "organization": null,
+      "job_title": "Financial consultant (LAP & MSME loan)",
+      "phones": [
+        "+91 6355659478"
+      ],
+      "emails": [
+        "lendingmachine77@gmail.com"
+      ],
+      "websites": [],
+      "address": {
+        "street": "E-1226, Ganesh Glory 11, Jagatpur Road",
+        "city": "Ahmedabad",
+        "state": null,
+        "postal_code": "382470",
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/788ec8f4bcf045c0a8e8988b11cee5ab.jpg"
+    },
+    {
+      "id": "0cfa764b61c84aa3b4b7499f4069ac6f",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:25:00Z",
+      "raw_text": "LENDING\nMACHINE",
+      "vcard_url": "/static/vcards/contact.vcf",
+      "payload_json": null,
+      "first_name": null,
+      "last_name": null,
+      "organization": "LENDING MACHINE",
+      "job_title": null,
+      "phones": [],
+      "emails": [],
+      "websites": [],
+      "address": {
+        "street": null,
+        "city": null,
+        "state": null,
+        "postal_code": null,
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/01f94923f3654c878688d08d7c4a7b4f.jpg"
+    },
+    {
+      "id": "f2439f4bf21a4101b0ef80b6d93c4ab0",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:25:29Z",
+      "raw_text": "IDFC FIRST\nJaimin Solanki\nBank\nDeputy Manager-Acquisition (Current Account)\nBranch Banking\nIDFC FIRST Bank\nGround Floor, Shop No.3 Tryksha Desire,\nNear Kirtidham Derasar Chandkheda\n(Gujarat) - 382424\nMobile: 7861854663\njaimin.solanki@idfcfirstbank.com\nwww.idfcfirstbank.com",
+      "vcard_url": "/static/vcards/Jaimin_Solanki.vcf",
+      "payload_json": null,
+      "first_name": "Jaimin",
+      "last_name": "Solanki",
+      "organization": "IDFC FIRST Bank",
+      "job_title": "Deputy Manager-Acquisition (Current Account)\nBranch Banking",
+      "phones": [
+        "7861854663",
+        "-382424"
+      ],
+      "emails": [
+        "jaimin.solanki@idfcfirstbank.com"
+      ],
+      "websites": [
+        "www.idfcfirstbank.com"
+      ],
+      "address": {
+        "street": "Ground Floor, Shop No.3 Tryksha Desire,",
+        "city": "Chandkheda",
+        "state": "Gujarat",
+        "postal_code": "382424",
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/8e53918c1b874d08a706cd143de8f543.jpg"
+    },
+    {
+      "id": "e3e3c5f9815943df9f55adc07062ef1a",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:25:59Z",
+      "raw_text": "naukri\nhiring suite\nEvolve to new age recruitment solutions\nResdex | Job Posting | RMS | eHire | Employer Branding |\nFirstnaukri | iimjobs | hirist",
+      "vcard_url": "/static/vcards/contact.vcf",
+      "payload_json": null,
+      "first_name": null,
+      "last_name": null,
+      "organization": "naukri hiring suite",
+      "job_title": null,
+      "phones": [],
+      "emails": [],
+      "websites": [],
+      "address": {
+        "street": null,
+        "city": null,
+        "state": null,
+        "postal_code": null,
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/b2acb9c356cb4f59b313e23faf0a8a5d.jpg"
+    },
+    {
+      "id": "69a773c039b54c1fb50bf15fc8fafb64",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:26:12Z",
+      "raw_text": "(naukri.com®\nIndia's No.1 Job Site\nDevansh Agrawal\nSenior Executive\nCorporate Sales\n+91 9998154544\ndevansh.agrawal@naukri.com\nInfo Edge India Ltd., 106, Iscon\nElegance, Near Crown Plaza\nHotel, Off SG Highway,\nAhmedabad, Gujarat - 380015",
+      "vcard_url": "/static/vcards/Devansh_Agrawal.vcf",
+      "payload_json": null,
+      "first_name": "Devansh",
+      "last_name": "Agrawal",
+      "organization": "Info Edge India Ltd.",
+      "job_title": "Senior Executive\nCorporate Sales",
+      "phones": [
+        "+91 9998154544"
+      ],
+      "emails": [
+        "devansh.agrawal@naukri.com"
+      ],
+      "websites": [
+        "naukri.com"
+      ],
+      "address": {
+        "street": "106, Iscon Elegance, Near Crown Plaza Hotel, Off SG Highway,",
+        "city": "Ahmedabad",
+        "state": "Gujarat",
+        "postal_code": "380015",
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/53f4acaf0af846ee87cb686de11a0eb4.jpg"
+    },
+    {
+      "id": "81587ce5b49b4fd6baccca59ac4e96a4",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:27:01Z",
+      "raw_text": "Deep Shah\nb\nRBLBANK\napno ka bank\nerC\nCorporate Salary Relationship Officer(\nAhmedabad Corporate\nRBL Bank Limited\n1st Floor, Viva Complex,\nNear Jmc House, Opp Parimal Garden,\nAhmedabad - 380006\nGujarat\nT: +91 07940146972\nM: +91 7016103527\nE: deep.shah@rblbank.com\nW: www.rblbank.com",
+      "vcard_url": "/static/vcards/Deep_Shah.vcf",
+      "payload_json": null,
+      "first_name": "Deep",
+      "last_name": "Shah",
+      "organization": "RBL Bank Limited",
+      "job_title": "Corporate Salary Relationship Officer",
+      "phones": [
+        "+91 07940146972",
+        "+91 7016103527"
+      ],
+      "emails": [
+        "deep.shah@rblbank.com"
+      ],
+      "websites": [
+        "www.rblbank.com"
+      ],
+      "address": {
+        "street": "1st Floor, Viva Complex,Near Jmc House, Opp Parimal Garden,",
+        "city": "Ahmedabad",
+        "state": "Gujarat",
+        "postal_code": "380006",
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/6be5867d6a8b4013a3b87860f45ce49c.jpg"
+    },
+    {
+      "id": "9304d7dc43134b84b923f69f6a11c963",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:27:56Z",
+      "raw_text": "KASHYAP BRAHMBНАТТ\nश्ररि\nSHREE RADHE\nShree Radhe Consultancy\n+91 94265 00799\n+91 83479 00799\ninfo@shreeradhe.co\nwww.shreeradhe.co\n509, Palladium Plaza,\nNear Mahagujarat Hospital,\nOpp. Kheta Talav, College Road,\nNadiad, INDIA - 387 001",
+      "vcard_url": "/static/vcards/KASHYAP_BRAHMBHATT.vcf",
+      "payload_json": null,
+      "first_name": "KASHYAP",
+      "last_name": "BRAHMBHATT",
+      "organization": "Shree Radhe Consultancy",
+      "job_title": null,
+      "phones": [
+        "+91 94265 00799",
+        "+91 83479 00799"
+      ],
+      "emails": [
+        "info@shreeradhe.co"
+      ],
+      "websites": [
+        "www.shreeradhe.co"
+      ],
+      "address": {
+        "street": "509, Palladium Plaza,",
+        "city": "Nadiad",
+        "state": null,
+        "postal_code": "387 001",
+        "country": "INDIA"
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/fb653a5604c34a4db922ec51bd8eba02.jpg"
+    },
+    {
+      "id": "e001cce9b65a4ad0afa661b4c56c8502",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:28:08Z",
+      "raw_text": "Shree Radhe Consultancy\nAll Kind Of Visa  Immigration Solution\nWestern Money  EbixCash",
+      "vcard_url": "/static/vcards/contact.vcf",
+      "payload_json": null,
+      "first_name": null,
+      "last_name": null,
+      "organization": "Shree Radhe Consultancy",
+      "job_title": null,
+      "phones": [],
+      "emails": [],
+      "websites": [],
+      "address": {
+        "street": null,
+        "city": null,
+        "state": null,
+        "postal_code": null,
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/94464ce27b6542468deabba62a850272.jpg"
+    },
+    {
+      "id": "d2c7cc7fdb414ea18e1addc31030d479",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:28:34Z",
+      "raw_text": "Shashank Fulmali\nSr. Sales Executive\n+91-6351658284\nshashank@earthsyscom.com\nEarth Syscom Pvt.Ltd.\n12, Trilok Raw House, Opp. Chanakya Tower,\nVastrapur, Ahmedabad-380054, Gujarat, India.\nT: 079-26857024/25 | www.earthsyscom.com\nearth",
+      "vcard_url": "/static/vcards/Shashank_Fulmali.vcf",
+      "payload_json": null,
+      "first_name": "Shashank",
+      "last_name": "Fulmali",
+      "organization": "Earth Syscom Pvt.Ltd.",
+      "job_title": "Sr. Sales Executive",
+      "phones": [
+        "+91-6351658284",
+        "079-26857024/25"
+      ],
+      "emails": [
+        "shashank@earthsyscom.com"
+      ],
+      "websites": [
+        "www.earthsyscom.com"
+      ],
+      "address": {
+        "street": "12, Trilok Raw House, Opp. Chanakya Tower,",
+        "city": "Ahmedabad",
+        "state": "Gujarat",
+        "postal_code": "380 054",
+        "country": "India"
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/6652f41dd79649ba960add9031766697.jpg"
+    },
+    {
+      "id": "20d91ef3a3fe4553903caa20fa20c9ac",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:29:22Z",
+      "raw_text": "BRANCHES:\n■ DISPLAY CENTRE - AHMEDABAD: GF, Devsrusti-1, Parmeshwar Mahadev Road, Bodakdev.\n■ AHMEDABAD - BAPUNAGAR: 1st Floor, Indrajit Complex, Nr. Sardar Patel Mall, Nikol Road.\n■ SURAT - NANPURA: H.No. 1/1107, Kalpruksh Billding, Kalapishi Street, Opp. Bank of Baroda.\n■ SURAT - VARACHHA: B-4, Shirdidham Society, Opp. Old Shaktivijay Society, Nr. Laxmi Hotel.\n■ RAJKOT: \"Shree Nivas\", 13 Ramkrishna Nagar, Nr. Nirant Appartment, Virani Chowk.\n■ BARODA: B/16, Gokhale Colony, B/h. Dinesh Mill Road, Near The Fern Hotel, Akota.\nWestern\nWP Digital\nLG\nEPSON\nLenovo\nEXCEED YOUR VISION\nINTEX\ni\nball\nMicrosoft\nalhua\nCP PLUS\n(intel)\nAMDA\nGIGABYTE\nSEAGATE\nDELL\nASUS\nacera\nViewSonic\nOIROLE\nTVS\nLAPCARE\nLogitech\nhp\nCanon\nimine\nD-Link\nBig News Por\nHIKVISION\nZKTECO\nERD\nTECHNOLOGY",
+      "vcard_url": "/static/vcards/contact.vcf",
+      "payload_json": null,
+      "first_name": null,
+      "last_name": null,
+      "organization": null,
+      "job_title": null,
+      "phones": [],
+      "emails": [],
+      "websites": [],
+      "address": {
+        "street": null,
+        "city": null,
+        "state": null,
+        "postal_code": null,
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/b6d7d43c3c0d4f5480d41211d0b5c992.jpg"
+    },
+    {
+      "id": "0384f199c15243be860966dde6f27c24",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:30:06Z",
+      "raw_text": "Operisoft.\naws partner\nnetwork\nAdvanced\nConsulting\nPartner\nfreshworks monday.com\nJay Joshi\nSales Engineer - Cloud Services\nE: jay@operisoft.in\n+91 76220 15252\nAhmedabad Office\n#315, Ganesh Glory, Jagatpur Road, SG Highway, Gota,\nAhmedabad - 382481\nW: www.operisoft.com || E: info@operisoft.com || 079-4007958\nBengaluru | Navi Mumbai | Ahmedabad",
+      "vcard_url": "/static/vcards/Jay_Joshi.vcf",
+      "payload_json": null,
+      "first_name": "Jay",
+      "last_name": "Joshi",
+      "organization": "Operisoft",
+      "job_title": "Sales Engineer - Cloud Services",
+      "phones": [
+        "+91 76220 15252",
+        "079-4007958"
+      ],
+      "emails": [
+        "jay@operisoft.in",
+        "info@operisoft.com"
+      ],
+      "websites": [
+        "www.operisoft.com"
+      ],
+      "address": {
+        "street": "#315, Ganesh Glory, Jagatpur Road, SG Highway, Gota,",
+        "city": "Ahmedabad",
+        "state": null,
+        "postal_code": "382481",
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/fa850af17d2a429d9c47789aa6db113b.jpg"
+    },
+    {
+      "id": "f0497439ab6d4866844d0761ef34d418",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:30:21Z",
+      "raw_text": "Our Services\n.monday.com\nImplementation\nProject Management\nCRM & Helpdesk\nMarketing\nWorkflow Automation\n• App Development\n•\naws\nData Analytics\nData Preparation &\nVisualization\n• Migration on AWS\n• Assessment and Optimization\n• Cyber Security\nCorporate office\nWework - 10th Floor, Tower-1, Seawoods Grand Central Sector 40, Nerul (E),\nNavi Mumbai - 400706\nW: www.operisoft.com E: info@operisoft.com 079-4007958",
+      "vcard_url": "/static/vcards/contact.vcf",
+      "payload_json": null,
+      "first_name": null,
+      "last_name": null,
+      "organization": "operisoft",
+      "job_title": null,
+      "phones": [
+        "079-4007958"
+      ],
+      "emails": [
+        "info@operisoft.com"
+      ],
+      "websites": [
+        "www.operisoft.com",
+        "monday.com"
+      ],
+      "address": {
+        "street": "10th Floor, Tower-1, Seawoods Grand Central Sector 40, Nerul (E)",
+        "city": "Navi Mumbai",
+        "state": null,
+        "postal_code": "400706",
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/d470c53465ce412ea20de181fe2a8381.jpg"
+    },
+    {
+      "id": "7ec796654ff84d89ac436e01382053a8",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:31:01Z",
+      "raw_text": "Rahul Makahaniya\nChief Executive Officer\n+91 88668 26313\nrahul@aerievo.com\nRahul Panchal\nChief Technology Officer\n+91 95103 52639\nrahul.panchal@aerievo.com",
+      "vcard_url": "/static/vcards/Rahul_Makahaniya.vcf",
+      "payload_json": null,
+      "first_name": "Rahul",
+      "last_name": "Makahaniya",
+      "organization": null,
+      "job_title": "Chief Executive Officer",
+      "phones": [
+        "+91 88668 26313"
+      ],
+      "emails": [
+        "rahul@aerievo.com"
+      ],
+      "websites": [
+        "aerievo.com"
+      ],
+      "address": {
+        "street": null,
+        "city": null,
+        "state": null,
+        "postal_code": null,
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/f6a37b12a5a94502bea59015059fde13.jpg"
+    },
+    {
+      "id": "3ab9a9e889a942838c2f1b84d23b12e6",
+      "chat_id": "17575893995519ur24ji",
+      "created_at": "2025-09-11T11:31:11Z",
+      "raw_text": "AERIEVO\nwww.aerievo.com",
+      "vcard_url": "/static/vcards/contact.vcf",
+      "payload_json": null,
+      "first_name": null,
+      "last_name": null,
+      "organization": "AERIEVO",
+      "job_title": null,
+      "phones": [],
+      "emails": [],
+      "websites": [
+        "www.aerievo.com"
+      ],
+      "address": {
+        "street": null,
+        "city": null,
+        "state": null,
+        "postal_code": null,
+        "country": null
+      },
+      "source_url": "/static/uploads/17575893995519ur24ji/7c5ec8f847bc4b8a8b1330709e42ff96.jpg"
+    }
+  ]
+}

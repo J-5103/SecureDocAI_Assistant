@@ -108,6 +108,9 @@ export const vizImageUrl = (apiPath) => {
   return `${base}/${path}`;
 };
 
+/** Build absolute API URL for any relative backend path */
+export const buildApiUrl = (apiPath) => vizImageUrl(apiPath);
+
 export const vizThumbUrl = (idOrPath) =>
   vizImageUrl(
     typeof idOrPath === "string" && !/[/.]/.test(idOrPath)
@@ -440,7 +443,7 @@ export const vizGenerateCombinedMapped = async ({
   if (chatId) fd.append("chat_id", chatId);
 
   if (file1) {
-    ensureAllowed(file1, VIZ_DATA_EXTS, "file1: Only Excel/CSV files are allowed.");
+    ensureAllowed(file1, VIZ_DATA_EXTS, "Only Excel/CSV files are allowed.");
     fd.append("file1", file1);
   } else if (file1Path) {
     ensureAllowed(lastSegment(file1Path), VIZ_DATA_EXTS, "file1_path must be .xlsx, .xls, or .csv");
@@ -450,7 +453,7 @@ export const vizGenerateCombinedMapped = async ({
   }
 
   if (file2) {
-    ensureAllowed(file2, VIZ_DATA_EXTS, "file2: Only Excel/CSV files are allowed.");
+    ensureAllowed(file2, VIZ_DATA_EXTS, "Only Excel/CSV files are allowed.");
     fd.append("file2", file2);
   } else if (file2Path) {
     ensureAllowed(lastSegment(file2Path), VIZ_DATA_EXTS, "file2_path must be .xlsx, .xls, or .csv");
@@ -808,18 +811,35 @@ export const cardsList = async (chatId) => {
   }
 };
 
-/** NEW: export extracted cards for a chat (xlsx|csv|vcf|zip). Returns {blob, filename}. */
-export const cardsExport = async ({ chatId, format = "xlsx" } = {}) => {
+/** Build absolute export URL (used by both open + blob flows) */
+export const cardsExportUrl = ({ chatId, format = "xlsx" }) => {
   if (!chatId) throw new Error("chatId is required.");
   const fmt = String(format || "xlsx").toLowerCase();
   const allowed = new Set(["xlsx", "csv", "vcf", "zip"]);
   if (!allowed.has(fmt)) throw new Error('format must be one of: "xlsx", "csv", "vcf", "zip".');
 
-  const url = `/api/chats/${encodeURIComponent(chatId)}/cards/export?format=${encodeURIComponent(fmt)}`;
-  const res = await http.get(url, { responseType: "blob" });
+  return buildApiUrl(
+    `/api/chats/${encodeURIComponent(chatId)}/cards/export?format=${encodeURIComponent(fmt)}`
+  );
+};
+
+/** One-liner to open download in a new tab (forces :8000) */
+export const openCardsExport = (args) => {
+  const url = cardsExportUrl(args);
+  window.open(url, "_blank", "noopener");
+};
+
+/** Export extracted cards for a chat (xlsx|csv|vcf|zip). Returns {blob, filename}. */
+export const cardsExport = async ({ chatId, format = "xlsx" } = {}) => {
+  const url = cardsExportUrl({ chatId, format }); // absolute URL points to backend
+  const res = await axios.get(url, { responseType: "blob" }); // raw axios, no interceptors needed for download
   const blob = res.data;
-  const cd = res.headers?.["content-disposition"] || res.headers?.get?.("content-disposition");
-  const fallbackName = `business-cards-${chatId}-${new Date().toISOString().slice(0, 10)}.${fmt}`;
+  const cd =
+    res.headers?.["content-disposition"] ||
+    res.headers?.get?.("content-disposition");
+  const fallbackName = `business-cards-${chatId}-${new Date()
+    .toISOString()
+    .slice(0, 10)}.${format}`;
   const filename = filenameFromContentDisposition(cd, fallbackName);
   return { blob, filename };
 };

@@ -2,14 +2,8 @@ BEGIN:VCARD
 VERSION:3.0
 N:;;;;
 FN:
+ORG:AERIEVO
+URL:http://www.aerievo.com
 ADR;TYPE=WORK:;;;;;;
-NOTE:BRANCHES: DISPLAY CENTRE - AHMEDABAD: GF\, Devsrusti-1\, Parmeshwar Ma
- hadev Road\, Bodakdev. AHMEDABAD - BAPUNAGAR: 1st Floor\, Indrajit Complex\
- , Nr. Sardar Patel Mall\, Nikol Road. SURAT - NANPURA: H.No. 1/1107\, Kalpr
- uksh Billding\, Kalapishi Street\, Opp. Bank of Baroda. SURAT - VARACHHA: B
- -4\, Shirdidham Society\, Opp. Old Shaktivijay Society\, Nr. Laxmi Hotel. R
- AJKOT: "Shree Nivas"\, 13 Ramkrishna Nagar\, Nr. Nirant Apparttment\, Viran
- i Chowk. BARODA: B/16\, Gokhale Colony\, B/h. Dinesh Mill Road\, Near The F
- ern Hotel\, Akota.
-REV:20250908T060436Z
+REV:20250911T113111Z
 END:VCARD

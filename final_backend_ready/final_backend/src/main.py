@@ -94,6 +94,19 @@ except Exception:
         from routes.image_routes import router as image_router
     except Exception:
         image_router = None
+# =========================
+# Cards (per-chat list/export)
+# =========================
+cards_chats_router = None
+try:
+    # if file is src/routers/cards.py
+    from src.routes.cards import chats_router as cards_chats_router
+except Exception:
+    try:
+        # if file is routers/cards.py
+        from routes.cards import chats_router as cards_chats_router
+    except Exception:
+        cards_chats_router = None
 
 # =========================
 # DB handler (for contacts)
@@ -102,12 +115,9 @@ DBHandler = None
 try:
     from src.components.db_handler import DBHandler as _DBH
     DBHandler = _DBH
-except Exception:
-    try:
-        from src.components.db_handler import DBHandler as _DBH
-        DBHandler = _DBH
-    except Exception as e:
-        logger.warning(f"DBHandler not available, contact auto-save will be skipped: {e}")
+except Exception as e:
+    logger.warning(f"DBHandler not available, contact auto-save will be skipped: {e}")
+
 
 # ----- FS layout (make static dir before mounting!) -----
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -116,6 +126,10 @@ STATIC_ROOT.mkdir(parents=True, exist_ok=True)
 
 STATIC_VIS_DIR = STATIC_ROOT / "visualizations"
 STATIC_VIS_DIR.mkdir(parents=True, exist_ok=True)
+
+STATIC_EXPORTS_DIR = STATIC_ROOT / "exports"
+STATIC_EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
 
 # persistent uploads for image previews / card snapshots
 UPLOAD_IMAGES_DIR = STATIC_ROOT / "uploads"
@@ -164,6 +178,31 @@ app.add_middleware(
 # Serve images and other assets from ./static
 app.mount("/static", StaticFiles(directory=str(STATIC_ROOT)), name="static")
 
+# Serve /uploads/* used by routers/cards.py (JSON store & saved files)
+UPLOADS_ROOT = Path(os.environ.get("UPLOADS_DIR", "uploads")).resolve()
+UPLOADS_ROOT.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_ROOT)), name="uploads")
+
+# ---- JSON store for chat-scoped cards (used by /api/chats/*/cards & export) ----
+CARDS_JSON_DIR = UPLOADS_ROOT / "cards"
+CARDS_JSON_DIR.mkdir(parents=True, exist_ok=True)
+
+def _cards_json_path(chat_id: Optional[str]) -> Path:
+    safe = re.sub(r"[^a-zA-Z0-9_\-]", "_", (chat_id or "default"))
+    return CARDS_JSON_DIR / f"{safe}.json"
+
+def _cards_store_append(chat_id: Optional[str], record: dict) -> None:
+    """Append one extracted card record into /uploads/cards/<chat>.json"""
+    p = _cards_json_path(chat_id)
+    try:
+        data = json.loads(p.read_text("utf-8")) if p.exists() else {"items": []}
+    except Exception:
+        data = {"items": []}
+    data.setdefault("items", []).append(record)
+    p.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+
 # Mount routers
 if visualizations_router:
     app.include_router(visualizations_router)
@@ -172,6 +211,11 @@ if chat_router:
 if image_router:
     # exposes: POST /api/ask-image (Gemini-based card extractor in your image_routes)
     app.include_router(image_router, prefix="/api")
+if cards_chats_router:
+    # /api/chats/{chat_id}/cards
+    # /api/chats/{chat_id}/cards/export?format=xlsx|csv|vcf|zip[&card_id=...|&index=...]
+    app.include_router(cards_chats_router)
+
 
 # ---- Allowed extensions ----
 CHAT_DOC_EXTS = {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".png", ".jpg", ".jpeg"}
@@ -890,6 +934,30 @@ async def upload_file(
     except Exception as e:
         logger.error(f"Upload failed: {str(e)}")
         return JSONResponse(status_code=500, content={"error": f"Upload failed: {str(e)}"})
+
+from fastapi import Depends  # (optional; already imported imports enough)
+
+@app.get("/api/cards/export")
+def export_contacts_excel(
+    chat_id: str = Query(..., description="Which chat's contacts to export"),
+    source: Optional[str] = Query(None, description="Filter by 'chat' or 'viz' (optional)")
+):
+    if DBHandler is None:
+        raise HTTPException(status_code=503, detail="DB not initialized")
+    try:
+        db = DBHandler()
+        info = db.export_contacts_to_excel(
+            chat_id=chat_id,
+            source=source,
+            out_dir=str(STATIC_EXPORTS_DIR)  # -> static/exports
+        )
+        # info = {"file_path": "<abs>", "api_path": "/static/exports/..xlsx"}
+        return {"ok": True, **info}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {e}")
+
 
 # ===============  Multi-file upload tied to a chat  ===============
 class MultiUploadResult(BaseModel):
@@ -1805,6 +1873,32 @@ async def extract_card_api(
                 )
             except Exception as e:
                 logger.exception(f"DB save failed: {e}")
+        
+
+                # ---- Persist for chat-scoped export ----
+        try:
+            export_rec = {
+                "id": uuid.uuid4().hex,
+                "chat_id": chat_id,
+                "created_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+                "raw_text": card.raw_text,
+                "vcard_url": vcard_url,
+                "payload_json": None,
+                "first_name": card.first_name,
+                "last_name": card.last_name,
+                "organization": card.organization,
+                "job_title": card.job_title,
+                "phones": card.phones or [],
+                "emails": card.emails or [],
+                "websites": card.websites or [],
+                "address": (card.address.model_dump() if card.address else None),
+                "source_url": saved_image_url,
+            }
+            _cards_store_append(chat_id, export_rec)
+        except Exception as e:
+            logger.warning(f"cards json append failed: {e}")
+
+
 
         return {
             "ok": True,
