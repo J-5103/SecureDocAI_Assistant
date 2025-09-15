@@ -113,6 +113,64 @@
         "country": null
       },
       "source_url": "/static/uploads/1757397444024mxg2tya/f0f881908f7b414495383840143e8b40.jpg"
+    },
+    {
+      "id": "a0631c3115d0434d9ae67beadb2c57b5",
+      "chat_id": "1757397444024mxg2tya",
+      "created_at": "2025-09-12T05:40:13Z",
+      "raw_text": "W WorkIndia\nIndia's Largest Job Portal\nin\nEloquent Info Solutions Pvt Ltd\nRakesh Senma\nKey Account Manager\n+91 8320313740\nrakeshbhai.senma@workindia.in\nCorp. Office :\n#1789, (H1902),\n19th Main Road, Sector 4\nHSR Layout, Bengaluru\nKarnataka - 560 102\nwww.workindia.in",
+      "vcard_url": "/static/vcards/Rakesh_Senma.vcf",
+      "payload_json": null,
+      "first_name": "Rakesh",
+      "last_name": "Senma",
+      "organization": "Eloquent Info Solutions Pvt Ltd",
+      "job_title": "Key Account Manager",
+      "phones": [
+        "+91 8320313740"
+      ],
+      "emails": [
+        "rakeshbhai.senma@workindia.in"
+      ],
+      "websites": [
+        "www.workindia.in"
+      ],
+      "address": {
+        "street": "#1789, (H1902), 19th Main Road, Sector 4",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "postal_code": "560 102",
+        "country": null
+      },
+      "source_url": "/static/uploads/1757397444024mxg2tya/3d94530e44594381a54978dd9e3d4a12.jpg"
+    },
+    {
+      "id": "cd28082d60a54d8da5a3712786687fd2",
+      "chat_id": "1757397444024mxg2tya",
+      "created_at": "2025-09-12T05:51:11Z",
+      "raw_text": "W WorkIndia\nIndia's Largest Job Portal\nin\nEloquent Info Solutions Pvt Ltd\nRakesh Senma\nKey Account Manager\n+91 8320313740\nrakeshbhai.senma@workindia.in\nCorp. Office :\n#1789, (H1902),\n19th Main Road, Sector 4\nHSR Layout, Bengaluru\nKarnataka - 560 102\nwww.workindia.in",
+      "vcard_url": "/static/vcards/Rakesh_Senma.vcf",
+      "payload_json": null,
+      "first_name": "Rakesh",
+      "last_name": "Senma",
+      "organization": "Eloquent Info Solutions Pvt Ltd",
+      "job_title": "Key Account Manager",
+      "phones": [
+        "+91 8320313740"
+      ],
+      "emails": [
+        "rakeshbhai.senma@workindia.in"
+      ],
+      "websites": [
+        "www.workindia.in"
+      ],
+      "address": {
+        "street": "#1789, (H1902), 19th Main Road, Sector 4",
+        "city": "Bengaluru",
+        "state": "Karnataka",
+        "postal_code": "560 102",
+        "country": null
+      },
+      "source_url": "/static/uploads/1757397444024mxg2tya/db9bba418543431d9f7ef70aa6538954.jpg"
     }
   ]
 }

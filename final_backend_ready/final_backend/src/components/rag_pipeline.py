@@ -2,8 +2,13 @@
 import os
 import time
 from typing import List, Tuple, Optional, Dict, Any
+import io
 
-import pdfplumber
+# --- EDIT START: New imports for smart PDF extraction ---
+import fitz  # PyMuPDF
+import pytesseract
+# --- EDIT END ---
+
 import pandas as pd
 import docx  # python-docx
 from PIL import Image
@@ -45,7 +50,7 @@ class RAGPipeline:
         self,
         vector_store_path: str = "vectorstores",
         ollama_url: str = "http://192.168.0.88:11434/api/generate",
-        model_name: str = "openbmb/minicpm-v4.5:latest",
+        model_name: str = "qwen2.5vl-gpu:latest",
     ):
         device = "cuda" if (_TORCH_AVAILABLE and torch.cuda.is_available()) else "cpu"  # type: ignore[attr-defined]
         print(f"Initializing RAGPipeline with device: {device}")
@@ -102,31 +107,44 @@ class RAGPipeline:
         documents: List[Document] = []
         try:
             lower = file_path.lower()
+
+            # --- EDIT START: Replaced old PDF logic with new smart extraction ---
             if lower.endswith(".pdf"):
-                print(f"Starting PDF text extraction from: {filename}")
-                with pdfplumber.open(file_path) as pdf:
-                    for i, page in enumerate(pdf.pages):
-                        text = page.extract_text() or ""
-                        tables = page.extract_tables()
-                        for table in tables or []:
-                            table_text = "\n".join(
-                                [
-                                    " | ".join((cell.strip() if cell else "") for cell in row)
-                                    for row in table
-                                    if any(row)
-                                ]
+                print(f"Starting Smart PDF text extraction from: {filename}")
+                doc = fitz.open(file_path)
+                for i, page in enumerate(doc):
+                    page_text = ""
+                    # 1. Text-First Approach
+                    text = page.get_text().strip()
+                    if text:
+                        page_text = text
+                        print(f"Extracted text directly from page {i + 1}")
+                    # 2. OCR Fallback for image-based pages
+                    else:
+                        print(f"No text found on page {i + 1}, trying OCR...")
+                        pix = page.get_pixmap(dpi=300)
+                        img_data = pix.tobytes("png")
+                        image = Image.open(io.BytesIO(img_data))
+                        
+                        # Tesseract OCR to extract text
+                        ocr_text = pytesseract.image_to_string(image, lang='eng')
+                        if ocr_text.strip():
+                            page_text = ocr_text
+                            print(f"Successfully extracted text via OCR from page {i + 1}")
+                        else:
+                            print(f"OCR could not find any text on page {i + 1}")
+                    
+                    if page_text.strip():
+                        safe_text = self.sanitize_text(page_text)
+                        documents.append(
+                            Document(
+                                page_content=safe_text,
+                                metadata={"source": filename, "page": i + 1},
                             )
-                            if table_text.strip():
-                                text += f"\n[Extracted Table - Page {i + 1}]\n{table_text}"
-                        if text.strip():
-                            safe_text = self.sanitize_text(text)
-                            documents.append(
-                                Document(
-                                    page_content=safe_text,
-                                    metadata={"source": filename, "page": i + 1},
-                                )
-                            )
-                        print(f"Extracted text from page {i + 1} of {len(pdf.pages)}")
+                        )
+                doc.close()
+            # --- EDIT END ---
+
             elif lower.endswith((".docx", ".doc")):
                 print(f"Starting DOCX text extraction from: {filename}")
                 d = docx.Document(file_path)
@@ -148,13 +166,13 @@ class RAGPipeline:
                 print(f"Extracted {len(df)} rows")
             elif lower.endswith((".png", ".jpg", ".jpeg")):
                 print(f"Starting image text extraction from: {filename}")
-                # Placeholder (OCR not implemented here)
-                with Image.open(file_path):
-                    text = "Image content (OCR required)"
-                    if text.strip():
-                        safe_text = self.sanitize_text(text)
-                        documents.append(Document(page_content=safe_text, metadata={"source": filename}))
-                print("Image extraction completed (OCR placeholder)")
+                # You can add OCR logic here too if needed for standalone images
+                image = Image.open(file_path)
+                text = pytesseract.image_to_string(image, lang='eng')
+                if text.strip():
+                    safe_text = self.sanitize_text(text)
+                    documents.append(Document(page_content=safe_text, metadata={"source": filename}))
+                print("Image extraction via OCR completed")
             else:
                 raise ValueError(f"Unsupported file type: {file_path}")
         except Exception as e:

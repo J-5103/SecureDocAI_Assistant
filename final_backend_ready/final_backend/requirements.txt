@@ -49,4 +49,13 @@ python-dotenv==1.0.0
 # --- Optional local models ---
 gpt4all
 transformers
-torch                    # CPU wheel will install; pin only if you know your CUDA
+torch             
+       # CPU wheel will install; pin only if you know your CUDA
+paddlepaddle==2.6.1
+paddleocr==2.7.0.post1
+pymupdf==1.24.9
+opencv-python==4.10.0.84
+python-dateutil==2.9.0.post0
+requests==2.32.3
+numpy==1.26.4
+
