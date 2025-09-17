@@ -18,6 +18,15 @@
       "stored_path": "uploaded_docs/1757397444024mxg2tya/1020000002-27a09f6a.pdf",
       "vector_dir": "vectorstores/1757397444024mxg2tya/1020000002-27a09f6a",
       "created_at": "2025-09-09T05:57:28.210102Z"
+    },
+    {
+      "doc_id": "pk_id-109823-093b58f1",
+      "file_name": "PK ID-109823.pdf",
+      "ext": ".pdf",
+      "size": 4544257,
+      "stored_path": "uploaded_docs/1757397444024mxg2tya/pk_id-109823-093b58f1.pdf",
+      "vector_dir": "vectorstores/1757397444024mxg2tya/pk_id-109823-093b58f1",
+      "created_at": "2025-09-16T11:49:47.915738Z"
     }
   ]
 }
