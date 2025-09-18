@@ -50,7 +50,7 @@ class RAGPipeline:
         self,
         vector_store_path: str = "vectorstores",
         ollama_url: str = "http://192.168.0.88:11434/api/generate",
-        model_name: str = "qwen2.5vl-gpu:latest",
+        model_name: str = "qwen2.5-7b-sql:latest",
     ):
         device = "cuda" if (_TORCH_AVAILABLE and torch.cuda.is_available()) else "cpu"  # type: ignore[attr-defined]
         print(f"Initializing RAGPipeline with device: {device}")

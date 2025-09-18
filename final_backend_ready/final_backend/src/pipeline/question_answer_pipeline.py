@@ -683,7 +683,7 @@ Rules:
         Robust Ollama caller:
         - Vision models (/ images provided) -> /api/chat
         - Text models -> /api/generate (fallbacks to /api/chat if needed)
-        - Maps 'minicpm-hybrid' -> 'qwen2.5vl-gpu:latest'
+        - Maps 'minicpm-hybrid' -> 'qwen2.5-7b-sql:latest'
         - Reads GPU/CTX from env; retries with smaller ctx and fallback model
         - Logs full Ollama error body
         """
@@ -695,9 +695,9 @@ Rules:
             base = base.rsplit("/api/", 1)[0]
 
         # ---- Model resolution ----------------------------------------------
-        requested = (getattr(self.rag, "model_name", None) or os.getenv("OLLAMA_MODEL") or "qwen2.5vl-gpu:latest").strip()
+        requested = (getattr(self.rag, "model_name", None) or os.getenv("OLLAMA_MODEL") or "qwen2.5-7b-sql:latest").strip()
         if "minicpm-hybrid" in requested.lower():
-            requested = "qwen2.5vl-gpu:latest"
+            requested = "qwen2.5-7b-sql:latest"
         fallback = (os.getenv("OLLAMA_MODEL_FALLBACK") or "llama3.1:8b").strip()
 
         # ---- Options / limits ----------------------------------------------
@@ -725,7 +725,7 @@ Rules:
         def _post(path: str, payload: dict) -> dict:
             url = f"{base}{path}"
             print(f"📡 POST {url} model='{payload.get('model')}' stream={payload.get('stream', False)}")
-            r = requests.post(url, json=payload, timeout=180)
+            r = requests.post(url, json=payload, timeout=2000)
             if r.status_code >= 400:
                 raise RuntimeError(f"Ollama {r.status_code}: {r.text}")
             return r.json()
