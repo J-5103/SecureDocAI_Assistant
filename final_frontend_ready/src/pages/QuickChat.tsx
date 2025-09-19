@@ -1,20 +1,22 @@
 // src/pages/QuickChat.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Plus, Search, Clock, ArrowLeft, Trash2 } from "lucide-react";
+import { Plus, Search, Clock, ArrowLeft, Trash2, Edit2, Check, X } from "lucide-react";
 import {
-  listQuickChats,
-  getQuickChatMessages,
-  createQuickChat,
-  sendQuickChatMessage,
-  deleteQuickChat, // must exist in src/api/quickchat.(ts|js)
+  listQuickChats as _listQuickChats,
+  getQuickChatMessages as _getQuickChatMessages,
+  createQuickChat as _createQuickChat,
+  sendQuickChatMessage as _sendQuickChatMessage,
+  deleteQuickChat as _deleteQuickChat,
+  renameQuickChat as _renameQuickChat,
 } from "@/api/quickchat";
 
+// ---------- types ----------
 type ChatSummary = { id: string; title: string; createdAt: string };
 type Message = { id: string; text: string; sender: "user" | "ai"; at: string };
-
 type LocState = { seedPrompt?: string };
 
+// ---------- helpers ----------
 const timeAgo = (iso: string) => {
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return "";
@@ -25,8 +27,176 @@ const timeAgo = (iso: string) => {
   return new Date(iso).toLocaleString();
 };
 
-const DEFAULT_GREETING =
-  "Hello! I’m ready to help. Ask anything—counts, lists, or quick insights.";
+const DEFAULT_GREETING = "Hello! I’m ready to help you for your queries.";
+
+// normalize create-id: supports string | {id} | {chatId}
+const extractId = (res: any): string => {
+  if (!res) throw new Error("Empty response");
+  if (typeof res === "string") return res;
+  if (res?.id) return String(res.id);
+  if (res?.chatId) return String(res.chatId);
+  throw new Error("Unable to read new chat id from response");
+};
+
+// ---- API wrappers ----------------------------------------------------------
+async function createQuickChatSafe(title?: string) {
+  try {
+    const raw = await _createQuickChat?.(title);
+    return extractId(raw);
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status === 404 || err?.code === "ERR_BAD_REQUEST") {
+      const body: any = title ? { title } : {};
+      const res = await fetch("/api/quick-chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Create failed (${res.status}): ${txt || res.statusText}`);
+      }
+      const data = await res.json();
+      return extractId(data);
+    }
+    throw err;
+  }
+}
+
+async function listQuickChatsSafe() {
+  try {
+    const data = (await _listQuickChats?.()) as any;
+    return (Array.isArray(data) ? data : data?.items) as ChatSummary[] | undefined;
+  } catch (err: any) {
+    if (err?.response?.status === 404) {
+      const r = await fetch("/api/quick-chats", { method: "GET" });
+      if (!r.ok) throw new Error(`List failed (${r.status})`);
+      const data = await r.json();
+      return (data?.items ?? data) as ChatSummary[];
+    }
+    throw err;
+  }
+}
+
+async function getQuickChatMessagesSafe(id: string) {
+  try {
+    const data = (await _getQuickChatMessages?.(id)) as any;
+    return (Array.isArray(data) ? data : data?.items) as Message[] | undefined;
+  } catch (err: any) {
+    if (err?.response?.status === 404) {
+      const r = await fetch(`/api/quick-chats/${id}/messages`);
+      if (!r.ok) throw new Error(`Messages failed (${r.status})`);
+      const data = await r.json();
+      return (data?.items ?? data) as Message[];
+    }
+    throw err;
+  }
+}
+
+async function sendQuickChatMessageSafe(id: string, text: string) {
+  // NOTE: your api/quickchat.js ignores `text` and only sends chatId
+  try {
+    const data = (await _sendQuickChatMessage?.(id, text)) as any;
+    return typeof data === "string" ? data : data?.reply ?? "";
+  } catch (err: any) {
+    if (err?.response?.status === 404) {
+      const r = await fetch(`/api/quick-chats/${id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }), // backend tolerates empty, but ok to send
+      });
+      if (!r.ok) {
+        const t = await r.text().catch(() => "");
+        throw new Error(`Send failed (${r.status}): ${t || r.statusText}`);
+      }
+      const data = await r.json();
+      return typeof data === "string" ? data : data?.reply ?? "";
+    }
+    throw err;
+  }
+}
+
+async function deleteQuickChatSafe(id: string) {
+  try {
+    return await _deleteQuickChat?.(id);
+  } catch (err: any) {
+    if (err?.response?.status === 404) {
+      const r = await fetch(`/api/quick-chats/${id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error(`Delete failed (${r.status})`);
+      return;
+    }
+    throw err;
+  }
+}
+
+async function renameQuickChatSafe(id: string, title: string) {
+  try {
+    return await _renameQuickChat?.(id, title);
+  } catch (err: any) {
+    if (err?.response?.status === 404) {
+      const r = await fetch(`/api/quick-chats/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      if (!r.ok) {
+        const t = await r.text().catch(() => "");
+        throw new Error(`Rename failed (${r.status}): ${t || r.statusText}`);
+      }
+      return true;
+    }
+    throw err;
+  }
+}
+
+// ---------- client-side persistence ----------
+const LS_PREFIX = "qc_msgs_v1:";
+const lsKey = (id: string) => `${LS_PREFIX}${id}`;
+
+const loadLocal = (id: string): Message[] => {
+  try {
+    const raw = localStorage.getItem(lsKey(id));
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveLocal = (id: string, msgs: Message[]) => {
+  try {
+    localStorage.setItem(lsKey(id), JSON.stringify(msgs.slice(-500)));
+  } catch {}
+};
+
+const clearLocal = (id: string) => {
+  try {
+    localStorage.removeItem(lsKey(id));
+  } catch {}
+};
+
+const mergeMessages = (server: Message[], local: Message[]) => {
+  const map = new Map<string, Message>();
+  [...server, ...local].forEach((m) => map.set(m.id, m));
+  return [...map.values()].sort(
+    (a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()
+  );
+};
+
+// strongly-typed message creator
+const makeMsg = (
+  sender: Message["sender"],
+  text: string,
+  at: string = new Date().toISOString()
+): Message => ({
+  id: `${sender === "user" ? "u" : "a"}_${Date.now()}`,
+  text,
+  sender,
+  at,
+});
+
+// -----------------------------------------------------------------------------
 
 const QuickChat: React.FC = () => {
   const navigate = useNavigate();
@@ -41,6 +211,10 @@ const QuickChat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [composer, setComposer] = useState("");
 
+  // rename UI states
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+
   const threadRef = useRef<HTMLDivElement>(null);
 
   // ===== initial load =====
@@ -49,18 +223,22 @@ const QuickChat: React.FC = () => {
     (async () => {
       try {
         setLoading(true);
-        const items = (await listQuickChats()) as ChatSummary[] | undefined;
+        const items = (await listQuickChatsSafe()) as ChatSummary[] | undefined;
         if (!alive) return;
         const list = items ?? [];
         setChats(list);
 
-        // preselect newest chat if present
         if (list[0]) {
           const firstId = list[0].id;
           setActiveChatId(firstId);
-          const msgs = (await getQuickChatMessages(firstId)) as Message[] | undefined;
+
+          // merge server + local and persist AFTER we have the correct thread
+          const serverMsgs = (await getQuickChatMessagesSafe(firstId)) ?? [];
+          const localMsgs = loadLocal(firstId);
+          const merged = mergeMessages(serverMsgs, localMsgs);
           if (!alive) return;
-          setMessages(msgs ?? []);
+          setMessages(merged);
+          saveLocal(firstId, merged); // ✅ important
         }
       } catch (e) {
         if (alive) setError("Failed to load quick chats.");
@@ -81,12 +259,17 @@ const QuickChat: React.FC = () => {
     (async () => {
       try {
         setLoading(true);
-        const newId = (await createQuickChat(seedPrompt)) as string;
+        const newId = await createQuickChatSafe(seedPrompt);
         const createdAt = new Date().toISOString();
         if (!alive) return;
+
         setChats((prev) => [{ id: newId, title: seedPrompt.slice(0, 64), createdAt }, ...prev]);
         setActiveChatId(newId);
-        setMessages([{ id: `u_${Date.now()}`, text: seedPrompt, sender: "user", at: createdAt }]);
+
+        // show & persist the user's seeded prompt locally
+        const seeded = makeMsg("user", seedPrompt, createdAt);
+        setMessages([seeded]);
+        saveLocal(newId, [seeded]);
       } catch (e) {
         if (alive) setError("Failed to start a new quick chat.");
         console.error(e);
@@ -116,7 +299,7 @@ const QuickChat: React.FC = () => {
     () => chats.find((c) => c.id === activeChatId) ?? null,
     [chats, activeChatId]
   );
-  const activeTitle = activeChat?.title ?? "Quick Chat";
+  const activeTitle = editingTitle ? titleDraft : activeChat?.title ?? "Quick Chat";
 
   // ===== actions =====
   const selectChat = async (id: string) => {
@@ -124,8 +307,14 @@ const QuickChat: React.FC = () => {
     try {
       setLoading(true);
       setActiveChatId(id);
-      const msgs = (await getQuickChatMessages(id)) as Message[] | undefined;
-      setMessages(msgs ?? []);
+
+      const serverMsgs = (await getQuickChatMessagesSafe(id)) ?? [];
+      const localMsgs = loadLocal(id);
+      const merged = mergeMessages(serverMsgs, localMsgs);
+      setMessages(merged);
+      saveLocal(id, merged); // ✅ important
+
+      setEditingTitle(false);
     } catch (e) {
       setError("Failed to load messages for this chat.");
       console.error(e);
@@ -134,23 +323,27 @@ const QuickChat: React.FC = () => {
     }
   };
 
-  // >>> UPDATED: seed the new chat with a default assistant greeting
   const startNewChat = async () => {
     try {
       setLoading(true);
-      const newId = (await createQuickChat()) as string;
+      const newId = await createQuickChatSafe();
       const now = new Date().toISOString();
 
-      // add to list & activate
       setChats((prev) => [{ id: newId, title: "New quick chat", createdAt: now }, ...prev]);
       setActiveChatId(newId);
 
-      // seed right panel with greeting
-      setMessages([{ id: `a_${Date.now()}`, text: DEFAULT_GREETING, sender: "ai", at: now }]);
+      const initial: Message[] = [makeMsg("ai", DEFAULT_GREETING, now)];
+      setMessages(initial);
+      saveLocal(newId, initial);
 
       setComposer("");
-    } catch (e) {
-      setError("Failed to create a new quick chat.");
+      setEditingTitle(false);
+    } catch (e: any) {
+      const msg =
+        (e?.message as string) ||
+        (e?.response?.statusText as string) ||
+        "Failed to create a new quick chat.";
+      setError(msg);
       console.error(e);
     } finally {
       setLoading(false);
@@ -162,14 +355,13 @@ const QuickChat: React.FC = () => {
     if (!window.confirm("Delete this chat permanently?")) return;
     try {
       setLoading(true);
-      await deleteQuickChat(id);
+      await deleteQuickChatSafe(id);
+      clearLocal(id);
 
-      // choose a next selection (neighbor: next, else prev)
       setChats((prev) => {
         const idx = prev.findIndex((c) => c.id === id);
         const neighbor = idx >= 0 ? prev[idx + 1] || prev[idx - 1] : null;
         const remaining = prev.filter((c) => c.id !== id);
-
         if (activeChatId === id) setActiveChatId(neighbor ? neighbor.id : null);
         return remaining;
       });
@@ -178,8 +370,11 @@ const QuickChat: React.FC = () => {
         const remaining = chats.filter((c) => c.id !== id);
         if (remaining.length) {
           const pick = remaining[0];
-          const msgs = (await getQuickChatMessages(pick.id)) as Message[] | undefined;
-          setMessages(msgs ?? []);
+          const serverMsgs = (await getQuickChatMessagesSafe(pick.id)) ?? [];
+          const localMsgs = loadLocal(pick.id);
+          const merged = mergeMessages(serverMsgs, localMsgs);
+          setMessages(merged);
+          saveLocal(pick.id, merged);
         } else {
           setMessages([]);
         }
@@ -201,25 +396,33 @@ const QuickChat: React.FC = () => {
     try {
       let chatId = activeChatId;
       if (!chatId) {
-        chatId = (await createQuickChat()) as string;
+        chatId = await createQuickChatSafe();
         const createdAt = new Date().toISOString();
         setActiveChatId(chatId);
         setChats((prev) => [{ id: chatId, title: "New quick chat", createdAt }, ...prev]);
 
-        // give a greeting if we had to make a chat implicitly
-        setMessages([{ id: `a_${Date.now()}`, text: DEFAULT_GREETING, sender: "ai", at: createdAt }]);
+        const greet = makeMsg("ai", DEFAULT_GREETING, createdAt);
+        setMessages([greet]);
+        saveLocal(chatId, [greet]);
       }
 
-      const at = new Date().toISOString();
-      // optimistic user message
-      setMessages((prev) => [...prev, { id: `u_${Date.now()}`, text: t, sender: "user", at }]);
+      // add user message locally and persist
+      const userMsg = makeMsg("user", t);
+      setMessages((prev) => {
+        const next = [...prev, userMsg];
+        if (chatId) saveLocal(chatId, next);
+        return next;
+      });
       setComposer("");
 
-      const reply = (await sendQuickChatMessage(chatId, t)) as string;
-      setMessages((prev) => [
-        ...prev,
-        { id: `a_${Date.now()}`, text: reply, sender: "ai", at: new Date().toISOString() },
-      ]);
+      // call backend (chatId only) and add AI reply locally
+      const reply = await sendQuickChatMessageSafe(chatId!, t);
+      const aiMsg = makeMsg("ai", reply);
+      setMessages((prev) => {
+        const next = [...prev, aiMsg];
+        if (chatId) saveLocal(chatId, next);
+        return next;
+      });
     } catch (e) {
       setError("Failed to send message.");
       console.error(e);
@@ -228,20 +431,47 @@ const QuickChat: React.FC = () => {
     }
   };
 
+  // ===== rename handlers =====
+  const beginRename = () => {
+    if (!activeChatId) return;
+    const current = chats.find((c) => c.id === activeChatId)?.title ?? "";
+    setTitleDraft(current);
+    setEditingTitle(true);
+  };
+
+  const cancelRename = () => {
+    setEditingTitle(false);
+    setTitleDraft("");
+  };
+
+  const saveRename = async () => {
+    const t = (titleDraft || "").trim();
+    if (!activeChatId || !t) return cancelRename();
+    try {
+      setLoading(true);
+      // optimistic update list & header
+      setChats((prev) => prev.map((c) => (c.id === activeChatId ? { ...c, title: t } : c)));
+      await renameQuickChatSafe(activeChatId, t);
+    } catch (e) {
+      setError("Failed to rename chat.");
+      console.error(e);
+    } finally {
+      setLoading(false);
+      setEditingTitle(false);
+    }
+  };
+
   // ===== render =====
   return (
     <div className="h-screen">
       <div className="container mx-auto p-4 h-full">
         <div className="grid grid-cols-12 gap-4 h-full">
-          {/* LEFT: New + Search + List (scrollable) */}
+          {/* LEFT */}
           <aside className="col-span-12 md:col-span-4 lg:col-span-3 bg-card border border-border rounded-2xl grid grid-rows-[auto_auto_1fr] overflow-hidden">
-            {/* header */}
             <div className="px-4 py-3 border-b border-border flex items-center justify-between">
               <div>
                 <h2 className="text-[15px] font-semibold">Quick Chats</h2>
-                <p className="text-xs text-muted-foreground">
-                  {chats.length} total • {loading ? "syncing…" : "up to date"}
-                </p>
+                <p className="text-xs text-muted-foreground">{chats.length} total</p>
               </div>
               <button
                 onClick={startNewChat}
@@ -254,7 +484,6 @@ const QuickChat: React.FC = () => {
               </button>
             </div>
 
-            {/* search */}
             <div className="px-3 py-3 border-b border-border">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -267,7 +496,6 @@ const QuickChat: React.FC = () => {
               </div>
             </div>
 
-            {/* list */}
             <div className="overflow-auto divide-y divide-border">
               {filtered.length === 0 ? (
                 <div className="p-4 text-sm text-muted-foreground">
@@ -283,9 +511,7 @@ const QuickChat: React.FC = () => {
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-medium truncate">
-                        {c.title || "Untitled chat"}
-                      </div>
+                      <div className="text-sm font-medium truncate">{c.title || "Untitled chat"}</div>
                       <span className="shrink-0 text-[10px] text-muted-foreground flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {timeAgo(c.createdAt)}
@@ -300,9 +526,8 @@ const QuickChat: React.FC = () => {
             </div>
           </aside>
 
-          {/* RIGHT: Header + Messages(scroll) + Composer(fixed) */}
+          {/* RIGHT */}
           <section className="col-span-12 md:col-span-8 lg:col-span-9 bg-card border border-border rounded-2xl grid grid-rows-[auto_1fr_auto] overflow-hidden">
-            {/* top bar */}
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <button
@@ -312,8 +537,51 @@ const QuickChat: React.FC = () => {
                 >
                   <ArrowLeft className="w-4 h-4" />
                 </button>
-                <h3 className="text-lg font-semibold">{activeTitle}</h3>
+
+                {/* Title / Rename */}
+                {!editingTitle ? (
+                  <div className="flex items-center gap-2">
+                    <h3
+                      className="text-lg font-semibold select-text"
+                      onDoubleClick={beginRename}
+                      title="Double-click to rename"
+                    >
+                      {activeTitle}
+                    </h3>
+                    {activeChatId && (
+                      <button
+                        onClick={beginRename}
+                        className="p-2 rounded-lg bg-muted hover:bg-muted/70"
+                        title="Rename chat"
+                        disabled={loading}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      autoFocus
+                      value={titleDraft}
+                      onChange={(e) => setTitleDraft(e.target.value)}
+                      onBlur={saveRename}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveRename();
+                        if (e.key === "Escape") cancelRename();
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-muted border border-border focus:outline-none focus:ring-2 focus:ring-accent"
+                    />
+                    <button onClick={saveRename} className="p-2 rounded-lg bg-muted hover:bg-muted/70" title="Save">
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button onClick={cancelRename} className="p-2 rounded-lg bg-muted hover:bg-muted/70" title="Cancel">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
+
               <div className="flex items-center gap-2">
                 {activeChatId && (
                   <button
@@ -325,13 +593,10 @@ const QuickChat: React.FC = () => {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 )}
-                {loading && (
-                  <span className="text-xs text-muted-foreground animate-pulse">thinking…</span>
-                )}
+                {loading && <span className="text-xs text-muted-foreground animate-pulse">thinking…</span>}
               </div>
             </div>
 
-            {/* messages */}
             <div ref={threadRef} className="overflow-auto px-5 py-4 space-y-3">
               {messages.map((m) => (
                 <div
@@ -346,14 +611,11 @@ const QuickChat: React.FC = () => {
                 </div>
               ))}
               {!messages.length && (
-                <div className="text-sm text-muted-foreground">
-                  No messages yet. Ask your first question below.
-                </div>
+                <div className="text-sm text-muted-foreground">No messages yet. Ask your first question below.</div>
               )}
               {error && <div className="text-xs text-red-600">{error}</div>}
             </div>
 
-            {/* composer */}
             <div className="px-4 py-3 border-t border-border">
               <form
                 onSubmit={(e) => {

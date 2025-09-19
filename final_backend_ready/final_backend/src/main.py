@@ -17,6 +17,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 import logging
+from src.routes.quick_chats import router as quick_chats_router
+from src.routes.quickchat_legacy import router as quickchat_legacy_router
 
 # =========================================================
 # Robust .env loader so GEMINI_API_KEY in src/.env is seen
@@ -174,6 +176,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # -------- CORS end --------
+
+app.include_router(quick_chats_router)       # /api/quick-chats/...
+app.include_router(quickchat_legacy_router)
 
 # Serve images and other assets from ./static
 app.mount("/static", StaticFiles(directory=str(STATIC_ROOT)), name="static")

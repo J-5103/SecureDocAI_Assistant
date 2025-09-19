@@ -7,21 +7,19 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
-  // ---- Dev host/port for Vite (LAN-friendly) ----
-  const DEV_HOST = env.VITE_DEV_HOST?.trim() || "0.0.0.0"; // 0.0.0.0 lets other devices connect
+  const DEV_HOST = env.VITE_DEV_HOST?.trim() || "0.0.0.0";
   const DEV_PORT = Number(env.VITE_DEV_PORT || 3000);
 
-  // ---- FastAPI backend base (used by proxy & as default API base) ----
-  // Accepts VITE_BACKEND or VITE_API_BASE; fallback to your LAN IP:8000.
+  // Normalize backend & ollama URLs (no trailing slash)
+  const normalize = (u?: string) => (u ? u.replace(/\/+$/, "") : u);
+
   const BACKEND =
-    env.VITE_BACKEND?.trim() ||
-    env.VITE_API_BASE?.trim() ||
+    normalize(env.VITE_BACKEND?.trim()) ||
+    normalize(env.VITE_API_BASE?.trim()) ||
     "http://192.168.0.109:8000";
 
-  // ---- Optional: Ollama server (if you call it via /ollama/*) ----
-  const OLLAMA = env.VITE_OLLAMA?.trim() || "http://192.168.0.88:11434";
+  const OLLAMA = normalize(env.VITE_OLLAMA?.trim() || "http://192.168.0.88:11434");
 
-  // Useful note in console at dev start
   console.log("[vite] DEV_HOST:", DEV_HOST, "DEV_PORT:", DEV_PORT);
   console.log("[vite] BACKEND:", BACKEND);
   console.log("[vite] OLLAMA:", OLLAMA);
@@ -31,6 +29,33 @@ export default defineConfig(({ mode }) => {
     secure: false,
   } as const;
 
+  // Helper to build proxy map (dev & preview both use this)
+  const buildProxy = () => ({
+    // Main API — forward as-is
+    "/api": {
+      target: BACKEND,
+      ...proxyCommon,
+    },
+    // Safety net: if UI accidentally calls /api/quickchat (singular),
+    // rewrite it to the correct /api/quick-chats before forwarding.
+    "/api/quickchat": {
+      target: BACKEND,
+      ...proxyCommon,
+      rewrite: (p: string) => p.replace(/^\/api\/quickchat\b/, "/api/quick-chats"),
+    },
+    // Static served by backend
+    "/static": {
+      target: BACKEND,
+      ...proxyCommon,
+    },
+    // Optional Ollama proxy
+    "/ollama": {
+      target: OLLAMA,
+      ...proxyCommon,
+      rewrite: (p: string) => p.replace(/^\/ollama/, ""),
+    },
+  });
+
   return {
     server: {
       host: DEV_HOST,
@@ -38,49 +63,21 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       cors: true,
       hmr: {
-        host: env.VITE_HMR_HOST?.trim() || undefined, // set to your IP if needed
+        host: env.VITE_HMR_HOST?.trim() || undefined,
         clientPort: env.VITE_HMR_CLIENT_PORT
           ? Number(env.VITE_HMR_CLIENT_PORT)
           : undefined,
       },
-      proxy: {
-        // FastAPI (JSON, uploads, downloads, export, etc.)
-        "/api": {
-          target: BACKEND,
-          ...proxyCommon,
-        },
-        // Static files served by FastAPI (/static/uploads, viz images/thumbs, etc.)
-        "/static": {
-          target: BACKEND,
-          ...proxyCommon,
-        },
-        // Optional Ollama proxy (strip leading /ollama)
-        "/ollama": {
-          target: OLLAMA,
-          ...proxyCommon,
-          rewrite: (p) => p.replace(/^\/ollama/, ""),
-        },
-      },
+      proxy: buildProxy(),
     },
 
-    // Preview server mirrors dev proxy so exports still work in `vite preview`
     preview: {
       host: "0.0.0.0",
       port: Number(env.VITE_PREVIEW_PORT || 4173),
-      proxy: {
-        "/api": { target: BACKEND, ...proxyCommon },
-        "/static": { target: BACKEND, ...proxyCommon },
-        "/ollama": {
-          target: OLLAMA,
-          ...proxyCommon,
-          rewrite: (p) => p.replace(/^\/ollama/, ""),
-        },
-      },
+      proxy: buildProxy(),
     },
 
-    plugins: [react(), mode === "development" && componentTagger()].filter(
-      Boolean
-    ),
+    plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
 
     resolve: {
       alias: {
@@ -88,15 +85,13 @@ export default defineConfig(({ mode }) => {
       },
     },
 
-    // Provide a default for VITE_API_BASE at build time if not set
-    // This keeps absolute API calls (e.g., buildApiUrl) pointed at FastAPI.
     define: {
+      // Keep an absolute API base available to the app at build-time
       "import.meta.env.VITE_API_BASE": JSON.stringify(
         env.VITE_API_BASE?.trim() || BACKEND
       ),
     },
 
-    // Optional: nicer source maps while debugging
     build: {
       sourcemap: mode === "development",
     },
