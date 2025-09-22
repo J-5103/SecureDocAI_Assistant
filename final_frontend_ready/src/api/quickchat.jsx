@@ -18,7 +18,7 @@ const isDev = !!import.meta.env?.DEV;
 
 /**
  * In dev we keep baseURL empty so requests go to `/api/...`
- * and Vite's proxy forwards to your FastAPI on :8000.
+ * and Vite's proxy forwards to your FastAPI/Node backend.
  * In prod builds you can set VITE_API_BASE or VITE_BACKEND.
  */
 const API_BASE = isDev
@@ -32,6 +32,10 @@ export const api = axios.create({
   headers: { "Content-Type": "application/json", Accept: "application/json" },
   // timeout: 20000, // optional
 });
+
+// Small helpers you might want to use elsewhere/UIs
+export const isMockMode = () => LOCAL_MOCK;
+export const getApiBase = () => api.defaults.baseURL || "";
 
 // ----- low level helpers: retry with fetch() on CORS/network -----
 async function getJSON(path) {
@@ -344,4 +348,43 @@ export const deleteQuickChat = async (chatId) => {
   );
 
   return data?.ok ?? true;
+};
+
+// -------------------- Connectivity helpers --------------------
+/**
+ * Quick backend health check.
+ * Tries: /api/health, then /health
+ * Returns: { ok, backendBase, status, info }
+ */
+export const healthCheck = async () => {
+  if (LOCAL_MOCK) return { ok: true, mock: true, backendBase: "mock://local" };
+  const paths = ["/api/health", "/health"];
+  for (const p of paths) {
+    try {
+      const data = await getJSON(p);
+      return { ok: true, backendBase: getApiBase() || "vite-proxy", status: "200", info: data };
+    } catch (_) {
+      // try next
+    }
+  }
+  return { ok: false, backendBase: getApiBase() || "vite-proxy" };
+};
+
+/**
+ * Database connectivity ping (if your backend exposes it).
+ * Tries: /api/db/ping, fallback query param on /api/health?db=1
+ */
+export const pingDb = async () => {
+  if (LOCAL_MOCK) return { ok: true, mock: true };
+  try {
+    const r = await getJSON("/api/db/ping");
+    return { ok: true, info: r };
+  } catch (_) {
+    try {
+      const r = await getJSON("/api/health?db=1");
+      return { ok: true, info: r };
+    } catch (e) {
+      return { ok: false, error: String(e?.message || e) };
+    }
+  }
 };

@@ -1,0 +1,248 @@
+{
+  "items": [
+    {
+      "id": "a_1758507590997",
+      "text": "Hello! I’m ready to help you for your queries.",
+      "sender": "ai",
+      "at": "2025-09-22T07:49:50Z"
+    },
+    {
+      "id": "u_1758507594478",
+      "text": "hi",
+      "sender": "user",
+      "at": "2025-09-22T07:49:54Z"
+    },
+    {
+      "id": "a_1758507594495",
+      "text": "I can run data queries if you start with `sql:` or ask a question about your tables.",
+      "sender": "ai",
+      "at": "2025-09-22T07:49:54Z"
+    },
+    {
+      "id": "u_1758507603493",
+      "text": "count all contacts",
+      "sender": "user",
+      "at": "2025-09-22T07:50:03Z"
+    },
+    {
+      "id": "a_1758507616760",
+      "text": "**SQL executed (fallback):**\n```sql\nSELECT TOP 1000 COUNT(*) AS count FROM [dbo].[menu_rights];\n```\n\n**Result:**\n| count |\n|---|\n| 1715 |",
+      "sender": "ai",
+      "at": "2025-09-22T07:50:16Z"
+    },
+    {
+      "id": "u_1758512600995",
+      "text": "count all contacts",
+      "sender": "user",
+      "at": "2025-09-22T09:13:20Z"
+    },
+    {
+      "id": "a_1758512605709",
+      "text": "**SQL executed (fallback):**\n```sql\nSELECT TOP 1000 COUNT(*) AS count FROM [dbo].[emp_employee_master];\n```\n\n**Result:**\n| count |\n|---|\n| 27 |",
+      "sender": "ai",
+      "at": "2025-09-22T09:13:25Z"
+    },
+    {
+      "id": "u_1758512735892",
+      "text": "give me all first name",
+      "sender": "user",
+      "at": "2025-09-22T09:15:35Z"
+    },
+    {
+      "id": "a_1758512735915",
+      "text": "I can run data queries if you start with `sql:` or ask a question about your tables.",
+      "sender": "ai",
+      "at": "2025-09-22T09:15:35Z"
+    },
+    {
+      "id": "u_1758512751853",
+      "text": "select all first name",
+      "sender": "user",
+      "at": "2025-09-22T09:15:51Z"
+    },
+    {
+      "id": "a_1758512751866",
+      "text": "I can run data queries if you start with `sql:` or ask a question about your tables.",
+      "sender": "ai",
+      "at": "2025-09-22T09:15:51Z"
+    },
+    {
+      "id": "u_1758534169782",
+      "text": "select all first name",
+      "sender": "user",
+      "at": "2025-09-22T09:42:49Z",
+      "atMs": 1758534169782
+    },
+    {
+      "id": "a_1758534169823",
+      "text": "**SQL executed:**\n```sql\nSELECT TOP 1000 first_name FROM dbo.user_master WHERE status = 1;\n```\n\n**Result:**\n| first_name |\n|---|\n| Dharmik |\n| Urvi |\n| Sujal |\n| radhika |\n| Vaidik  |\n| Arpit |\n| Jitendra |\n| kishan |\n| rahul |\n| Keyur |\n| sujal |\n| Pushpraj |\n| Isha |\n| Paresh |\n| Dhruvi  |\n| Jitendra |\n| Sahil |\n| jay |\n| Hiren |",
+      "sender": "ai",
+      "at": "2025-09-22T09:42:55Z",
+      "atMs": 1758534175778
+    },
+    {
+      "id": "u_1758535222463",
+      "text": "select all contacts",
+      "sender": "user",
+      "at": "2025-09-22T10:00:22Z",
+      "atMs": 1758535222463
+    },
+    {
+      "id": "a_1758535222494",
+      "text": "**SQL executed (fallback):**\n```sql\nSELECT TOP 100 [id], [user_role_id], [user_id], [menu_id] FROM [dbo].[menu_rights];\n```\n\n**Result:**\n| id | user_role_id | user_id | menu_id |\n|---|---|---|---|\n| 1 | 6021127E-C786-4CCF-B796-0031667308AA | None | B51E7A7B-7AF7-489F-BAB7-00846CB63F8D |\n| 2 | 6021127E-C786-4CCF-B796-0031667308AA | None | 8786B651-0584-4A40-A31E-06D0995838C3 |\n| 3 | 6021127E-C786-4CCF-B796-0031667308AA | None | 513326F3-F465-469E-9597-11F52BA3F0FC |\n| 4 | 6021127E-C786-4CCF-B796-0031667308AA | None | 2A2A1027-2C75-4013-99EA-2C60C6FA69CE |\n| 5 | 6021127E-C786-4CCF-B796-0031667308AA | None | 90E45042-9492-4D59-BD57-339AE36EE7F0 |\n| 6 | 6021127E-C786-4CCF-B796-0031667308AA | None | BB49CD03-AC5B-4E34-9B0D-36B3F00B9AE7 |\n| 7 | 6021127E-C786-4CCF-B796-0031667308AA | None | C6CDF0B2-657B-40E2-A0C0-3B0F8FFAF7B0 |\n| 8 | 6021127E-C786-4CCF-B796-0031667308AA | None | 37860C44-04A2-4398-9E29-3FACE5334703 |\n| 9 | 6021127E-C786-4CCF-B796-0031667308AA | None | 7B5F52BB-71CA-45ED-813F-4164324C9886 |\n| 10 | 6021127E-C786-4CCF-B796-0031667308AA | None | B9125546-5842-410D-9619-608B45FA7E60 |\n| 11 | 6021127E-C786-4CCF-B796-0031667308AA | None | 748F35E8-ADFF-4EF5-917E-616B51C677F6 |\n| 12 | 6021127E-C786-4CCF-B796-0031667308AA | None | EF20EC7C-BAEF-4575-9F24-69BC9F70580B |\n| 13 | 6021127E-C786-4CCF-B796-0031667308AA | None | 1A6BBF18-ABE1-4ADB-B16C-713950881218 |\n| 14 | 6021127E-C786-4CCF-B796-0031667308AA | None | 27E79C5C-41EB-406E-A607-83B78ED22202 |\n| 15 | 6021127E-C786-4CCF-B796-0031667308AA | None | C4626786-89BE-4940-9C6A-8510AAF491FC |\n| 16 | 6021127E-C786-4CCF-B796-0031667308AA | None | 1C07E8DA-134C-4420-8D2E-A22507AE63DF |\n| 17 | 6021127E-C786-4CCF-B796-0031667308AA | None | A0C63380-1306-4102-8A7F-BF7A06FF18E6 |\n| 18 | 6021127E-C786-4CCF-B796-0031667308AA | None | 91673735-7457-44AE-9084-C60D920C57A4 |\n| 19 | 6021127E-C786-4CCF-B796-0031667308AA | None | DF48763F-D7B6-4F23-AD27-CEC940BE6C0A |\n| 20 | 6021127E-C786-4CCF-B796-0031667308AA | None | F4529A26-1386-4D24-AF04-E3FEE40D7ED9 |\n\n…showing 20 of 100 rows.",
+      "sender": "ai",
+      "at": "2025-09-22T10:00:26Z",
+      "atMs": 1758535226319
+    },
+    {
+      "id": "u_1758535269719",
+      "text": "select all numbers",
+      "sender": "user",
+      "at": "2025-09-22T10:01:09Z",
+      "atMs": 1758535269719
+    },
+    {
+      "id": "a_1758535269738",
+      "text": "**SQL executed (fallback):**\n```sql\nSELECT TOP 100 [id], [user_role_id], [user_id], [menu_id] FROM [dbo].[menu_rights];\n```\n\n**Result:**\n| id | user_role_id | user_id | menu_id |\n|---|---|---|---|\n| 1 | 6021127E-C786-4CCF-B796-0031667308AA | None | B51E7A7B-7AF7-489F-BAB7-00846CB63F8D |\n| 2 | 6021127E-C786-4CCF-B796-0031667308AA | None | 8786B651-0584-4A40-A31E-06D0995838C3 |\n| 3 | 6021127E-C786-4CCF-B796-0031667308AA | None | 513326F3-F465-469E-9597-11F52BA3F0FC |\n| 4 | 6021127E-C786-4CCF-B796-0031667308AA | None | 2A2A1027-2C75-4013-99EA-2C60C6FA69CE |\n| 5 | 6021127E-C786-4CCF-B796-0031667308AA | None | 90E45042-9492-4D59-BD57-339AE36EE7F0 |\n| 6 | 6021127E-C786-4CCF-B796-0031667308AA | None | BB49CD03-AC5B-4E34-9B0D-36B3F00B9AE7 |\n| 7 | 6021127E-C786-4CCF-B796-0031667308AA | None | C6CDF0B2-657B-40E2-A0C0-3B0F8FFAF7B0 |\n| 8 | 6021127E-C786-4CCF-B796-0031667308AA | None | 37860C44-04A2-4398-9E29-3FACE5334703 |\n| 9 | 6021127E-C786-4CCF-B796-0031667308AA | None | 7B5F52BB-71CA-45ED-813F-4164324C9886 |\n| 10 | 6021127E-C786-4CCF-B796-0031667308AA | None | B9125546-5842-410D-9619-608B45FA7E60 |\n| 11 | 6021127E-C786-4CCF-B796-0031667308AA | None | 748F35E8-ADFF-4EF5-917E-616B51C677F6 |\n| 12 | 6021127E-C786-4CCF-B796-0031667308AA | None | EF20EC7C-BAEF-4575-9F24-69BC9F70580B |\n| 13 | 6021127E-C786-4CCF-B796-0031667308AA | None | 1A6BBF18-ABE1-4ADB-B16C-713950881218 |\n| 14 | 6021127E-C786-4CCF-B796-0031667308AA | None | 27E79C5C-41EB-406E-A607-83B78ED22202 |\n| 15 | 6021127E-C786-4CCF-B796-0031667308AA | None | C4626786-89BE-4940-9C6A-8510AAF491FC |\n| 16 | 6021127E-C786-4CCF-B796-0031667308AA | None | 1C07E8DA-134C-4420-8D2E-A22507AE63DF |\n| 17 | 6021127E-C786-4CCF-B796-0031667308AA | None | A0C63380-1306-4102-8A7F-BF7A06FF18E6 |\n| 18 | 6021127E-C786-4CCF-B796-0031667308AA | None | 91673735-7457-44AE-9084-C60D920C57A4 |\n| 19 | 6021127E-C786-4CCF-B796-0031667308AA | None | DF48763F-D7B6-4F23-AD27-CEC940BE6C0A |\n| 20 | 6021127E-C786-4CCF-B796-0031667308AA | None | F4529A26-1386-4D24-AF04-E3FEE40D7ED9 |\n\n…showing 20 of 100 rows.",
+      "sender": "ai",
+      "at": "2025-09-22T10:01:18Z",
+      "atMs": 1758535278848
+    },
+    {
+      "id": "u_1758516350695",
+      "text": "select all emails",
+      "sender": "user",
+      "at": "2025-09-22T10:15:50Z",
+      "clientMsgId": null
+    },
+    {
+      "id": "a_1758516350753",
+      "text": "I can run data queries if you start with `sql:` or ask a question about your tables.",
+      "sender": "ai",
+      "at": "2025-09-22T10:15:50Z",
+      "thinking": false
+    },
+    {
+      "id": "u_1758516361837",
+      "text": "select all names",
+      "sender": "user",
+      "at": "2025-09-22T10:16:01Z",
+      "clientMsgId": null
+    },
+    {
+      "id": "a_1758516361880",
+      "text": "I can run data queries if you start with `sql:` or ask a question about your tables.",
+      "sender": "ai",
+      "at": "2025-09-22T10:16:01Z",
+      "thinking": false
+    },
+    {
+      "id": "u_1758516447372",
+      "text": "select all component type name",
+      "sender": "user",
+      "at": "2025-09-22T10:17:27Z",
+      "clientMsgId": null
+    },
+    {
+      "id": "a_1758516447407",
+      "text": "I can run data queries if you start with `sql:` or ask a question about your tables.",
+      "sender": "ai",
+      "at": "2025-09-22T10:17:27Z",
+      "thinking": false
+    },
+    {
+      "id": "u_1758516459207",
+      "text": "count all contacs",
+      "sender": "user",
+      "at": "2025-09-22T10:17:39Z",
+      "clientMsgId": null
+    },
+    {
+      "id": "a_1758516459264",
+      "text": "**SQL executed (fallback):**\n```sql\nSELECT TOP 1000 COUNT(*) AS count FROM [dbo].[menu_rights];\n```\n\n**Result:**\n| count |\n|---|\n| 1715 |",
+      "sender": "ai",
+      "at": "2025-09-22T10:17:39Z",
+      "thinking": false
+    },
+    {
+      "id": "u_1758538633971",
+      "text": "count all emails",
+      "sender": "user",
+      "clientMsgId": null,
+      "at": "2025-09-22T10:57:13Z",
+      "atMs": 1758538633971
+    },
+    {
+      "id": "a_1758538634024",
+      "text": "**SQL executed:**\n```sql\nSELECT TOP 1000 COUNT(*) AS total_emails FROM dbo.email_log;\n```\n\n**Result:**\n| total_emails |\n|---|\n| 999 |",
+      "sender": "ai",
+      "thinking": false,
+      "at": "2025-09-22T10:57:19Z",
+      "atMs": 1758538639364
+    },
+    {
+      "id": "u_1758539336488",
+      "text": "count all names",
+      "sender": "user",
+      "clientMsgId": null,
+      "at": "2025-09-22T11:08:56Z",
+      "atMs": 1758539336487
+    },
+    {
+      "id": "a_1758539336538",
+      "text": "**SQL executed (fallback):**\n```sql\nSELECT TOP 1000 COUNT(*) AS count FROM [dbo].[menu_rights];\n```\n\n**Result:**\n| count |\n|---|\n| 1715 |",
+      "sender": "ai",
+      "thinking": false,
+      "at": "2025-09-22T11:09:00Z",
+      "atMs": 1758539340855
+    },
+    {
+      "id": "u_1758539438882",
+      "text": "select all name",
+      "sender": "user",
+      "clientMsgId": null,
+      "at": "2025-09-22T11:10:38Z",
+      "atMs": 1758539438882
+    },
+    {
+      "id": "a_1758539438915",
+      "text": "**SQL executed:**\n```sql\nSELECT TOP 1000 first_name, last_name FROM dbo.user_master WHERE status = 1;\n```\n\n**Result:**\n| first_name | last_name |\n|---|---|\n| Dharmik | Rathod |\n| Urvi | Panchal |\n| Sujal | Mistry |\n| radhika | raval |\n| Vaidik  | patel |\n| Arpit | Darji |\n| Jitendra | Ajmeri |\n| kishan | panchal |\n| rahul | Panchal |\n| Keyur | Patel |\n| sujal | mistry |\n| Pushpraj | Parmar |\n| Isha | Agrawal |\n| Paresh | Rathod |\n| Dhruvi  | Ubhadiya |\n| Jitendra | Prajapati |\n| Sahil | Javiya |\n| jay | Patel |\n| Hiren | Panchal |",
+      "sender": "ai",
+      "thinking": false,
+      "at": "2025-09-22T11:10:42Z",
+      "atMs": 1758539442905
+    },
+    {
+      "id": "u_1758539530214",
+      "text": "count all name",
+      "sender": "user",
+      "clientMsgId": null,
+      "at": "2025-09-22T11:12:10Z",
+      "atMs": 1758539530214
+    },
+    {
+      "id": "a_1758539530256",
+      "text": "**SQL executed (fallback):**\n```sql\nSELECT TOP 1000 COUNT(*) AS count FROM [dbo].[cibil_data];\n```\n\n**Result:**\n| count |\n|---|\n| 0 |",
+      "sender": "ai",
+      "thinking": false,
+      "at": "2025-09-22T11:12:11Z",
+      "atMs": 1758539531863
+    },
+    {
+      "id": "u_1758539662799",
+      "text": "select all number",
+      "sender": "user",
+      "clientMsgId": null,
+      "at": "2025-09-22T11:14:22Z",
+      "atMs": 1758539662798
+    },
+    {
+      "id": "a_1758539662837",
+      "text": "**SQL executed (fallback):**\n```sql\nSELECT TOP 100 [id], [user_role_id], [user_id], [menu_id] FROM [dbo].[menu_rights];\n```\n\n**Result:**\n| id | user_role_id | user_id | menu_id |\n|---|---|---|---|\n| 1 | 6021127E-C786-4CCF-B796-0031667308AA | None | B51E7A7B-7AF7-489F-BAB7-00846CB63F8D |\n| 2 | 6021127E-C786-4CCF-B796-0031667308AA | None | 8786B651-0584-4A40-A31E-06D0995838C3 |\n| 3 | 6021127E-C786-4CCF-B796-0031667308AA | None | 513326F3-F465-469E-9597-11F52BA3F0FC |\n| 4 | 6021127E-C786-4CCF-B796-0031667308AA | None | 2A2A1027-2C75-4013-99EA-2C60C6FA69CE |\n| 5 | 6021127E-C786-4CCF-B796-0031667308AA | None | 90E45042-9492-4D59-BD57-339AE36EE7F0 |\n| 6 | 6021127E-C786-4CCF-B796-0031667308AA | None | BB49CD03-AC5B-4E34-9B0D-36B3F00B9AE7 |\n| 7 | 6021127E-C786-4CCF-B796-0031667308AA | None | C6CDF0B2-657B-40E2-A0C0-3B0F8FFAF7B0 |\n| 8 | 6021127E-C786-4CCF-B796-0031667308AA | None | 37860C44-04A2-4398-9E29-3FACE5334703 |\n| 9 | 6021127E-C786-4CCF-B796-0031667308AA | None | 7B5F52BB-71CA-45ED-813F-4164324C9886 |\n| 10 | 6021127E-C786-4CCF-B796-0031667308AA | None | B9125546-5842-410D-9619-608B45FA7E60 |\n| 11 | 6021127E-C786-4CCF-B796-0031667308AA | None | 748F35E8-ADFF-4EF5-917E-616B51C677F6 |\n| 12 | 6021127E-C786-4CCF-B796-0031667308AA | None | EF20EC7C-BAEF-4575-9F24-69BC9F70580B |\n| 13 | 6021127E-C786-4CCF-B796-0031667308AA | None | 1A6BBF18-ABE1-4ADB-B16C-713950881218 |\n| 14 | 6021127E-C786-4CCF-B796-0031667308AA | None | 27E79C5C-41EB-406E-A607-83B78ED22202 |\n| 15 | 6021127E-C786-4CCF-B796-0031667308AA | None | C4626786-89BE-4940-9C6A-8510AAF491FC |\n| 16 | 6021127E-C786-4CCF-B796-0031667308AA | None | 1C07E8DA-134C-4420-8D2E-A22507AE63DF |\n| 17 | 6021127E-C786-4CCF-B796-0031667308AA | None | A0C63380-1306-4102-8A7F-BF7A06FF18E6 |\n| 18 | 6021127E-C786-4CCF-B796-0031667308AA | None | 91673735-7457-44AE-9084-C60D920C57A4 |\n| 19 | 6021127E-C786-4CCF-B796-0031667308AA | None | DF48763F-D7B6-4F23-AD27-CEC940BE6C0A |\n| 20 | 6021127E-C786-4CCF-B796-0031667308AA | None | F4529A26-1386-4D24-AF04-E3FEE40D7ED9 |\n\n…showing 20 of 100 rows.",
+      "sender": "ai",
+      "thinking": false,
+      "at": "2025-09-22T11:14:25Z",
+      "atMs": 1758539665771
+    }
+  ]
+}

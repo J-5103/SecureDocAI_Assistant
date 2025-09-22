@@ -1,0 +1,5238 @@
+{
+  "generatedAt": "2025-09-22T06:51:38Z",
+  "db": {
+    "name": "CRM_00001",
+    "version": "Microsoft SQL Server 2022 (RTM-GDR) (KB5065221) - 16.0.1150.1 (X64) \n\tAug 13 2025 16:27:21 \n\tCopyright (C) 2022 Microsoft Corporation\n\tDeveloper Edition (64-bit) on Windows 10 Pro 10.0 <X64> (Build 26100: )\n",
+    "family": "mssql"
+  },
+  "tables": {
+    "dbo.acc_branch_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "region_id": "uniqueidentifier",
+        "branch_name": "nvarchar(100)",
+        "branch_code": "nvarchar(50)",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.acc_party_type_master": {
+      "rowCount": 3,
+      "columns": {
+        "id": "tinyint",
+        "party_type_name": "nvarchar(100)",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "party_type_name": [
+          "Seller",
+          "Both",
+          "Buyer"
+        ],
+        "id": [
+          "3",
+          "1",
+          "2"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.acc_product_attribute_brand_category_mapping": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "attribute_id": "uniqueidentifier",
+        "brand_id": "uniqueidentifier",
+        "category_id": "uniqueidentifier",
+        "sub_category_id": "uniqueidentifier",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.acc_product_attribute_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "attribute_name": "nvarchar(100)",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.acc_product_attribute_value": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "attribute_id": "uniqueidentifier",
+        "attribute_value": "nvarchar(50)",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.acc_product_attributes": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "attribute_value_id": "uniqueidentifier",
+        "product_id": "uniqueidentifier",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.acc_product_brand_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "brand_name": "nvarchar(50)",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.acc_product_category_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "category_name": "nvarchar(50)",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.acc_product_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "category_id": "uniqueidentifier",
+        "sub_category_id": "uniqueidentifier",
+        "brand_id": "uniqueidentifier",
+        "product_name": "nvarchar(50)",
+        "product_code": "nvarchar(50)",
+        "mrp": "float",
+        "barcode": "nvarchar(50)",
+        "description": "nvarchar(-1)",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.acc_product_stock_entry": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "product_id": "uniqueidentifier",
+        "date_time": "datetime",
+        "stock_type": "tinyint",
+        "op_stock": "float",
+        "stock_qty": "float",
+        "cl_stock": "float",
+        "remark": "nvarchar(500)",
+        "link_type": "int",
+        "link_id": "uniqueidentifier"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.acc_product_stock_entry_type_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "tinyint",
+        "stock_entry_type_name": "nvarchar(50)",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.acc_product_stock_link_type_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "link_type_name": "nvarchar(100)",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.acc_product_stock_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "branch_id": "uniqueidentifier",
+        "product_id": "uniqueidentifier",
+        "opening_datetime": "datetime",
+        "opening_stock": "float",
+        "closing_datetime": "datetime",
+        "closing_stock": "float",
+        "remark": "nvarchar(500)"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.acc_product_sub_category_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "category_id": "uniqueidentifier",
+        "sub_category_name": "nvarchar(50)",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.acc_region_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "country_id": "uniqueidentifier",
+        "state_id": "uniqueidentifier",
+        "parent_region_id": "uniqueidentifier",
+        "region_name": "nvarchar(50)",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.branch_master": {
+      "rowCount": 27,
+      "columns": {
+        "id": "uniqueidentifier",
+        "branch_name": "nvarchar(50)",
+        "contact_person_name": "nvarchar(50)",
+        "contact_number": "nvarchar(15)",
+        "email_id": "nvarchar(100)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime",
+        "document_path": "nvarchar(500)",
+        "zomato_link": "nvarchar(500)",
+        "swiggy_link": "nvarchar(500)"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "branch_name": [
+          "Bhadrak",
+          "Vesu",
+          "aaa"
+        ],
+        "contact_person_name": [
+          "Bhadrak Fusion Pizza",
+          "Manager",
+          "7894561237"
+        ],
+        "contact_number": [
+          "65989699885",
+          "9327565817",
+          "9033221788"
+        ],
+        "email_id": [
+          "addressData@gmail.com",
+          "demo@gmail.com",
+          "demo@minimals.cc"
+        ],
+        "remark": [
+          "done",
+          "",
+          "Gota branch fuzion pizza"
+        ],
+        "insert_datetime": [
+          "Feb 23 2024  1:25PM",
+          "Feb 23 2024  1:24PM",
+          "Feb 21 2024 12:47PM"
+        ],
+        "update_datetime": [
+          "Feb 21 2024  2:09PM",
+          "Jan 18 2024  1:11AM",
+          "Feb 20 2024  3:39PM"
+        ]
+      }
+    },
+    "dbo.cibil_data": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "mobile_no": "nvarchar(50)",
+        "reference_no": "nvarchar(50)",
+        "request_date_time": "datetime",
+        "request_by": "nvarchar(50)",
+        "status": "int",
+        "pan_number": "nvarchar(50)",
+        "pan_response_id": "nvarchar(50)",
+        "pan_response_date_time": "datetime",
+        "credit_score": "nvarchar(50)",
+        "cibil_response_id": "nvarchar(50)",
+        "cibil_response_date_time": "datetime",
+        "credit_report_link": "nvarchar(-1)"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.cibil_request": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "id_number": "nvarchar(50)",
+        "id_type": "nvarchar(50)",
+        "mobile": "nvarchar(50)",
+        "consent": "nvarchar(5)",
+        "ref_no": "nvarchar(50)",
+        "request_by": "nvarchar(50)",
+        "request_data": "nvarchar(-1)",
+        "request_date_time": "datetime",
+        "provider_name": "nvarchar(50)"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.cibil_response": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "client_id": "nvarchar(100)",
+        "pan": "nvarchar(50)",
+        "id_number": "nvarchar(50)",
+        "id_type": "nvarchar(50)",
+        "mobile": "nvarchar(50)",
+        "name": "nvarchar(50)",
+        "credit_score": "nvarchar(50)",
+        "credit_report_link": "nvarchar(-1)",
+        "status_code": "int",
+        "success": "nvarchar(50)",
+        "message": "nvarchar(500)",
+        "message_code": "nvarchar(50)",
+        "request_id": "uniqueidentifier",
+        "response_data": "nvarchar(-1)",
+        "response_date_time": "datetime",
+        "provider_name": "nvarchar(50)"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.country_master": {
+      "rowCount": 9,
+      "columns": {
+        "id": "uniqueidentifier",
+        "country_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "country_name": [
+          "Italy",
+          "Pakistan",
+          "Kenya"
+        ],
+        "remark": [
+          "Kenya added as country",
+          ""
+        ],
+        "insert_datetime": [
+          "Feb 16 2024  1:17PM",
+          "Feb 23 2024  1:22PM",
+          "Mar 14 2024  6:56PM"
+        ],
+        "update_datetime": [
+          "Feb 28 2024  1:18PM",
+          "Feb 28 2024  1:20PM",
+          "Apr 23 2024  5:07PM"
+        ],
+        "status": [
+          "2",
+          "1"
+        ],
+        "id": [
+          "697473FA-9013-433C-8EBD-7A86C101007C",
+          "032ADAD7-AF4E-4A31-97FD-05A607CD88A0",
+          "41A64163-27A2-414F-8872-5FCA68026D55"
+        ]
+      }
+    },
+    "dbo.document_master": {
+      "rowCount": 23,
+      "columns": {
+        "id": "uniqueidentifier",
+        "document_type": "int",
+        "document_id": "uniqueidentifier",
+        "document_name": "nvarchar(150)",
+        "document_ext": "nvarchar(50)",
+        "original_file_name": "nvarchar(150)",
+        "size": "bigint",
+        "is_master": "int",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "document_name": [
+          "1707747566472.pdf",
+          "1707747681027.pdf",
+          "1707747534882.pdf"
+        ],
+        "document_ext": [
+          ".pdf"
+        ],
+        "original_file_name": [
+          "INV-19919.pdf",
+          "2023_Prashi solution_001.pdf",
+          "Confidentiality Agreement - Employees ver 1.1.pdf"
+        ],
+        "insert_datetime": [
+          "Feb 12 2024  7:55PM",
+          "Feb 12 2024  7:49PM",
+          "Feb 12 2024  7:51PM"
+        ],
+        "document_type": [
+          "1"
+        ],
+        "size": [
+          "31959",
+          "210399",
+          "411137"
+        ],
+        "is_master": [
+          "0"
+        ]
+      }
+    },
+    "dbo.document_type_master": {
+      "rowCount": 4,
+      "columns": {
+        "id": "int",
+        "document_type_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "document_type_name": [
+          "aadhar card",
+          "noc letter",
+          "offer letter"
+        ],
+        "remark": [
+          "other document type added"
+        ],
+        "insert_datetime": [
+          "Mar  1 2024  2:51PM",
+          "Mar  1 2024 12:19PM",
+          "Mar  1 2024 12:19PM"
+        ],
+        "id": [
+          "3",
+          "4",
+          "2"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.email_log": {
+      "rowCount": 999,
+      "columns": {
+        "id": "uniqueidentifier",
+        "from_email": "nvarchar(150)",
+        "from_name": "nvarchar(50)",
+        "to_email": "nvarchar(150)",
+        "to_name": "nvarchar(50)",
+        "subject": "nvarchar(100)",
+        "mail_body": "nvarchar(-1)",
+        "status": "int",
+        "message": "nvarchar(-1)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "from_email": [
+          "mail202302.emprestleather@gmail.com",
+          "mail202202.emprestleather@gmail.com",
+          "mail202301.emprestleather@gmail.com"
+        ],
+        "from_name": [
+          "Emprest Leather"
+        ],
+        "to_email": [
+          "Sales@betterthansox.com.au",
+          "sales@route66tas.com.au",
+          "kim@blackespharmacy.com.au"
+        ],
+        "to_name": [
+          "Tabrez Kirmani",
+          "Rahul 1",
+          "Rahul 2"
+        ],
+        "subject": [
+          "Merry Christmas & Prosperous Business Wishes!",
+          "NEW COLLECTION-EMPREST LEATHER"
+        ],
+        "mail_body": [
+          "<span style=\"font-family:Wide; color: blue; font-weight: bold !important; font-size: 18px !important\">    Hello,    \r\n<br> <br> Wishing you a joyous Christmas and a thriving year ahead for your busine",
+          "<span style=\"font-family:Wide; color: blue; font-weight: bold !important; font-size: 18px !important\">  \r\nHello,  \r\n<br> <br> <img src=\"cid:image1\"></img> <br> <br>  \r\n<br> <br> OUR PRODUCT CATALOGS H"
+        ],
+        "message": [
+          "250 2.0.0 OK  1703356194 u13-20020a17090341cd00b001d3ea8ad878sm5387702ple.290 - gsmtp",
+          "250 2.0.0 OK  1701878931 t17-20020a17090aba9100b002867f008b0csm45526pjr.44 - gsmtp",
+          "250 2.0.0 OK  1703355902 jg13-20020a17090326cd00b001cf7bd9ade5sm5420805plb.3 - gsmtp"
+        ],
+        "insert_datetime": [
+          "Dec  6 2023  9:33PM",
+          "Dec  6 2023  9:32PM",
+          "Dec  6 2023  9:32PM"
+        ]
+      }
+    },
+    "dbo.email_scheduler": {
+      "rowCount": 996,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "email_id": "nvarchar(150)",
+        "email_type": "uniqueidentifier",
+        "is_schedule": "int",
+        "schedule_datetime": "datetime",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "name": [
+          "Tabrez Kirmani",
+          "Rahul 2",
+          "Rahul 1"
+        ],
+        "email_id": [
+          "winningnews@bigpond.com",
+          "kshbmm@gmail.com",
+          "shoerepairszo@gmail.com"
+        ],
+        "insert_datetime": [
+          "Dec  6 2023  6:59PM",
+          "Dec  6 2023  9:30PM",
+          "Dec  6 2023  9:30PM"
+        ],
+        "is_schedule": [
+          "0"
+        ],
+        "status": [
+          "3",
+          "1",
+          "0"
+        ],
+        "id": [
+          "D6031FC8-C60B-4CAC-BE8E-517A01B4962F",
+          "F41D7623-A216-443E-8FCC-86A0FC973410",
+          "D24F272A-187E-4696-AE5F-2A04DD335302"
+        ]
+      }
+    },
+    "dbo.email_setup": {
+      "rowCount": 4,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "email_id": "nvarchar(50)",
+        "email_password": "nvarchar(50)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "name": [
+          "Emprest Leather"
+        ],
+        "email_id": [
+          "mail202301.emprestleather@gmail.com",
+          "mail202202.emprestleather@gmail.com",
+          "mail202302.emprestleather@gmail.com"
+        ],
+        "email_password": [
+          "puskgojiqqlutpuc",
+          "vzflxtqgeqgmkvwo",
+          "maxiydscmbsgmhke"
+        ],
+        "insert_datetime": [
+          "Dec  6 2023  8:51PM"
+        ],
+        "status": [
+          "1",
+          "0"
+        ],
+        "id": [
+          "516CC0C2-9351-4D39-8ECF-07FE6106BC45",
+          "9A139C47-4E99-4545-86BB-2253F48E20FD",
+          "5A64FDE9-6FC1-4542-8F2D-AFD6CE8E98ED"
+        ]
+      }
+    },
+    "dbo.email_type_master": {
+      "rowCount": 2,
+      "columns": {
+        "id": "uniqueidentifier",
+        "email_type": "nvarchar(50)",
+        "subject": "nvarchar(100)",
+        "email_body": "nvarchar(-1)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "email_type": [
+          "Emprest 2023-12-06",
+          "Emprest 2023-12-23"
+        ],
+        "subject": [
+          "Merry Christmas & Prosperous Business Wishes!",
+          "NEW COLLECTION-EMPREST LEATHER"
+        ],
+        "email_body": [
+          "<span style=\"font-family:Wide; color: blue; font-weight: bold !important; font-size: 18px !important\">  \r\nHello,  \r\n<br> <br> <img src=\"cid:image1\"></img> <br> <br>  \r\n<br> <br> OUR PRODUCT CATALOGS H",
+          "<span style=\"font-family:Wide; color: blue; font-weight: bold !important; font-size: 18px !important\">    Hello,    \r\n<br> <br> Wishing you a joyous Christmas and a thriving year ahead for your busine"
+        ],
+        "insert_datetime": [
+          "Dec  6 2023  8:49PM"
+        ],
+        "status": [
+          "1",
+          "0"
+        ],
+        "id": [
+          "DDEBA09F-7745-45A8-86D3-5D688BE13A2E",
+          "22D90493-8FAC-4AA7-9DE1-F6E31BD693AF"
+        ]
+      }
+    },
+    "dbo.emp_attendance": {
+      "rowCount": 1024,
+      "columns": {
+        "id": "uniqueidentifier",
+        "tag_id": "nvarchar(50)",
+        "emp_id": "uniqueidentifier",
+        "in_date_time": "datetime",
+        "out_date_time": "datetime",
+        "status": "int"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "tag_id": [
+          "42cb324e",
+          "71fbed2c",
+          "12d9784e"
+        ],
+        "in_date_time": [
+          "Feb  8 2024  6:59PM",
+          "Apr 11 2024 10:48AM",
+          "Feb 13 2024 10:12AM"
+        ],
+        "out_date_time": [
+          "Feb 26 2024  7:21PM",
+          "Mar 13 2024  6:15PM",
+          "Apr 26 2024  4:23PM"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "95A46BD8-1A51-40EE-BA8C-FE1710956317",
+          "0858F7AF-45EA-4CC4-A5A4-1FAB83E57948",
+          "CB262350-D512-455D-A47B-7BAD7DDC6F90"
+        ],
+        "emp_id": [
+          "9F4287A0-EBAF-4A85-BD58-183055DFBAF7",
+          "EE58A9C0-FFC9-4843-BD8D-49B20FCEC90A",
+          "D381A3DC-0E03-47CD-9EED-4B8921886DE5"
+        ]
+      }
+    },
+    "dbo.emp_department_master": {
+      "rowCount": 9,
+      "columns": {
+        "id": "uniqueidentifier",
+        "department_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "department_name": [
+          "Accounts",
+          "Human Resource",
+          "QA"
+        ],
+        "remark": [
+          "Human Resource Dept",
+          "QA Dept",
+          "Support Dept"
+        ],
+        "insert_datetime": [
+          "Apr 23 2024  5:03PM",
+          "Apr 12 2024 12:34PM",
+          "Feb 28 2024  3:43PM"
+        ],
+        "update_datetime": [
+          "Apr 23 2024 12:08PM",
+          "Feb  6 2024  4:07PM",
+          "Apr 23 2024 12:09PM"
+        ],
+        "status": [
+          "2",
+          "1"
+        ],
+        "id": [
+          "BD806936-5E4B-4266-A749-C66A56ED71CF",
+          "877D7218-9BEF-4A8B-96F4-2188A195C754",
+          "15D849D2-55D4-404D-9D24-10D650F6B75D"
+        ]
+      }
+    },
+    "dbo.emp_designation_master": {
+      "rowCount": 15,
+      "columns": {
+        "id": "uniqueidentifier",
+        "designation_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "designation_name": [
+          "IT Support Specialist",
+          "Network Engineer/Administrator",
+          "Software Engineer/Developer"
+        ],
+        "remark": [
+          "Works with stakeholders to understand their business needs and translates them into IT requirements",
+          "Entry-level software engineer responsible for assisting with coding, testing, and development tasks under the guidance of senior team members.",
+          "Entry-level role focusing on the design and development of websites or web applications, often under the guidance of senior designers or developers"
+        ],
+        "insert_datetime": [
+          "Jan  2 2024 12:33PM",
+          "Jan  2 2024  1:38PM",
+          "Jan  5 2024  7:47PM"
+        ],
+        "update_datetime": [
+          "Apr 23 2024 12:12PM",
+          "Apr 23 2024 12:13PM",
+          "Apr 23 2024 12:12PM"
+        ],
+        "status": [
+          "1",
+          "2"
+        ],
+        "id": [
+          "13D10476-D3B1-4CDA-AA1C-4CC9EDF96336",
+          "AD8BE68A-CF40-4593-BE56-B29E3F6C5B51",
+          "B4666C9A-ADA0-46CD-9F01-5F2A24B37CE7"
+        ]
+      }
+    },
+    "dbo.emp_employee_degree_list": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "employee_id": "uniqueidentifier",
+        "education_degree_id": "uniqueidentifier",
+        "education_stream_id": "uniqueidentifier",
+        "university": "nvarchar(100)",
+        "colloge": "nvarchar(100)",
+        "duration": "int",
+        "passing_year": "int",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.emp_employee_master": {
+      "rowCount": 27,
+      "columns": {
+        "id": "uniqueidentifier",
+        "emp_code": "nvarchar(50)",
+        "first_name": "nvarchar(50)",
+        "middle_name": "nvarchar(50)",
+        "last_name": "nvarchar(50)",
+        "department_id": "uniqueidentifier",
+        "designation_id": "uniqueidentifier",
+        "branch_id": "uniqueidentifier",
+        "contact_number_1": "nvarchar(50)",
+        "contact_number_2": "nvarchar(50)",
+        "dob": "date",
+        "gender": "uniqueidentifier",
+        "email_id": "nvarchar(100)",
+        "joining_date": "date",
+        "resign_date": "date",
+        "status": "uniqueidentifier",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "emp_code": [
+          "EMP011",
+          "EMP023",
+          "EMP002"
+        ],
+        "first_name": [
+          "Devanshi",
+          "Bhavisha",
+          "Jitendra"
+        ],
+        "middle_name": [
+          ""
+        ],
+        "last_name": [
+          "Panchal",
+          "Kushwah",
+          "Prajapati"
+        ],
+        "contact_number_1": [
+          "7487894746",
+          "6352560583",
+          "4444545555"
+        ],
+        "contact_number_2": [
+          "4848422121",
+          "",
+          "1468741981"
+        ],
+        "dob": [
+          "2008-04-01",
+          "2000-09-08",
+          "2008-04-23"
+        ],
+        "email_id": [
+          "sahil@crmemperor.com",
+          "hiren@crmemperor.com",
+          "pushpraj@crmemperor.com"
+        ]
+      }
+    },
+    "dbo.emp_employee_status_master": {
+      "rowCount": 2,
+      "columns": {
+        "id": "uniqueidentifier",
+        "employee_status_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "employee_status_name": [
+          "In Progress",
+          "completed"
+        ],
+        "remark": [
+          ""
+        ],
+        "insert_datetime": [
+          "Jan 11 2024  6:06PM"
+        ],
+        "update_datetime": [
+          "Jan 11 2024  6:12PM"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "F0E58621-389A-4086-A8A7-9717699136ED",
+          "02AABA6B-66D7-4700-9E15-2D8A2FC5C296"
+        ]
+      }
+    },
+    "dbo.emp_holiday_calender": {
+      "rowCount": 14,
+      "columns": {
+        "id": "uniqueidentifier",
+        "festive_date": "date",
+        "festival_name": "nvarchar(50)",
+        "remark": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "festive_date": [
+          "2024-10-02",
+          "2024-04-09",
+          "2024-03-26"
+        ],
+        "festival_name": [
+          "EID",
+          "Rakshabandhan",
+          ""
+        ],
+        "remark": [
+          "Rakhi",
+          "",
+          "aaaaaa"
+        ],
+        "insert_datetime": [
+          "Apr  4 2024  1:22PM",
+          "Apr  4 2024  4:45PM",
+          "Apr  5 2024 12:58PM"
+        ],
+        "update_datetime": [
+          "Apr  5 2024 12:59PM",
+          "Apr  5 2024  1:24PM",
+          "Apr  9 2024  4:30PM"
+        ],
+        "status": [
+          "2",
+          "1"
+        ],
+        "id": [
+          "EF35EED4-67EB-40F4-8492-C841FCD2F4F3",
+          "B90B99B1-82F6-4E97-A68B-10BFA1A839A2",
+          "379CB859-67FB-4C7F-8966-4D21A77E9ED4"
+        ]
+      }
+    },
+    "dbo.emp_leave_approval_list": {
+      "rowCount": 13,
+      "columns": {
+        "id": "uniqueidentifier",
+        "leave_id": "uniqueidentifier",
+        "is_revoked": "bit",
+        "status": "tinyint",
+        "approver_type": "int",
+        "approved_by": "uniqueidentifier",
+        "remark": "nvarchar(500)",
+        "approved_time": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "remark": [
+          "1234",
+          ""
+        ],
+        "approved_time": [
+          "Apr 23 2024 12:02PM",
+          "Apr 23 2024 12:02PM",
+          "Apr 23 2024  1:14PM"
+        ],
+        "is_revoked": [
+          "0"
+        ],
+        "status": [
+          "0",
+          "1"
+        ],
+        "approver_type": [
+          "0"
+        ],
+        "id": [
+          "D19D906C-E973-4ABA-9C62-BD15BC0B3D52",
+          "7FBC0C96-0F08-4A94-92CB-0C533A779B2C",
+          "6C9C9E81-2279-416D-AA37-D27DC4279ABB"
+        ],
+        "leave_id": [
+          "E0655851-5C81-4776-9A6C-C0A62293AFA3"
+        ],
+        "approved_by": [
+          "2910D137-7D20-4EE9-AF7C-588D423E48CB"
+        ]
+      }
+    },
+    "dbo.emp_leave_approver_list": {
+      "rowCount": 7,
+      "columns": {
+        "id": "uniqueidentifier",
+        "approver_type": "int",
+        "approver_id": "uniqueidentifier",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "remark": [
+          "Director Level",
+          "HR",
+          ""
+        ],
+        "insert_datetime": [
+          "Apr 10 2024  2:11PM",
+          "Apr 12 2024  1:10PM",
+          "Apr 30 2024  2:46PM"
+        ],
+        "update_datetime": [
+          "Apr 29 2024  4:20PM",
+          "Apr 29 2024  4:44PM",
+          "Apr 29 2024  4:20PM"
+        ],
+        "approver_type": [
+          "4",
+          "2",
+          "1"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "305210AC-96E1-421C-A52A-504F2D530C30",
+          "A356F0BA-502B-4317-846B-C76A26C2F58C",
+          "F619D751-8126-4427-8DE1-685FA23E3F21"
+        ],
+        "approver_id": [
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A",
+          "D2AF0038-F0C8-4076-978C-2EEFE059D8C1",
+          "3FF1387B-F2A2-4891-B82C-89BF871BA498"
+        ]
+      }
+    },
+    "dbo.emp_leave_approver_type_master": {
+      "rowCount": 2,
+      "columns": {
+        "id": "int",
+        "approver_type": "nvarchar(50)",
+        "is_mandatory": "bit",
+        "min_approver": "int",
+        "status": "tinyint",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "approver_type": [
+          "HR / Tech Lead",
+          "Director"
+        ],
+        "remark": [
+          "Level 2",
+          "Level 1"
+        ],
+        "insert_datetime": [
+          "Apr 10 2024  2:10PM",
+          "Apr 10 2024  2:11PM"
+        ],
+        "update_datetime": [
+          "Apr 10 2024  2:11PM"
+        ],
+        "id": [
+          "2",
+          "1"
+        ],
+        "is_mandatory": [
+          "1"
+        ],
+        "min_approver": [
+          "1",
+          "2"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.emp_leave_master": {
+      "rowCount": 8,
+      "columns": {
+        "id": "uniqueidentifier",
+        "emp_id": "uniqueidentifier",
+        "from_date": "date",
+        "upto_date": "date",
+        "leave_type": "int",
+        "leave_reason": "nvarchar(-1)",
+        "total_leave_count": "numeric(5,1)",
+        "deducted_leave": "numeric(5,1)",
+        "paid_leave": "numeric(5,1)",
+        "status": "tinyint",
+        "is_revoke": "bit",
+        "is_approved": "bit",
+        "is_revoke_approved": "bit",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "from_date": [
+          "2024-05-04",
+          "2024-04-04",
+          "2024-04-23"
+        ],
+        "upto_date": [
+          "2024-04-16",
+          "2024-04-23",
+          "2024-05-04"
+        ],
+        "leave_reason": [
+          " Testinggggggggggggggggggggggggggggggggggggggggg",
+          "function",
+          " TEST"
+        ],
+        "insert_datetime": [
+          "Apr 16 2024 12:13PM",
+          "Apr 12 2024  1:07PM",
+          "Apr 16 2024  2:46PM"
+        ],
+        "update_datetime": [
+          "Apr 16 2024  3:43PM",
+          "Apr 16 2024  3:57PM",
+          "Apr 16 2024  3:33PM"
+        ],
+        "leave_type": [
+          "2",
+          "3",
+          "1"
+        ],
+        "total_leave_count": [
+          "4.0",
+          "1.0",
+          "10.0"
+        ]
+      }
+    },
+    "dbo.emp_leave_type_master": {
+      "rowCount": 2,
+      "columns": {
+        "id": "int",
+        "leave_type": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "leave_type": [
+          "Sick Leave",
+          "Paid Leave"
+        ],
+        "id": [
+          "2",
+          "1"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.emp_punch_inout": {
+      "rowCount": 0,
+      "columns": {
+        "tagid": "nvarchar(20)",
+        "timestamp": "datetime",
+        "Punch_status": "int"
+      }
+    },
+    "dbo.emp_tag_master": {
+      "rowCount": 25,
+      "columns": {
+        "id": "uniqueidentifier",
+        "emp_id": "uniqueidentifier",
+        "tag_id": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "tag_id": [
+          "13ebaadd",
+          "52552c4e",
+          "42cb324e"
+        ],
+        "remark": [
+          ""
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "46945470-66C0-43B1-9AB6-2379F9044BE6",
+          "8032EC91-82CE-4F1E-91EB-0AE5E601ACBE",
+          "883DD576-B4F6-4429-8343-F4688FD91DCD"
+        ],
+        "emp_id": [
+          "1920D71B-813A-49AA-B753-77F6C2E99A8D",
+          "E15C0907-A903-4080-A34A-A400DAC2C53C",
+          "42DD1160-4E92-4430-8102-5F160350C076"
+        ]
+      }
+    },
+    "dbo.follow_up": {
+      "rowCount": 107,
+      "columns": {
+        "id": "uniqueidentifier",
+        "link_type": "int",
+        "link_id": "uniqueidentifier",
+        "follow_up_by": "uniqueidentifier",
+        "follow_up_type_id": "uniqueidentifier",
+        "follow_up_date": "datetime",
+        "what_to_do_id": "uniqueidentifier",
+        "what_to_do": "nvarchar(-1)",
+        "what_done_id": "uniqueidentifier",
+        "what_done": "nvarchar(-1)",
+        "what_next_id": "uniqueidentifier",
+        "what_next": "nvarchar(-1)",
+        "remarks": "nvarchar(-1)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "follow_up_date": [
+          "Feb  9 2024 11:32AM",
+          "Apr 26 2024  3:48PM",
+          "Feb  9 2024 11:32AM"
+        ],
+        "what_to_do": [
+          "Schedule a Meeting at Client Location",
+          "test",
+          "asdasdasd"
+        ],
+        "what_done": [
+          "TEst What Done",
+          "Property Done(Optional) Test",
+          "TEST"
+        ],
+        "what_next": [
+          "RESR",
+          "next",
+          "This is remark added for testing Updated once again This is remark added for testing Updated once again This is remark added for testing Updated once again This is remark added for testing Updated onc"
+        ],
+        "remarks": [
+          "Call Inquired Client Call - Remarks",
+          "Testting Remark",
+          "ytdydcvinyoibutyytdydcvinyoibutyytdydcvinyoibutyytdydcvinyoibutyytdydcvinyoibutyytdydcvinyoibutyytdydcvinyoibuty"
+        ],
+        "insert_datetime": [
+          "Apr 29 2024 12:12PM",
+          "Feb 12 2024  6:21PM",
+          "Apr 29 2024  1:12PM"
+        ],
+        "update_datetime": [
+          "Apr 26 2024  3:12PM",
+          "Feb 21 2024  4:22PM",
+          "Apr  4 2024  1:10PM"
+        ],
+        "link_type": [
+          "1",
+          "2"
+        ]
+      }
+    },
+    "dbo.follow_up_link_type_master": {
+      "rowCount": 2,
+      "columns": {
+        "id": "int",
+        "link_type_name": "nvarchar(50)",
+        "status": "int",
+        "remarks": "nvarchar(-1)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "link_type_name": [
+          "Real Estate Inquiry",
+          "Restaurant Inquiry"
+        ],
+        "remarks": [
+          "Real Estate Inquiry",
+          "Restaurant Inquiry"
+        ],
+        "id": [
+          "2",
+          "1"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.follow_up_type_master": {
+      "rowCount": 15,
+      "columns": {
+        "id": "uniqueidentifier",
+        "follow_up_type_name": "nvarchar(50)",
+        "remark": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime",
+        "link_type": "int"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "follow_up_type_name": [
+          "testing",
+          "Pre-Construction Meeting",
+          "Change Order Follow-up"
+        ],
+        "remark": [
+          "After project completion, follow up with customer",
+          "After site visit to assess the project requirement",
+          "offer any post-construction support/maintenance"
+        ],
+        "insert_datetime": [
+          "Apr 23 2024  1:52PM",
+          "Feb 16 2024  1:26PM",
+          "Apr 12 2024 12:39PM"
+        ],
+        "update_datetime": [
+          "Apr 23 2024  1:47PM",
+          "Apr 29 2024  6:29PM",
+          "Feb 27 2024  7:00PM"
+        ],
+        "status": [
+          "2",
+          "1"
+        ],
+        "link_type": [
+          "2",
+          "1"
+        ],
+        "id": [
+          "C5656BB8-E8D9-4E1B-AE6F-675111DC0879",
+          "8F363CCD-BD46-4D96-B9D0-3F1AB2C7E788",
+          "DA71CE97-3DE9-4911-AB7E-328362657BCE"
+        ],
+        "insert_by": [
+          "5EDB6C6D-C355-4FEA-8108-E0679B2C6662",
+          "8D5B2F3D-8C73-452B-8DE8-3666DA2A5483",
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A"
+        ]
+      }
+    },
+    "dbo.follow_up_what_done_master": {
+      "rowCount": 10,
+      "columns": {
+        "id": "uniqueidentifier",
+        "what_done_name": "nvarchar(50)",
+        "default_text": "nvarchar(500)",
+        "remark": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime",
+        "link_type": "int"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "what_done_name": [
+          "Meeting completed at Client Location",
+          "Called Inquired client on Call",
+          "TESTING"
+        ],
+        "default_text": [
+          "TESTING 123",
+          "tes",
+          "Testing"
+        ],
+        "remark": [
+          "TESTING",
+          "Meeting completed at Client Location",
+          "Called Inquired client on Call\n"
+        ],
+        "insert_datetime": [
+          "Feb 29 2024  1:16PM",
+          "Feb 28 2024  4:15PM",
+          "Feb 27 2024  7:00PM"
+        ],
+        "update_datetime": [
+          "Feb 28 2024  4:16PM",
+          "Feb 16 2024  3:32PM",
+          "Feb 27 2024  6:59PM"
+        ],
+        "status": [
+          "2",
+          "1"
+        ],
+        "link_type": [
+          "2",
+          "1"
+        ],
+        "id": [
+          "6736BBE0-F832-4D78-9B12-81DBBB73CB20",
+          "D96CA5CE-E6D2-489E-99E0-ACC873CAE1CB",
+          "6973D0E1-EE60-4AAA-87C8-ADF69C882EE5"
+        ]
+      }
+    },
+    "dbo.follow_up_what_to_do_master": {
+      "rowCount": 10,
+      "columns": {
+        "id": "uniqueidentifier",
+        "what_to_do_name": "nvarchar(50)",
+        "default_text": "nvarchar(500)",
+        "remark": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime",
+        "link_type": "int"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "what_to_do_name": [
+          "TEST",
+          "Schedule a Meeting at Client Location",
+          "TESTING"
+        ],
+        "default_text": [
+          "",
+          "testingg",
+          "TESTING 123"
+        ],
+        "remark": [
+          "",
+          "ok",
+          "dd"
+        ],
+        "insert_datetime": [
+          "Feb 28 2024  3:31PM",
+          "Jan  5 2024 11:18PM",
+          "Feb 29 2024 12:32PM"
+        ],
+        "update_datetime": [
+          "Feb 28 2024  4:16PM",
+          "Feb 27 2024  7:01PM",
+          "Feb  8 2024  2:25PM"
+        ],
+        "status": [
+          "1",
+          "2"
+        ],
+        "link_type": [
+          "1"
+        ],
+        "id": [
+          "D219E6F6-4D2C-4B1E-A405-F2AB065F073C",
+          "054D8A38-5B1E-465D-85A5-AF9510653829",
+          "AE4752E5-06E2-420E-9C7C-D7C975C8611E"
+        ]
+      }
+    },
+    "dbo.gen_address_link_type_master": {
+      "rowCount": 3,
+      "columns": {
+        "id": "int",
+        "link_type_name": "nvarchar(50)",
+        "status": "int",
+        "remarks": "nvarchar(-1)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "link_type_name": [
+          "Employee Address",
+          "HR Recruitment for Company Address",
+          "Branch Address"
+        ],
+        "remarks": [
+          "HR Recruitment for Company Address",
+          "Branch Address",
+          "Employee Address"
+        ],
+        "id": [
+          "1",
+          "2",
+          "3"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.gen_address_master": {
+      "rowCount": 168,
+      "columns": {
+        "id": "uniqueidentifier",
+        "link_type": "int",
+        "link_id": "uniqueidentifier",
+        "address_type": "uniqueidentifier",
+        "address_line_1": "nvarchar(50)",
+        "address_line_2": "nvarchar(50)",
+        "address_line_3": "nvarchar(50)",
+        "pincode": "nvarchar(20)",
+        "city": "nvarchar(50)",
+        "state_id": "uniqueidentifier",
+        "country_id": "uniqueidentifier",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "address_line_1": [
+          "E312",
+          "contact_numbercontact_number",
+          "E-675, Ganesh Glory"
+        ],
+        "address_line_2": [
+          "Jagatpur 4444",
+          "FADFSDFSDFSDF",
+          "   useEffecuseEffec"
+        ],
+        "address_line_3": [
+          "sajfsaafafsajfsaafaf",
+          "e 1111111111ganesh glory",
+          "useEffec"
+        ],
+        "pincode": [
+          "321131",
+          "342435",
+          "784546"
+        ],
+        "city": [
+          "",
+          "kutch",
+          "hrRecruitmentFo"
+        ],
+        "remark": [
+          "JagatpurJagatpur",
+          "isOnlyOne",
+          "testing"
+        ],
+        "insert_datetime": [
+          "Feb 13 2024  2:26PM",
+          "Feb 22 2024  7:44PM",
+          "Feb 14 2024  3:59PM"
+        ],
+        "update_datetime": [
+          "Feb 13 2024  4:01PM",
+          "Feb 14 2024  7:38PM",
+          "Feb 14 2024  3:36PM"
+        ]
+      }
+    },
+    "dbo.gen_address_type_master": {
+      "rowCount": 5,
+      "columns": {
+        "id": "uniqueidentifier",
+        "address_type_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "address_type_name": [
+          "Commercial",
+          "Shop",
+          "Office"
+        ],
+        "remark": [
+          "Commercial address type added",
+          "test",
+          ""
+        ],
+        "insert_datetime": [
+          "Apr 23 2024  3:16PM",
+          "Feb  1 2024  2:45PM",
+          "Feb  1 2024  3:39PM"
+        ],
+        "update_datetime": [
+          "Feb  2 2024 11:07AM",
+          "Feb  1 2024  4:35PM"
+        ],
+        "status": [
+          "2",
+          "1"
+        ],
+        "id": [
+          "53C094EA-4454-44AB-BD91-38EB40A994E3",
+          "049F48A2-81EC-44AF-89D4-5994ABD51676",
+          "316F5E5E-1959-4773-B6C6-BFE45DF9A1F2"
+        ]
+      }
+    },
+    "dbo.gen_bank_account_link_type_master": {
+      "rowCount": 1,
+      "columns": {
+        "id": "int",
+        "link_type_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "link_type_name": [
+          "Employee Bank A/c"
+        ],
+        "remark": [
+          "Employee Bank A/c"
+        ],
+        "id": [
+          "1"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.gen_bank_account_master": {
+      "rowCount": 10,
+      "columns": {
+        "id": "uniqueidentifier",
+        "link_type": "int",
+        "link_id": "uniqueidentifier",
+        "account_holder_name": "nvarchar(100)",
+        "account_type": "uniqueidentifier",
+        "bank_name": "nvarchar(100)",
+        "branch_name": "nvarchar(50)",
+        "account_no": "nvarchar(50)",
+        "micr_code": "nvarchar(50)",
+        "ifsc_code": "nvarchar(50)",
+        "upi_id": "nvarchar(50)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "account_holder_name": [
+          "Aryan",
+          "jackkkk",
+          "Keyur M Patel"
+        ],
+        "bank_name": [
+          "Kalol Nagarik Sahakari Bank",
+          "IDBI",
+          "HDFC"
+        ],
+        "branch_name": [
+          "Vadaj",
+          "kalol",
+          "New Ranip"
+        ],
+        "account_no": [
+          "4567898554115",
+          "000502478645",
+          "0000494959595959"
+        ],
+        "micr_code": [
+          "7894Avbf",
+          "64654454f",
+          ""
+        ],
+        "ifsc_code": [
+          "abcad123",
+          "74412abcddd",
+          "HDFCB9559"
+        ],
+        "upi_id": [
+          "",
+          "bvdfdfdfd",
+          "afiohpiwf@okhdfc11"
+        ],
+        "insert_datetime": [
+          "Apr  9 2024  3:49PM",
+          "Feb 15 2024 11:51AM",
+          "Feb 15 2024  6:15PM"
+        ]
+      }
+    },
+    "dbo.gen_bank_account_type_master": {
+      "rowCount": 6,
+      "columns": {
+        "id": "uniqueidentifier",
+        "account_type_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "account_type_name": [
+          "Broker",
+          "S B I",
+          "Saving A/c"
+        ],
+        "remark": [
+          "Current",
+          "",
+          "Saving A/c"
+        ],
+        "insert_datetime": [
+          "Apr 12 2024  3:38PM",
+          "Feb 28 2024  4:08PM",
+          "Jan  2 2024  5:18PM"
+        ],
+        "update_datetime": [
+          "Feb 19 2024  4:12PM",
+          "Apr 23 2024  4:37PM",
+          "Feb 28 2024  4:08PM"
+        ],
+        "status": [
+          "1",
+          "2"
+        ],
+        "id": [
+          "798CE6D5-0540-4768-85EB-A57DEEA72AD4",
+          "7F0954DC-2506-46BD-9443-9DD1F2BE3384",
+          "2AF702A2-75F9-44DA-8BB6-BD881FF638B1"
+        ]
+      }
+    },
+    "dbo.gen_custom_report_fields": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "table_name": "nvarchar(50)",
+        "column_name": "nvarchar(50)",
+        "display_name": "nvarchar(50)",
+        "sub_query": "nvarchar(1000)",
+        "remark": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.gen_education_degree_master": {
+      "rowCount": 6,
+      "columns": {
+        "id": "uniqueidentifier",
+        "education_degree_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "education_degree_name": [
+          "degree",
+          "B.E",
+          "Diploma"
+        ],
+        "remark": [
+          ""
+        ],
+        "insert_datetime": [
+          "Mar 14 2024  6:59PM",
+          "Jan  2 2024  6:42PM",
+          "Jan  2 2024  6:37PM"
+        ],
+        "update_datetime": [
+          "Apr 23 2024  2:46PM",
+          "Apr 23 2024  2:46PM",
+          "Apr 23 2024  2:46PM"
+        ],
+        "status": [
+          "2",
+          "1"
+        ],
+        "id": [
+          "728C64EA-0518-409D-92F6-268036037164",
+          "7F2F299F-33F0-4698-AE09-CB3EADBF7C71",
+          "13F1DA63-DC8A-40A2-A75D-A65AF0684DC8"
+        ]
+      }
+    },
+    "dbo.gen_education_degree_stream_list": {
+      "rowCount": 22,
+      "columns": {
+        "id": "uniqueidentifier",
+        "education_degree_id": "uniqueidentifier",
+        "education_stream_id": "uniqueidentifier",
+        "duration": "int",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "insert_datetime": [
+          "Feb  5 2024  6:53PM",
+          "Feb  6 2024 11:07AM",
+          "Apr 29 2024  7:19PM"
+        ],
+        "update_datetime": [
+          "Apr 29 2024  7:18PM",
+          "Apr 29 2024  7:18PM",
+          "Apr 29 2024  7:18PM"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "A2137B84-7210-4AA3-92B6-10580949B839",
+          "9EAE90E8-ED44-4B8B-8691-CD727F47CA32",
+          "4CFD2C55-E575-4574-BAB0-6F00EBE89100"
+        ],
+        "education_degree_id": [
+          "7F2F299F-33F0-4698-AE09-CB3EADBF7C71",
+          "13F1DA63-DC8A-40A2-A75D-A65AF0684DC8",
+          "AD1C266B-65AC-4E22-B08E-0EAB1506A664"
+        ],
+        "education_stream_id": [
+          "E008F905-A19B-4C71-B70C-8B591178857E",
+          "B606D0AD-4C0D-4649-9582-FA0A5EC265C9",
+          "1321CDB5-4C5E-4A28-8BE0-76574C92FE28"
+        ]
+      }
+    },
+    "dbo.gen_education_stream_master": {
+      "rowCount": 16,
+      "columns": {
+        "id": "uniqueidentifier",
+        "education_stream_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "education_stream_name": [
+          "Computer Engineering",
+          "ComputerApplication",
+          "Testing"
+        ],
+        "remark": [
+          "dadsddasdsdsasd",
+          "",
+          "h203333"
+        ],
+        "insert_datetime": [
+          "Apr 29 2024  7:19PM",
+          "Feb  6 2024  3:24PM",
+          "Feb  5 2024  7:14PM"
+        ],
+        "update_datetime": [
+          "Apr 29 2024  7:18PM",
+          "Apr 29 2024  7:18PM",
+          "Feb  6 2024 12:40PM"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "E008F905-A19B-4C71-B70C-8B591178857E",
+          "D6F11BDE-7B7F-4EBB-93F5-5A7B4FBACDD3",
+          "59872622-4A80-450A-9343-580BD999BFE4"
+        ]
+      }
+    },
+    "dbo.gen_employement_list": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "link_type": "uniqueidentifier",
+        "link_id": "uniqueidentifier",
+        "employer_id": "uniqueidentifier",
+        "from_date": "date",
+        "upto_date": "date",
+        "active": "bit",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.gen_employer_master": {
+      "rowCount": 5,
+      "columns": {
+        "id": "uniqueidentifier",
+        "employer_name": "nvarchar(50)",
+        "city": "nvarchar(50)",
+        "state_id": "uniqueidentifier",
+        "country_id": "uniqueidentifier",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "employer_name": [
+          "Sujal Testin",
+          "prashi solutions",
+          "Krinaaaa"
+        ],
+        "city": [
+          "ahmedabad"
+        ],
+        "remark": [
+          "Testing",
+          ""
+        ],
+        "insert_datetime": [
+          "Feb  5 2024  3:54PM",
+          "Feb  1 2024  7:25PM",
+          "Feb  5 2024  3:24PM"
+        ],
+        "update_datetime": [
+          "Feb  5 2024  3:41PM",
+          "Feb  5 2024  3:18PM",
+          "Feb  5 2024  3:45PM"
+        ],
+        "status": [
+          "1",
+          "2"
+        ],
+        "id": [
+          "6C7EF501-8AE7-4962-AEF1-0F026A50E6D9",
+          "9023D192-9105-49AE-90DB-77A641E9F1C6",
+          "01AD5B87-D5C5-4EEC-BDD8-BD800F3DA60E"
+        ],
+        "state_id": [
+          "824761B6-29AC-44AF-86C1-BB3A61ADE521",
+          "B9966B29-D6E7-4260-A7E5-216219ED7117"
+        ]
+      }
+    },
+    "dbo.gen_gender_master": {
+      "rowCount": 2,
+      "columns": {
+        "id": "uniqueidentifier",
+        "gender_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "gender_name": [
+          "Male",
+          "Female"
+        ],
+        "insert_datetime": [
+          "Jan  4 2024  3:44PM"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "89EE2A4C-569C-4C73-BAC3-CAC2DD2EA912",
+          "8EFBEF88-E5C5-4EC7-BD8D-415F9370C0B8"
+        ]
+      }
+    },
+    "dbo.gen_occupation_type_master": {
+      "rowCount": 12,
+      "columns": {
+        "id": "uniqueidentifier",
+        "occupation": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "occupation": [
+          "JOB",
+          "Self Fund",
+          "Sales"
+        ],
+        "remark": [
+          "",
+          "TESTING",
+          "Developingggg"
+        ],
+        "insert_datetime": [
+          "Jan 23 2024  4:22PM",
+          "Jan 12 2024 12:37PM",
+          "Dec 23 2023  1:20AM"
+        ],
+        "update_datetime": [
+          "Apr 23 2024  1:35PM",
+          "Apr 30 2024 10:47AM",
+          "Apr 23 2024  1:35PM"
+        ],
+        "status": [
+          "2",
+          "1"
+        ],
+        "id": [
+          "637C1646-0030-43CB-9394-446811B930C3",
+          "F018F724-253B-41F4-B774-0CCE05D0E283",
+          "A22FE0A2-6471-486F-8361-496676FBE6B2"
+        ],
+        "insert_by": [
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A",
+          "8D5B2F3D-8C73-452B-8DE8-3666DA2A5483"
+        ],
+        "update_by": [
+          "5EDB6C6D-C355-4FEA-8108-E0679B2C6662",
+          "51186CAB-B37B-4C1D-A8AC-875B7D17D0A9",
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A"
+        ]
+      }
+    },
+    "dbo.gen_otp_master": {
+      "rowCount": 1,
+      "columns": {
+        "id": "uniqueidentifier",
+        "link_type": "int",
+        "link_id": "uniqueidentifier",
+        "mobile_no": "nvarchar(50)",
+        "otp": "nvarchar(50)",
+        "generate_date_time": "datetime",
+        "validate": "int",
+        "validate_date_time": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "mobile_no": [
+          "9510352639"
+        ],
+        "otp": [
+          "459868"
+        ],
+        "generate_date_time": [
+          "Jan 11 2024  3:26PM"
+        ],
+        "link_type": [
+          "1"
+        ],
+        "validate": [
+          "0"
+        ],
+        "id": [
+          "9DC2E600-3B39-4208-A301-FE749A36BEB3"
+        ],
+        "link_id": [
+          "2910D137-7D20-4EE9-AF7C-588D423E48CB"
+        ]
+      }
+    },
+    "dbo.gen_reminder_for_list": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "reminder_for_id": "int",
+        "reminder_id": "uniqueidentifier",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.gen_reminder_for_master": {
+      "rowCount": 4,
+      "columns": {
+        "id": "int",
+        "reminder_for": "nvarchar(50)",
+        "remark": "nvarchar(500)",
+        "status": "int"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "reminder_for": [
+          "Web User",
+          "Restaurant Inquiry",
+          "Real Estate Inquiry"
+        ],
+        "remark": [
+          "Restaurant Inquiry",
+          "Real Estate Inquiry",
+          "Web User"
+        ],
+        "id": [
+          "4",
+          "1",
+          "2"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.gen_reminder_list": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "reminder_id": "uniqueidentifier",
+        "reminder_date_time": "datetime",
+        "is_sent": "int",
+        "sent_date_time": "datetime",
+        "sent_message": "nvarchar(-1)"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.gen_reminder_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "title": "nvarchar(300)",
+        "subject": "nvarchar(-1)",
+        "reminder_method": "int",
+        "template_id": "uniqueidentifier",
+        "reminder_type": "int",
+        "no_of_days": "int",
+        "start_date": "date",
+        "end_date": "date",
+        "reminder_time": "time",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.gen_reminder_method_master": {
+      "rowCount": 5,
+      "columns": {
+        "id": "int",
+        "reminder_method": "nvarchar(50)",
+        "remark": "nvarchar(500)",
+        "status": "int"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "reminder_method": [
+          "Email",
+          "Notification",
+          "Text Message"
+        ],
+        "remark": [
+          ""
+        ],
+        "id": [
+          "4",
+          "3",
+          "2"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.gen_reminder_type_master": {
+      "rowCount": 4,
+      "columns": {
+        "id": "int",
+        "reminder_type": "nvarchar(50)",
+        "remark": "nvarchar(500)",
+        "status": "int"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "reminder_type": [
+          "Onetime",
+          "After Every (No of Days)",
+          "Day of week"
+        ],
+        "remark": [
+          "After Every (No of Days)",
+          "Day of week",
+          "Fix Date of Month"
+        ],
+        "id": [
+          "2",
+          "3",
+          "1"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.gen_skillset_master": {
+      "rowCount": 42,
+      "columns": {
+        "id": "uniqueidentifier",
+        "skill_name": "nvarchar(50)",
+        "remark": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "skill_name": [
+          "Kanban",
+          "DHCP",
+          "Dot Net"
+        ],
+        "remark": [
+          ""
+        ],
+        "insert_datetime": [
+          "Feb 24 2024  4:01PM",
+          "Apr 23 2024  1:24PM",
+          "Apr 23 2024  1:22PM"
+        ],
+        "update_datetime": [
+          "Apr 23 2024  1:21PM",
+          "Apr 23 2024  1:20PM",
+          "Apr 23 2024  1:19PM"
+        ],
+        "status": [
+          "1",
+          "2"
+        ],
+        "id": [
+          "ADCC8411-DD62-409D-8875-1994A7F3A511",
+          "01282652-0D3E-4320-A0D5-8DE408EA6F61",
+          "56B79C53-0C7B-45C1-93C1-EF3AE2DAF379"
+        ],
+        "insert_by": [
+          "51186CAB-B37B-4C1D-A8AC-875B7D17D0A9",
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A",
+          "8D5B2F3D-8C73-452B-8DE8-3666DA2A5483"
+        ],
+        "update_by": [
+          "8D5B2F3D-8C73-452B-8DE8-3666DA2A5483",
+          "5EDB6C6D-C355-4FEA-8108-E0679B2C6662",
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A"
+        ]
+      }
+    },
+    "dbo.gen_skillset_ratings_link_type_master": {
+      "rowCount": 1,
+      "columns": {
+        "id": "int",
+        "link_type_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "link_type_name": [
+          "Candidate Interview"
+        ],
+        "remark": [
+          "Candidate Interview"
+        ],
+        "id": [
+          "1"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.gen_skillset_ratings_list": {
+      "rowCount": 142,
+      "columns": {
+        "id": "uniqueidentifier",
+        "link_type": "int",
+        "link_id": "uniqueidentifier",
+        "skillset_id": "uniqueidentifier",
+        "ratings": "float",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "insert_datetime": [
+          "Apr 22 2024  4:17PM",
+          "Mar 26 2024  6:48PM",
+          "Apr 26 2024 12:59PM"
+        ],
+        "update_datetime": [
+          "Mar 21 2024  1:10PM",
+          "Mar 21 2024  1:21PM",
+          "Mar 21 2024  1:01PM"
+        ],
+        "link_type": [
+          "1"
+        ],
+        "status": [
+          "2",
+          "1"
+        ],
+        "id": [
+          "7FB15EA8-5E8D-4ECF-B135-5886C88DF0D9",
+          "DB668DB2-1771-45C6-91D2-5439CC0BA4E6",
+          "F808AEBD-BAB4-40C1-8604-DE8BAEE18F3F"
+        ],
+        "link_id": [
+          "57F6C977-4CCA-4E9D-9F66-F809E8CE99E2",
+          "AB1350FA-BD17-4FFD-B121-86667E7CFEC2",
+          "E3064EF5-7150-4219-B0EB-92F85518D3C9"
+        ],
+        "skillset_id": [
+          "6F82F4C1-64C2-4C3D-94F6-CAC548283821",
+          "35C92CE0-978F-463D-86D2-231EDD97BE92",
+          "E30B412A-BAFF-48EB-A921-7BCD91AB353A"
+        ],
+        "ratings": [
+          "9",
+          "5.5",
+          "5"
+        ]
+      }
+    },
+    "dbo.hr_call_status_master": {
+      "rowCount": 2,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "name": [
+          "Not Answering",
+          "Hold"
+        ],
+        "remark": [
+          "added",
+          "added1"
+        ],
+        "insert_datetime": [
+          "Jan  9 2024 10:41AM",
+          "Jan 12 2024  1:13PM"
+        ],
+        "update_datetime": [
+          "Jan 12 2024  1:16PM"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "63F8ACED-1B5A-4518-93FB-6686F8622F89",
+          "0470A226-0DCD-4404-9DF6-563EAB268D22"
+        ]
+      }
+    },
+    "dbo.hr_interview_list": {
+      "rowCount": 40,
+      "columns": {
+        "id": "uniqueidentifier",
+        "candidate_id": "uniqueidentifier",
+        "interview_datetime": "datetime",
+        "interviewer_id": "uniqueidentifier",
+        "recruitment_for_company": "uniqueidentifier",
+        "requested_position": "uniqueidentifier",
+        "interview_status": "uniqueidentifier",
+        "interview_type": "uniqueidentifier",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "interview_datetime": [
+          "Apr 12 2024  7:30AM",
+          "Apr  6 2024 12:10PM",
+          "Feb 26 2024 11:35PM"
+        ],
+        "remark": [
+          "",
+          "Interview Data added",
+          "RET"
+        ],
+        "insert_datetime": [
+          "Apr  3 2024  1:06PM",
+          "Apr  3 2024  1:19PM",
+          "Apr  2 2024  5:19PM"
+        ],
+        "update_datetime": [
+          "Apr 25 2024  1:02PM",
+          "Apr  3 2024  6:54PM",
+          "Apr 22 2024  7:04PM"
+        ],
+        "id": [
+          "EBD264C3-D421-4B39-BCC0-AC99B951DBB1",
+          "2D5847B9-59A0-440C-8976-0A92D556429A",
+          "5FA339B9-46EA-40B6-A52B-0F020228A5E9"
+        ],
+        "candidate_id": [
+          "BA4D7A7B-BDFB-4D42-8BFB-455450D641B1",
+          "33C03934-B347-4BA0-8CE7-49D6A7ACC41F",
+          "E287E523-5F70-4CD4-894D-B5AEFD3A6973"
+        ],
+        "interviewer_id": [
+          "B475CCD4-2A7E-41CB-BC4A-4BA7E338198C",
+          "13CAFCB2-E767-4166-823F-EE0C4FD36C37",
+          "D2AF0038-F0C8-4076-978C-2EEFE059D8C1"
+        ],
+        "recruitment_for_company": [
+          "EAEE6632-3AF1-449B-A747-F2434E2DF8A2",
+          "1DD715DB-FF23-4FE9-B2A0-E4CF0DCC8686",
+          "CAFF28BC-9E08-4F49-909E-8F7A3B2C5051"
+        ]
+      }
+    },
+    "dbo.hr_interview_status_master": {
+      "rowCount": 7,
+      "columns": {
+        "id": "uniqueidentifier",
+        "interview_status": "nvarchar(50)",
+        "remark": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "interview_status": [
+          "On Hold",
+          "Closed",
+          "Rescheduled"
+        ],
+        "remark": [
+          ""
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "D11BF5C6-0D91-44C0-A94C-BD04A1F125BB",
+          "A613C4B8-031D-4924-AE05-AAD65059120D",
+          "1F834B44-AA79-4A1F-A9C6-BD3990B1CB84"
+        ]
+      }
+    },
+    "dbo.hr_interview_type_master": {
+      "rowCount": 6,
+      "columns": {
+        "id": "uniqueidentifier",
+        "interview_type": "nvarchar(50)",
+        "remark": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "interview_type": [
+          "Client Interview",
+          "Final Round",
+          "Face to Face"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "C5A7A490-8EFE-4F1F-B59D-44BA07270E40",
+          "AE636C4C-38AF-4AF2-8336-C4CC27D358FF",
+          "B839B999-BBA1-463D-864A-4A45AEF12166"
+        ]
+      }
+    },
+    "dbo.hr_recruitment_candidate_master": {
+      "rowCount": 44,
+      "columns": {
+        "id": "uniqueidentifier",
+        "first_name": "nvarchar(50)",
+        "middle_name": "nvarchar(50)",
+        "last_name": "nvarchar(50)",
+        "contact_number_1": "nvarchar(50)",
+        "contact_number_2": "nvarchar(50)",
+        "email_id": "nvarchar(50)",
+        "cur_designation": "uniqueidentifier",
+        "experience": "float",
+        "current_company": "nvarchar(50)",
+        "current_ctc": "nvarchar(50)",
+        "expected_ctc": "nvarchar(50)",
+        "notice_period": "int",
+        "call_status": "uniqueidentifier",
+        "remark": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "first_name": [
+          "P",
+          "krinaa",
+          "UTTTTTTTTTT"
+        ],
+        "middle_name": [
+          ""
+        ],
+        "last_name": [
+          "Kushwah",
+          "agrawal",
+          "Patel"
+        ],
+        "contact_number_1": [
+          "4444545555",
+          "2876917819",
+          "6171867918"
+        ],
+        "contact_number_2": [
+          "4534543543",
+          "1468741981",
+          "9510352639"
+        ],
+        "email_id": [
+          "Sujal@sujaal.com",
+          "jitendrasqa@gmail.com",
+          "vaidik@crm.com"
+        ],
+        "current_company": [
+          "Prashi Solution ",
+          "Comapny",
+          "Radix"
+        ],
+        "current_ctc": [
+          "41",
+          "11",
+          "10"
+        ]
+      }
+    },
+    "dbo.hr_recruitment_for_company_master": {
+      "rowCount": 8,
+      "columns": {
+        "id": "uniqueidentifier",
+        "company_name": "nvarchar(50)",
+        "contact_number": "nvarchar(50)",
+        "remark": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "company_name": [
+          "Only One",
+          "123",
+          "PRASHI SOL"
+        ],
+        "contact_number": [
+          "2314213412",
+          "1100000000",
+          "6787678686"
+        ],
+        "remark": [
+          ""
+        ],
+        "insert_datetime": [
+          "Apr 29 2024  5:14PM",
+          "Apr 12 2024  2:50PM",
+          "Apr 23 2024  3:43PM"
+        ],
+        "update_datetime": [
+          "Apr 29 2024  7:25PM",
+          "Apr 23 2024  6:59PM",
+          "Feb 22 2024  8:50PM"
+        ],
+        "status": [
+          "1",
+          "2"
+        ],
+        "id": [
+          "275C6311-DAD4-4545-9ADE-30C9B57CD4B2",
+          "421F78D9-C575-45D4-971E-2AF47234747F",
+          "CAFF28BC-9E08-4F49-909E-8F7A3B2C5051"
+        ]
+      }
+    },
+    "dbo.hr_recruitment_status_master": {
+      "rowCount": 20,
+      "columns": {
+        "id": "uniqueidentifier",
+        "recruitment_status": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "samples": {
+        "recruitment_status": [
+          "test rs 2",
+          "Test",
+          "1111113123"
+        ],
+        "remark": [
+          "test rs 4",
+          "abcd",
+          "postman added success"
+        ],
+        "insert_datetime": [
+          "Feb 15 2024  7:34PM",
+          "Feb  2 2024  9:17AM",
+          "Feb 15 2024  7:27PM"
+        ],
+        "update_datetime": [
+          "Feb  2 2024 10:53AM",
+          "Feb 28 2024  1:11PM",
+          "Feb 28 2024 12:59PM"
+        ],
+        "status": [
+          "2",
+          "1"
+        ],
+        "id": [
+          "A99CF779-19C5-4124-BEDA-DF627E8C9DC6",
+          "6E3259E6-504F-49E4-8C47-7DEBFC78469B",
+          "43E35EEE-8EEA-48C8-B93F-E6BC4A2C6735"
+        ]
+      }
+    },
+    "dbo.hr_req_position_master": {
+      "rowCount": 6,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "name": [
+          "Python Developer",
+          "Jr. Developer",
+          "Sr. Developer"
+        ],
+        "remark": [
+          "added122",
+          "",
+          "HRMS FORm"
+        ],
+        "insert_datetime": [
+          "Feb  2 2024  1:08PM",
+          "Feb 16 2024  3:07PM",
+          "Feb  2 2024  6:31PM"
+        ],
+        "update_datetime": [
+          "Apr 23 2024  3:58PM",
+          "Feb 28 2024  1:23PM",
+          "Apr 23 2024  3:57PM"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "26621CCE-F3F2-4F23-83AE-B35D1643CB85",
+          "FF7DB4EB-30F9-4680-B8E4-94A27327BE25",
+          "64EDEED8-57F6-4BB0-91AE-5B8F7793859D"
+        ],
+        "insert_by": [
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A"
+        ],
+        "update_by": [
+          "51186CAB-B37B-4C1D-A8AC-875B7D17D0A9",
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A"
+        ]
+      }
+    },
+    "dbo.image_master": {
+      "rowCount": 1,
+      "columns": {
+        "id": "uniqueidentifier",
+        "image_type": "int",
+        "image_id": "uniqueidentifier",
+        "image_name": "nvarchar(150)",
+        "image_ext": "nvarchar(50)",
+        "original_file_name": "nvarchar(150)",
+        "size": "bigint",
+        "is_master": "int",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "image_name": [
+          "1707725914122.png"
+        ],
+        "image_ext": [
+          ".jpg"
+        ],
+        "insert_datetime": [
+          "Feb 12 2024  1:48PM"
+        ],
+        "image_type": [
+          "1"
+        ],
+        "size": [
+          "288774"
+        ],
+        "is_master": [
+          "0"
+        ]
+      }
+    },
+    "dbo.image_type_master": {
+      "rowCount": 2,
+      "columns": {
+        "id": "int",
+        "image_type_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "image_type_name": [
+          "Product Category",
+          "Product"
+        ],
+        "id": [
+          "2",
+          "1"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.menu_main": {
+      "rowCount": 18,
+      "columns": {
+        "id": "uniqueidentifier",
+        "module_id": "int",
+        "label": "nvarchar(50)",
+        "icon": "nvarchar(50)",
+        "url": "nvarchar(100)",
+        "priority_id": "int",
+        "is_expandable": "bit",
+        "status": "int",
+        "sys_admin": "bit",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "label": [
+          "Candidates",
+          "Manage Address",
+          "Follow Up"
+        ],
+        "icon": [
+          "ic_management",
+          "ic_database",
+          "ic_users"
+        ],
+        "url": [
+          "/employee/dashboard",
+          "/restaurant_inquiry",
+          "/candidate_list"
+        ],
+        "insert_datetime": [
+          "Apr 22 2024 10:21PM",
+          "Apr 22 2024  8:31PM",
+          "Apr 23 2024  1:20AM"
+        ],
+        "update_datetime": [
+          "Apr 25 2024  6:57PM",
+          "Apr 25 2024  6:01PM",
+          "Apr 25 2024  6:46PM"
+        ],
+        "module_id": [
+          "98",
+          "99",
+          "5"
+        ],
+        "priority_id": [
+          "4",
+          "3",
+          "2"
+        ],
+        "is_expandable": [
+          "1",
+          "0"
+        ]
+      }
+    },
+    "dbo.menu_main_o": {
+      "rowCount": 24,
+      "columns": {
+        "id": "uniqueidentifier",
+        "module_id": "int",
+        "label": "nvarchar(50)",
+        "icon": "nvarchar(50)",
+        "url": "nvarchar(100)",
+        "priority_id": "int",
+        "is_expandable": "bit",
+        "status": "int",
+        "sys_admin": "bit",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "samples": {
+        "label": [
+          "Interviews",
+          "Manage Users",
+          "Settings"
+        ],
+        "icon": [
+          ""
+        ],
+        "url": [
+          "/restaurant_inquiry",
+          "/db_scripts",
+          "/emp_attendance"
+        ],
+        "insert_datetime": [
+          "Apr 23 2024  1:20AM",
+          "Apr 22 2024  9:12PM",
+          "Apr 23 2024  1:31AM"
+        ],
+        "update_datetime": [
+          "Apr 22 2024 11:29PM",
+          "Apr 23 2024  1:37AM",
+          "Apr 23 2024  1:36AM"
+        ],
+        "module_id": [
+          "100",
+          "99",
+          "4"
+        ],
+        "priority_id": [
+          "3",
+          "5",
+          "1"
+        ],
+        "is_expandable": [
+          "0",
+          "1"
+        ]
+      }
+    },
+    "dbo.menu_main_old": {
+      "rowCount": 11,
+      "columns": {
+        "id": "uniqueidentifier",
+        "module_id": "int",
+        "label": "nvarchar(50)",
+        "icon": "nvarchar(50)",
+        "url": "nvarchar(100)",
+        "priority_id": "int",
+        "is_expandable": "bit",
+        "status": "int",
+        "sys_admin": "bit",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "samples": {
+        "label": [
+          "Dashboard",
+          "Follow Up",
+          "Manage Inquiry"
+        ],
+        "icon": [
+          ""
+        ],
+        "url": [
+          "/",
+          "",
+          "/candidate_list"
+        ],
+        "insert_datetime": [
+          "Dec 22 2023 11:41AM",
+          "Feb 29 2024  4:00PM",
+          "Feb  9 2024 12:14PM"
+        ],
+        "update_datetime": [
+          "Feb 28 2024 11:45AM",
+          "Feb 29 2024  5:56PM",
+          "Jan 23 2024  6:54PM"
+        ],
+        "module_id": [
+          "5",
+          "4",
+          "100"
+        ],
+        "priority_id": [
+          "2",
+          "9",
+          "10"
+        ],
+        "is_expandable": [
+          "0",
+          "1"
+        ]
+      }
+    },
+    "dbo.menu_rights": {
+      "rowCount": 1715,
+      "columns": {
+        "id": "numeric(18,0)",
+        "user_role_id": "uniqueidentifier",
+        "user_id": "uniqueidentifier",
+        "menu_id": "uniqueidentifier",
+        "menu_type": "nvarchar(10)",
+        "active": "bit",
+        "all": "bit",
+        "add": "bit",
+        "edit": "bit",
+        "remove": "bit",
+        "report": "bit",
+        "sp1": "bit",
+        "sp2": "bit",
+        "insert_datetime": "datetime",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "menu_type": [
+          "S",
+          "M"
+        ],
+        "insert_datetime": [
+          "Apr 24 2024  3:20PM",
+          "Apr 23 2024 12:58PM",
+          "Apr 24 2024  6:19PM"
+        ],
+        "update_datetime": [
+          "Apr 23 2024  4:02PM",
+          "Apr 30 2024  2:50PM",
+          "Apr 30 2024  2:50PM"
+        ],
+        "id": [
+          "134",
+          "158",
+          "436"
+        ],
+        "active": [
+          "0",
+          "1"
+        ],
+        "all": [
+          "1",
+          "0"
+        ],
+        "add": [
+          "0",
+          "1"
+        ],
+        "edit": [
+          "1",
+          "0"
+        ]
+      }
+    },
+    "dbo.menu_sub": {
+      "rowCount": 51,
+      "columns": {
+        "id": "uniqueidentifier",
+        "main_id": "uniqueidentifier",
+        "menu_level": "tinyint",
+        "label": "nvarchar(50)",
+        "icon": "nvarchar(50)",
+        "url": "nvarchar(100)",
+        "priority_id": "int",
+        "status": "int",
+        "sys_admin": "bit",
+        "sp_1_details": "nvarchar(500)",
+        "sp_2_details": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "label": [
+          "References",
+          "Recruitment Status",
+          "Party Module Assignment"
+        ],
+        "icon": [
+          ""
+        ],
+        "url": [
+          "/holiday_calendar",
+          "/leave_approver",
+          "/address_type"
+        ],
+        "sp_1_details": [
+          ""
+        ],
+        "sp_2_details": [
+          ""
+        ],
+        "insert_datetime": [
+          "Apr 22 2024  8:42PM",
+          "Apr 22 2024  8:52PM",
+          "Apr 22 2024  9:15PM"
+        ],
+        "update_datetime": [
+          "Apr 23 2024  1:08PM",
+          "Apr 22 2024  8:36PM",
+          "Apr 23 2024  1:30AM"
+        ],
+        "menu_level": [
+          "1",
+          "2"
+        ]
+      }
+    },
+    "dbo.menu_sub_o": {
+      "rowCount": 41,
+      "columns": {
+        "id": "uniqueidentifier",
+        "main_id": "uniqueidentifier",
+        "menu_level": "tinyint",
+        "label": "nvarchar(50)",
+        "icon": "nvarchar(50)",
+        "url": "nvarchar(100)",
+        "priority_id": "int",
+        "status": "int",
+        "sys_admin": "bit",
+        "sp_1_details": "nvarchar(500)",
+        "sp_2_details": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "samples": {
+        "label": [
+          "Branch",
+          "Menu Master",
+          "Occupation"
+        ],
+        "icon": [
+          ""
+        ],
+        "url": [
+          "/department",
+          "/occupation",
+          "/user_group"
+        ],
+        "sp_1_details": [
+          ""
+        ],
+        "sp_2_details": [
+          ""
+        ],
+        "insert_datetime": [
+          "Apr 22 2024  8:43PM",
+          "Apr 23 2024 12:33AM",
+          "Apr 23 2024 12:35AM"
+        ],
+        "update_datetime": [
+          "Apr 22 2024 10:18PM",
+          "Apr 22 2024  8:36PM",
+          "Apr 23 2024  1:30AM"
+        ],
+        "menu_level": [
+          "2",
+          "1"
+        ]
+      }
+    },
+    "dbo.menu_sub_old": {
+      "rowCount": 49,
+      "columns": {
+        "id": "uniqueidentifier",
+        "main_id": "uniqueidentifier",
+        "menu_level": "tinyint",
+        "label": "nvarchar(50)",
+        "icon": "nvarchar(50)",
+        "url": "nvarchar(100)",
+        "priority_id": "int",
+        "status": "int",
+        "sys_admin": "bit",
+        "sp_1_details": "nvarchar(500)",
+        "sp_2_details": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "samples": {
+        "label": [
+          "Menu Master",
+          "User Group",
+          "Follow Up Type"
+        ],
+        "icon": [
+          ""
+        ],
+        "url": [
+          "/education_stream",
+          "/designation",
+          ""
+        ],
+        "sp_1_details": [
+          ""
+        ],
+        "sp_2_details": [
+          ""
+        ],
+        "insert_datetime": [
+          "Apr 19 2024  6:32PM",
+          "Feb  1 2024  5:11PM",
+          "Apr  9 2024 11:33AM"
+        ],
+        "update_datetime": [
+          "Feb 22 2024  2:54PM",
+          "Jan  6 2024 12:03AM",
+          "Apr  3 2024  6:13PM"
+        ],
+        "menu_level": [
+          "2",
+          "1"
+        ]
+      }
+    },
+    "dbo.otp_link_type_master": {
+      "rowCount": 1,
+      "columns": {
+        "id": "int",
+        "otp_type": "nvarchar(50)",
+        "remark": "nvarchar(500)",
+        "otp_template": "nvarchar(50)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "otp_type": [
+          "Reset Password"
+        ],
+        "remark": [
+          "Reset Password"
+        ],
+        "otp_template": [
+          "reset_password"
+        ],
+        "id": [
+          "1"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.pan_request": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "mobile": "nvarchar(50)",
+        "ref_no": "nvarchar(50)",
+        "request_by": "nvarchar(50)",
+        "request_data": "nvarchar(-1)",
+        "request_date_time": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.pan_response": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "client_id": "nvarchar(100)",
+        "name": "nvarchar(50)",
+        "mobile": "nvarchar(50)",
+        "pan_number": "nvarchar(50)",
+        "status_code": "int",
+        "success": "nvarchar(50)",
+        "message": "nvarchar(500)",
+        "message_code": "nvarchar(50)",
+        "request_id": "uniqueidentifier",
+        "response_data": "nvarchar(-1)",
+        "response_date_time": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.product_category": {
+      "rowCount": 5,
+      "columns": {
+        "id": "uniqueidentifier",
+        "category_name": "nvarchar(50)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "category_name": [
+          "JACKETS",
+          "LADIES WALLETS & BAGS",
+          "BAGS"
+        ],
+        "insert_datetime": [
+          "Dec 26 2023  7:07PM",
+          "Dec 26 2023  7:09PM"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "231AC10C-7E16-45B0-94F4-6E4094F17ECA",
+          "61FBDCEF-D93C-4E8F-8604-6E1A468AB57D",
+          "9FCD0512-3E3D-4382-A28B-66B7C50FBBFC"
+        ]
+      }
+    },
+    "dbo.product_master": {
+      "rowCount": 6,
+      "columns": {
+        "id": "uniqueidentifier",
+        "category_id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "title": "nvarchar(50)",
+        "description": "nvarchar(500)",
+        "base_price": "float",
+        "mrp": "float",
+        "op_qty": "bigint",
+        "cl_qty": "bigint",
+        "status": "int",
+        "remarks": "nvarchar(-1)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "name": [
+          "JACKETS",
+          "BAG 2",
+          "LADIES WALLETS & BAGS"
+        ],
+        "title": [
+          "Ladies Wallet 1",
+          "hoodie",
+          "Men's Wallet 1"
+        ],
+        "description": [
+          "bag",
+          "Brown",
+          "White"
+        ],
+        "insert_datetime": [
+          "Apr 15 2024  1:12PM"
+        ],
+        "op_qty": [
+          "1",
+          "21",
+          "10"
+        ],
+        "cl_qty": [
+          "1",
+          "2",
+          "34"
+        ]
+      }
+    },
+    "dbo.re_buying_purpose_master": {
+      "rowCount": 6,
+      "columns": {
+        "id": "uniqueidentifier",
+        "buying_purpose": "nvarchar(50)",
+        "status": "int",
+        "remarks": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "buying_purpose": [
+          "testersssss",
+          "Self",
+          "Investment"
+        ],
+        "remarks": [
+          ""
+        ],
+        "insert_datetime": [
+          "Mar 14 2024  6:54PM",
+          "Dec 22 2023  9:13PM",
+          "Dec  8 2023 12:43PM"
+        ],
+        "update_datetime": [
+          "Apr 23 2024  1:32PM",
+          "Apr 23 2024  1:32PM",
+          "Apr 23 2024  1:32PM"
+        ],
+        "status": [
+          "2",
+          "1"
+        ],
+        "id": [
+          "63AC2FE7-354A-40C3-9D2F-BE51E678F984",
+          "DA3876C3-6185-40F4-AD9A-83F35C072ECF",
+          "E9A65B47-AAA9-47B3-9236-D58BF55B615B"
+        ],
+        "insert_by": [
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A",
+          "8D5B2F3D-8C73-452B-8DE8-3666DA2A5483"
+        ],
+        "update_by": [
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A",
+          "5EDB6C6D-C355-4FEA-8108-E0679B2C6662"
+        ]
+      }
+    },
+    "dbo.re_channel_partner": {
+      "rowCount": 70,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "contact_number": "nvarchar(15)",
+        "email": "nvarchar(50)",
+        "firm_name": "nvarchar(100)",
+        "address": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "name": [
+          "YOURTEST",
+          "sadsadsadsdas",
+          "Khushal@123"
+        ],
+        "contact_number": [
+          "5495456456",
+          "9874563214",
+          "3049583408"
+        ],
+        "email": [
+          "sujal@gmail.com",
+          "demo@minimals.com",
+          "kathan@test.com"
+        ],
+        "firm_name": [
+          "SS",
+          "sahil4",
+          "Industry"
+        ],
+        "address": [
+          "setChannelPartnerIdsetChannelPartnerIdsetChannelPartnerIdsetChannelPartnerIdsetChannelPartnerIdsetChannelPartnerId",
+          "P-111 MS sport",
+          "(800) 854-8369\n6125 Lendell Dr\nSanborn, New York(NY), 14132"
+        ],
+        "insert_datetime": [
+          "Feb 29 2024  1:25PM",
+          "Apr 25 2024  5:08PM",
+          "Feb 23 2024  8:18PM"
+        ],
+        "update_datetime": [
+          "Feb 28 2024  3:48PM",
+          "Apr 30 2024  3:25PM",
+          "Apr 30 2024  3:25PM"
+        ],
+        "status": [
+          "2",
+          "1"
+        ]
+      }
+    },
+    "dbo.re_fund_source_list": {
+      "rowCount": 239,
+      "columns": {
+        "id": "uniqueidentifier",
+        "inquiry_id": "uniqueidentifier",
+        "fund_source_id": "uniqueidentifier",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "insert_datetime": [
+          "Apr 25 2024 12:50PM",
+          "Dec 30 2023  5:24PM",
+          "Feb 12 2024  3:32PM"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "954CDA20-067B-4DA8-9AAD-B4DEEC713889",
+          "E23BD599-55C2-468B-AFD0-5657BFDC3211",
+          "4840F22F-6638-485D-8E00-2B8DE747DDC4"
+        ],
+        "inquiry_id": [
+          "8BFD6823-6257-44EC-BEA9-6FDD392D7F3A",
+          "3AEA3D8E-7A2C-4175-8A1B-4E05CDAE2CB0",
+          "A7EB1572-1FF1-44F2-B74B-2B056C6C1B83"
+        ],
+        "fund_source_id": [
+          "812F1997-B87D-4A69-B440-5EE1AAD053CD",
+          "B8F3D9FB-1BEA-4592-86CA-AF9A7BC5964B",
+          "1F38CF50-BBE1-4FBD-9F46-386E0B0BFCE8"
+        ],
+        "insert_by": [
+          "5EDB6C6D-C355-4FEA-8108-E0679B2C6662",
+          "9FD56927-EE23-49B6-9BEA-C26F628736BC",
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A"
+        ]
+      }
+    },
+    "dbo.re_fund_source_master": {
+      "rowCount": 10,
+      "columns": {
+        "id": "uniqueidentifier",
+        "fund_source": "nvarchar(50)",
+        "status": "int",
+        "remarks": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "fund_source": [
+          "CAA",
+          "TESTING",
+          "Loan"
+        ],
+        "remarks": [
+          "",
+          "no",
+          "ધોરણધોરણ"
+        ],
+        "insert_datetime": [
+          "Feb 29 2024  1:21PM",
+          "Feb 23 2024 12:54PM",
+          "Feb 16 2024 11:03AM"
+        ],
+        "update_datetime": [
+          "Apr 23 2024  1:33PM",
+          "Feb 16 2024  5:11PM",
+          "Feb 28 2024  3:51PM"
+        ],
+        "status": [
+          "1",
+          "2"
+        ],
+        "id": [
+          "5BCB1EA1-2F1D-4409-AD18-3824B7296A1D",
+          "5FFD05FF-2543-4B86-BA1A-FF621E629AF1",
+          "539F1087-1076-4C43-BF7E-6357153436EB"
+        ],
+        "insert_by": [
+          "2910D137-7D20-4EE9-AF7C-588D423E48CB",
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A",
+          "8D5B2F3D-8C73-452B-8DE8-3666DA2A5483"
+        ],
+        "update_by": [
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A",
+          "8D5B2F3D-8C73-452B-8DE8-3666DA2A5483",
+          "51186CAB-B37B-4C1D-A8AC-875B7D17D0A9"
+        ]
+      }
+    },
+    "dbo.re_inquiry_master": {
+      "rowCount": 292,
+      "columns": {
+        "id": "uniqueidentifier",
+        "inquiry_no": "bigint",
+        "project_id": "uniqueidentifier",
+        "inquiry_date": "date",
+        "name": "nvarchar(50)",
+        "native_place": "nvarchar(50)",
+        "address": "nvarchar(500)",
+        "contact_number": "nvarchar(15)",
+        "occupation_type_id": "uniqueidentifier",
+        "occupation_details": "nvarchar(500)",
+        "buying_purpose_id": "uniqueidentifier",
+        "buying_purpose_detail": "nvarchar(500)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "channel_partner_id": "uniqueidentifier",
+        "inquiry_status": "uniqueidentifier",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "inquiry_date": [
+          "2024-04-29",
+          "2023-12-19",
+          "2024-04-25"
+        ],
+        "name": [
+          "jitendra prajapati",
+          "Testing",
+          "wwwwwwwwwww"
+        ],
+        "native_place": [
+          "ABC",
+          "asdsad",
+          "asdassda"
+        ],
+        "address": [
+          "789789, Test Address\nTest Address",
+          "Testiing Addresss",
+          "E TEST TEST Address"
+        ],
+        "contact_number": [
+          "9610352639",
+          "1368713976",
+          "7879878987"
+        ],
+        "occupation_details": [
+          "abcsgdyew",
+          ""
+        ],
+        "buying_purpose_detail": [
+          "aikhgdfsduiashdiuashdaidohj",
+          ""
+        ],
+        "remark": [
+          "jjfjdfjhnfmvnfhmghv nv bncvnm hkjdffghhn",
+          "TESTEFTVDGVSBDKLBKNSBFKNBFKBF",
+          "process.processTicksAndRejections (node:internal/process/task_queues:95:5)\nprocess.processTicksAndRejections (node:internal/process/task_queues:95:5)"
+        ]
+      }
+    },
+    "dbo.re_inquiry_status_master": {
+      "rowCount": 15,
+      "columns": {
+        "id": "uniqueidentifier",
+        "inquiry_status_name": "nvarchar(50)",
+        "link_type": "int",
+        "color": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "inquiry_status_name": [
+          "Warm",
+          "Inactive",
+          "Warm testing"
+        ],
+        "color": [
+          "#FFF933",
+          "",
+          "#FF3333"
+        ],
+        "remark": [
+          "Hot - Inquiry",
+          "hot cold warm ",
+          "Warm - Inquiry"
+        ],
+        "insert_datetime": [
+          "Feb 23 2024  1:03PM",
+          "Feb 16 2024  4:22PM",
+          "Feb 28 2024  6:42PM"
+        ],
+        "update_datetime": [
+          "Apr 23 2024  1:34PM",
+          "Feb 29 2024 11:15AM",
+          "Apr 23 2024  1:34PM"
+        ],
+        "link_type": [
+          "1",
+          "0"
+        ],
+        "status": [
+          "0",
+          "2",
+          "1"
+        ],
+        "id": [
+          "E55D0BF6-011E-4B43-9ACA-CB42E1729387",
+          "41355F98-16AB-4305-969B-F52EB308EACD",
+          "E12CD3AA-73A7-41E8-AC31-61B18FD1AD26"
+        ]
+      }
+    },
+    "dbo.re_project_master": {
+      "rowCount": 13,
+      "columns": {
+        "id": "uniqueidentifier",
+        "project_type_id": "uniqueidentifier",
+        "project_name": "nvarchar(500)",
+        "address": "nvarchar(500)",
+        "remark": "nvarchar(500)",
+        "whatsapp_project_details": "nvarchar(100)",
+        "whatsapp_template_code": "nvarchar(50)",
+        "status": "int",
+        "remarks": "nvarchar(-1)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "project_name": [
+          "Tremont Glory 12",
+          "TESTING1221",
+          "Testing "
+        ],
+        "address": [
+          "Jagatpur , S.G.Highway, Ahmedabad",
+          "tremont 221111",
+          "Tremont Commercial"
+        ],
+        "remark": [
+          "ok testion",
+          "Tremont Genesis",
+          "TESTING TESTING"
+        ],
+        "whatsapp_project_details": [
+          "Tremont Residence at Vaishnodevi",
+          "Tremont Upcoming Iconic Commercial on SG Highway"
+        ],
+        "whatsapp_template_code": [
+          "ps_0001"
+        ],
+        "insert_datetime": [
+          "Feb 28 2024 12:11PM",
+          "Feb 28 2024  4:38PM",
+          "Feb 28 2024  5:28PM"
+        ],
+        "update_datetime": [
+          "Apr 23 2024  1:32PM",
+          "Apr 23 2024  1:32PM",
+          "Apr 29 2024  7:11PM"
+        ]
+      }
+    },
+    "dbo.re_project_type_master": {
+      "rowCount": 6,
+      "columns": {
+        "id": "uniqueidentifier",
+        "project_type": "nvarchar(50)",
+        "details": "nvarchar(500)",
+        "status": "int",
+        "remarks": "nvarchar(-1)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "project_type": [
+          "hrs",
+          "Commercial",
+          "Residential"
+        ],
+        "details": [
+          "test",
+          "Office",
+          "Commercial"
+        ],
+        "remarks": [
+          ""
+        ],
+        "insert_datetime": [
+          "Jan 23 2024  4:22PM",
+          "Feb 23 2024  1:18PM",
+          "Feb 29 2024  3:27PM"
+        ],
+        "update_datetime": [
+          "Dec 22 2023  9:54PM",
+          "Feb 28 2024  4:15PM",
+          "Apr 23 2024  1:36PM"
+        ],
+        "status": [
+          "1",
+          "2"
+        ],
+        "id": [
+          "4DA70BEB-5724-4936-94E0-A79A3C4E0347",
+          "9B78BCAF-E9A5-48EE-8D57-DA33C942F96A",
+          "2845F269-C593-46F2-AE9C-8F33AE746DBE"
+        ],
+        "insert_by": [
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A"
+        ]
+      }
+    },
+    "dbo.re_property_project_list": {
+      "rowCount": 6,
+      "columns": {
+        "id": "uniqueidentifier",
+        "project_id": "uniqueidentifier",
+        "property_type_id": "uniqueidentifier",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "insert_datetime": [
+          "Dec 16 2023  5:01PM",
+          "Dec 16 2023  5:01PM",
+          "Dec 16 2023  5:01PM"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "43C09FE4-5B2E-4363-B9A2-02D157AAF0F0",
+          "298B0F3D-F873-4E87-A53D-BFDEB7E51846",
+          "19EA7DD6-1D5A-44EF-BB8D-B3D26356DA2A"
+        ],
+        "project_id": [
+          "5A58EBD8-8CD4-43D8-81A9-418D13E68EB9",
+          "A73FF57A-6387-42B0-A5AC-D469DB39E328"
+        ],
+        "property_type_id": [
+          "33A27FB0-2C7E-42BE-A911-544A2C4C35C8",
+          "34BC09B5-2473-4E11-9342-90A867644636",
+          "09658A76-357B-4C9A-B2CB-1C31431BB507"
+        ],
+        "insert_by": [
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A"
+        ]
+      }
+    },
+    "dbo.re_property_type_list": {
+      "rowCount": 158,
+      "columns": {
+        "id": "uniqueidentifier",
+        "inquiry_id": "uniqueidentifier",
+        "property_type_id": "uniqueidentifier",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "insert_datetime": [
+          "Dec 18 2023  4:50PM",
+          "Apr 25 2024 12:50PM",
+          "Feb 12 2024 11:20AM"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "182D1343-2B25-4286-8831-B002F3478854",
+          "15DF114C-2AEF-46D1-93B0-93A895D582A2",
+          "F7109C45-22E0-4E90-A6D8-AD052FC6CDBB"
+        ],
+        "inquiry_id": [
+          "2591052D-96BD-40D0-A705-5AA3EBBA3F39",
+          "D62FA85E-E462-4EA9-BF53-3A4D3897B50E",
+          "6D345840-F0ED-41E7-A244-20908351C5A2"
+        ],
+        "property_type_id": [
+          "34BC09B5-2473-4E11-9342-90A867644636",
+          "33A27FB0-2C7E-42BE-A911-544A2C4C35C8",
+          "90C84E42-D6A9-4A28-8AE6-DD408789CB65"
+        ],
+        "insert_by": [
+          "5EDB6C6D-C355-4FEA-8108-E0679B2C6662",
+          "2910D137-7D20-4EE9-AF7C-588D423E48CB",
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A"
+        ]
+      }
+    },
+    "dbo.re_property_type_master": {
+      "rowCount": 12,
+      "columns": {
+        "id": "uniqueidentifier",
+        "property_type": "nvarchar(50)",
+        "details": "nvarchar(500)",
+        "status": "int",
+        "remarks": "nvarchar(-1)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "property_type": [
+          "TESTING",
+          "Shop",
+          "4 BHK"
+        ],
+        "details": [
+          "3 BHK",
+          "Shop",
+          "SHOW ROOM"
+        ],
+        "remarks": [
+          ""
+        ],
+        "insert_datetime": [
+          "Apr 23 2024  1:37PM",
+          "Apr 23 2024  1:37PM",
+          "Apr 23 2024  6:12PM"
+        ],
+        "update_datetime": [
+          "Dec 22 2023  9:47PM",
+          "Feb 16 2024  2:30PM",
+          "Feb 28 2024  3:52PM"
+        ],
+        "status": [
+          "2",
+          "1"
+        ],
+        "id": [
+          "33A27FB0-2C7E-42BE-A911-544A2C4C35C8",
+          "BC9369C3-EA76-42D5-AFC9-E96FE0E8B9F8",
+          "09658A76-357B-4C9A-B2CB-1C31431BB507"
+        ],
+        "insert_by": [
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A",
+          "5EDB6C6D-C355-4FEA-8108-E0679B2C6662",
+          "51186CAB-B37B-4C1D-A8AC-875B7D17D0A9"
+        ]
+      }
+    },
+    "dbo.re_reference_source_list": {
+      "rowCount": 294,
+      "columns": {
+        "id": "uniqueidentifier",
+        "inquiry_id": "uniqueidentifier",
+        "reference_source_id": "uniqueidentifier",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "insert_datetime": [
+          "Apr 29 2024  6:23PM",
+          "Dec 20 2023  5:43PM",
+          "Apr 23 2024  5:58PM"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "002151FF-58FF-4C97-95B5-72420FFE5C34",
+          "E23C0702-8109-4ED3-9561-ECD5F34AC7BA",
+          "B4A7F5C5-A82D-47F1-8A50-235D4296B186"
+        ],
+        "inquiry_id": [
+          "2591052D-96BD-40D0-A705-5AA3EBBA3F39",
+          "32170F79-B29E-44DF-9C77-1004C3539C96",
+          "A85CA801-CEB4-4716-8443-1F863283AC09"
+        ],
+        "reference_source_id": [
+          "2D5E9402-E9B7-4898-9C57-5CC8D43A08B8",
+          "FA74598C-173E-4EBE-9273-0CB2EFB3FE97",
+          "A0FBB50F-68B2-4AA9-BD73-AB9560D66B6F"
+        ],
+        "insert_by": [
+          "9FD56927-EE23-49B6-9BEA-C26F628736BC",
+          "51186CAB-B37B-4C1D-A8AC-875B7D17D0A9",
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A"
+        ]
+      }
+    },
+    "dbo.re_reference_source_master": {
+      "rowCount": 9,
+      "columns": {
+        "id": "uniqueidentifier",
+        "reference_source": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "reference_source": [
+          "News Paper",
+          "Outdoor Advertising",
+          "TESTING"
+        ],
+        "remark": [
+          "Advertisement",
+          "Testing",
+          ""
+        ],
+        "insert_datetime": [
+          "Feb 15 2024  6:19PM",
+          "Feb 28 2024  3:59PM",
+          "Feb 15 2024  3:33PM"
+        ],
+        "update_datetime": [
+          "Feb 16 2024  4:30PM",
+          "Feb 28 2024  1:05PM",
+          "Apr 23 2024  1:38PM"
+        ],
+        "status": [
+          "1",
+          "2"
+        ],
+        "id": [
+          "A0FBB50F-68B2-4AA9-BD73-AB9560D66B6F",
+          "E9549E97-72C4-4E69-BEDC-DF03FCE0D516",
+          "7679148B-2207-411B-8039-809256DBD754"
+        ],
+        "insert_by": [
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A",
+          "8D5B2F3D-8C73-452B-8DE8-3666DA2A5483"
+        ],
+        "update_by": [
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A",
+          "8D5B2F3D-8C73-452B-8DE8-3666DA2A5483",
+          "5EDB6C6D-C355-4FEA-8108-E0679B2C6662"
+        ]
+      }
+    },
+    "dbo.restaurant_category_master": {
+      "rowCount": 9,
+      "columns": {
+        "id": "uniqueidentifier",
+        "category_name": "nvarchar(50)",
+        "status": "int",
+        "remarks": "nvarchar(-1)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "category_name": [
+          "FUSION SPECIAL",
+          "SIDES",
+          "NON VEG"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "AE675D2F-E0F0-4F6D-81AB-CBBD362484CB",
+          "9F3AB167-330D-49B1-AB15-D5DF118398B4",
+          "E28C48E4-8DB6-429D-8A27-CD2C1DAD3BB6"
+        ]
+      }
+    },
+    "dbo.restaurant_customer_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "branch_id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "mobile_no": "nvarchar(50)",
+        "email_id": "nvarchar(100)",
+        "birth_date": "date",
+        "anniversary_date": "date",
+        "address": "nvarchar(500)",
+        "locality": "nvarchar(50)",
+        "gst_no": "nvarchar(50)",
+        "is_favoutire": "int",
+        "send_update": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.restaurant_inquiry_master": {
+      "rowCount": 3,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(100)",
+        "contact_num": "nvarchar(50)",
+        "email_id": "nvarchar(50)",
+        "status": "int",
+        "inquiry_status": "uniqueidentifier",
+        "message": "nvarchar(-1)",
+        "city": "nvarchar(50)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "samples": {
+        "name": [
+          "sujal",
+          "KEYUR PATEL!!!!!!!!!KEYUR PATEL!!!!!!!!!",
+          ""
+        ],
+        "contact_num": [
+          "",
+          "7894561230",
+          "545445455"
+        ],
+        "email_id": [
+          "sujal@sujal.com",
+          "Sujal@sujaal.com",
+          ""
+        ],
+        "message": [
+          "",
+          "KEYUR PATEL!!!!!!!!!KEYUR PATEL!!!!!!!!!KEYUR PATEL!!!!!!!!!KEYUR PATEL!!!!!!!!!",
+          "asafagadgaanatattsttt"
+        ],
+        "city": [
+          "Ahmedabad",
+          ""
+        ],
+        "insert_datetime": [
+          "Feb 29 2024  3:55PM",
+          "Jan 19 2024  8:21PM",
+          "Jan 24 2024  6:26PM"
+        ],
+        "update_datetime": [
+          "Feb  8 2024 12:10PM",
+          "Feb 12 2024  6:21PM"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.restaurant_product_link": {
+      "rowCount": 602,
+      "columns": {
+        "id": "uniqueidentifier",
+        "branch_id": "uniqueidentifier",
+        "product_id": "uniqueidentifier",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "status": [
+          "1"
+        ],
+        "id": [
+          "6F7B74E4-F53D-4B3A-81A7-E48453F6992E",
+          "3F57A2BA-C6BC-43D6-A58C-0D87CB0909ED",
+          "1698C62A-4307-44B1-8865-8D35ABF06A50"
+        ],
+        "branch_id": [
+          "2F62A23A-5108-4B26-AD80-0AAEDE5A603B",
+          "2BC9C5B7-B453-4BB7-82A2-B20AFB158734",
+          "3A724874-DE00-4FE4-8872-9B4A7577D213"
+        ],
+        "product_id": [
+          "30E0604C-9141-412B-ABD2-3227C315643B",
+          "B2A0AE13-9029-49F6-891B-BCACF0158C2F",
+          "4B0F66FC-CCBA-4439-84FD-C680FE44C6D1"
+        ]
+      }
+    },
+    "dbo.restaurant_product_master": {
+      "rowCount": 66,
+      "columns": {
+        "id": "uniqueidentifier",
+        "category_id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "title": "nvarchar(50)",
+        "description": "nvarchar(500)",
+        "base_price": "float",
+        "mrp": "float",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "samples": {
+        "name": [
+          "FRENCH FRIES",
+          "CHEESE FRENCH FRIES",
+          "PANEER DELIGHT"
+        ],
+        "title": [
+          "7 CHEESE GARLIC BREAD",
+          "4 CHEESE PIZZA",
+          "PANEER & ONION"
+        ],
+        "description": [
+          "Topped with sliced onion with cheese",
+          "A sizzling tandoori sauce topped With onion, crispy capsicum. black olives & season paneer",
+          "Enjoy the great combination of diced mushroom, diced tomato, sweet corn and barbeque chicken"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "FFE6FA5E-B468-49C0-8116-5B963AF1A428",
+          "57679DCB-CA6D-406D-8C5C-302625DEE329",
+          "C2536AB8-9428-41C8-A830-E00E953D9304"
+        ]
+      }
+    },
+    "dbo.scheduler_whatsapp": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "to_mobile_no": "nvarchar(50)",
+        "from_mobile_no": "nvarchar(50)",
+        "token": "nvarchar(-1)",
+        "schedule_date_time": "datetime",
+        "is_template": "int",
+        "template_name": "nvarchar(50)",
+        "header_parameters": "nvarchar(-1)",
+        "body_parameters": "nvarchar(-1)",
+        "footer_parameters": "nvarchar(-1)",
+        "message_text": "nvarchar(-1)",
+        "is_sent": "int",
+        "sent_date_time": "datetime",
+        "sent_status": "int",
+        "sent_status_message": "nvarchar(-1)"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.state_master": {
+      "rowCount": 9,
+      "columns": {
+        "id": "uniqueidentifier",
+        "country_id": "uniqueidentifier",
+        "state_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(-1)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "state_name": [
+          "Maharastra",
+          "Kerela",
+          "Telengana"
+        ],
+        "remark": [
+          "",
+          "Kerela state added "
+        ],
+        "insert_datetime": [
+          "Feb 23 2024  1:22PM",
+          "Jan 12 2024  4:34PM",
+          "Feb 28 2024  1:12PM"
+        ],
+        "update_datetime": [
+          "Apr 26 2024 11:17AM",
+          "Apr 23 2024  5:09PM",
+          "Feb 28 2024  1:11PM"
+        ],
+        "status": [
+          "1",
+          "2"
+        ],
+        "id": [
+          "5D91F6F1-048E-4A2E-8CB0-C12B081CEB3C",
+          "E6D22497-64A2-46EB-A92D-B5720FBE5E6E",
+          "B9966B29-D6E7-4260-A7E5-216219ED7117"
+        ],
+        "country_id": [
+          "6CF70AB4-85DB-41C8-A0E4-2237744AC7FF",
+          "963A8055-108D-4B9C-8A73-05E3108CEE9B",
+          "86BA68BD-1925-47B4-853D-5CE280E79AFD"
+        ]
+      }
+    },
+    "dbo.sysdiagrams": {
+      "rowCount": 0,
+      "columns": {
+        "name": "nvarchar(128)",
+        "principal_id": "int",
+        "diagram_id": "int",
+        "version": "int",
+        "definition": "varbinary(-1)"
+      },
+      "pk": [
+        "diagram_id"
+      ]
+    },
+    "dbo.user_group": {
+      "rowCount": 11,
+      "columns": {
+        "id": "uniqueidentifier",
+        "group_name": "nvarchar(50)",
+        "sys_admin": "bit",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "group_name": [
+          "TESTING",
+          "QA",
+          "Dev"
+        ],
+        "insert_datetime": [
+          "Apr 24 2024  6:18PM",
+          "May 12 2023 12:00AM",
+          "Apr 23 2024  4:07PM"
+        ],
+        "sys_admin": [
+          "0",
+          "1"
+        ],
+        "status": [
+          "1",
+          "2"
+        ],
+        "id": [
+          "7B2E261F-B874-4F64-AFC6-FBB3E9E3BDB5",
+          "FFD3FEC9-F317-41CB-AEA8-527BDFE3FF43",
+          "3C13B8CB-200E-48D4-83D5-A80EE8DC4FF4"
+        ],
+        "insert_by": [
+          "51186CAB-B37B-4C1D-A8AC-875B7D17D0A9",
+          "5EDB6C6D-C355-4FEA-8108-E0679B2C6662",
+          "8D5B2F3D-8C73-452B-8DE8-3666DA2A5483"
+        ]
+      }
+    },
+    "dbo.user_login_history": {
+      "rowCount": 1518,
+      "columns": {
+        "id": "uniqueidentifier",
+        "user_id": "uniqueidentifier",
+        "user_name": "nvarchar(50)",
+        "password": "nvarchar(50)",
+        "ip": "nvarchar(50)",
+        "login_status": "int",
+        "date_time": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "user_name": [
+          "",
+          "sujals",
+          "Hiren11"
+        ],
+        "password": [
+          "Mistry1",
+          "Urvi@123",
+          "abc@125"
+        ],
+        "ip": [
+          "192.168.10.10",
+          ""
+        ],
+        "date_time": [
+          "Feb 19 2024 11:43AM",
+          "Feb 14 2024 12:49PM",
+          "Mar 20 2024  1:05PM"
+        ],
+        "login_status": [
+          "1",
+          "0"
+        ],
+        "id": [
+          "E2822029-91F6-40BF-9997-C7DFDD767E2D",
+          "61D98ED9-324F-4B92-852A-6D59F308E9E6",
+          "8AB73610-9C48-40B0-8E5C-B7805C3FF556"
+        ],
+        "user_id": [
+          "3FF1387B-F2A2-4891-B82C-89BF871BA498",
+          "5C20AB81-E11B-4D89-9575-F761F5FB5B4A",
+          "03BDFA57-4832-4B4F-93C0-573E686FF7BA"
+        ]
+      }
+    },
+    "dbo.user_master": {
+      "rowCount": 20,
+      "columns": {
+        "id": "uniqueidentifier",
+        "first_name": "nvarchar(50)",
+        "last_name": "nvarchar(50)",
+        "user_name": "nvarchar(50)",
+        "password": "nvarchar(100)",
+        "user_group": "uniqueidentifier",
+        "email": "nvarchar(100)",
+        "mobile_no": "nvarchar(50)",
+        "status": "int",
+        "last_login_datetime": "datetime",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime",
+        "is_interviewer": "bit",
+        "employee_id": "uniqueidentifier"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "first_name": [
+          "Urvi",
+          "jay",
+          "Dharmik"
+        ],
+        "last_name": [
+          "Darji",
+          "Ubhadiya",
+          "Prajapati"
+        ],
+        "user_name": [
+          "keyur",
+          "Hiren ",
+          "Sujal"
+        ],
+        "password": [
+          "Dharmik@123",
+          "Arpit@123",
+          "Admin@123"
+        ],
+        "email": [
+          "pushpraj@crmemperor.com",
+          "dubha@test.com",
+          "radhika@crmemperor.com"
+        ],
+        "mobile_no": [
+          "9909758901",
+          "9510352639",
+          "8866489099"
+        ],
+        "last_login_datetime": [
+          "May  1 2024  6:56PM",
+          "Apr 29 2024  9:39PM",
+          "Mar 31 2024 11:58AM"
+        ],
+        "insert_datetime": [
+          "Mar 16 2024 10:27PM",
+          "Feb 12 2024  4:06PM",
+          "Apr 29 2024  4:44PM"
+        ]
+      }
+    },
+    "dbo.user_module_list": {
+      "rowCount": 32,
+      "columns": {
+        "id": "uniqueidentifier",
+        "user_id": "uniqueidentifier",
+        "user_group_id": "uniqueidentifier",
+        "module_id": "int",
+        "is_default_module": "bit",
+        "remark": "nvarchar(-1)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "remark": [
+          "RES",
+          "",
+          "RE"
+        ],
+        "insert_datetime": [
+          "Apr 30 2024  2:43PM",
+          "Apr 30 2024  2:42PM",
+          "Apr 25 2024  6:20PM"
+        ],
+        "update_datetime": [
+          "Apr 25 2024  8:02PM",
+          "Apr 30 2024 10:54AM",
+          "Apr 25 2024  8:59PM"
+        ],
+        "module_id": [
+          "5",
+          "3",
+          "4"
+        ],
+        "is_default_module": [
+          "0",
+          "1"
+        ],
+        "status": [
+          "2",
+          "1"
+        ],
+        "id": [
+          "525D1BC6-28A2-4B0B-A465-ED38D7554A77",
+          "2492C1AA-B75F-425D-8A6D-855DCFF256FD",
+          "3A9B1447-9BF9-48FB-9BDB-02296136CE4F"
+        ],
+        "user_id": [
+          "8D5B2F3D-8C73-452B-8DE8-3666DA2A5483"
+        ]
+      }
+    },
+    "dbo.wa_consumer_inquiry": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "mobile_no": "nvarchar(50)",
+        "consumer_type": "nvarchar(50)",
+        "consumer_qty": "int",
+        "reason": "nvarchar(-1)",
+        "status": "int",
+        "date_time": "datetime",
+        "remark": "nvarchar(-1)",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.wa_consumer_type": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "consumer_type": "nvarchar(100)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.wa_deposit_inquiry": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "mobile_no": "nvarchar(50)",
+        "deposit_type": "nvarchar(50)",
+        "deposit_amount": "float",
+        "deposit_tenure": "int",
+        "reason": "nvarchar(-1)",
+        "status": "int",
+        "date_time": "datetime",
+        "remark": "nvarchar(-1)",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.wa_deposit_type": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "deposit_type": "nvarchar(100)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.wa_loan_inquiry": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "mobile_no": "nvarchar(50)",
+        "loan_type": "nvarchar(50)",
+        "loan_amount": "float",
+        "reason": "nvarchar(-1)",
+        "status": "int",
+        "date_time": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.wa_loan_type": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "loan_type": "nvarchar(100)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.wa_member_inquiry": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "mobile_no": "nvarchar(50)",
+        "address": "nvarchar(-1)",
+        "reason": "nvarchar(-1)",
+        "status": "int",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.wa_msg_sent_request": {
+      "rowCount": 86,
+      "columns": {
+        "id": "uniqueidentifier",
+        "wa_request": "nvarchar(-1)",
+        "wa_response": "nvarchar(-1)",
+        "wamid": "nvarchar(-1)",
+        "mobile_no": "nvarchar(50)",
+        "date_time": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "wa_request": [
+          "{\"messaging_product\":\"whatsapp\",\"recipient_type\":\"individual\",\"to\":\"919924182710\",\"type\":\"template\",\"template\":{\"name\":\"dos_0001\",\"language\":{\"code\":\"en\"},\"components\":[{\"type\":\"body\",\"parameters\":[{\"",
+          "{\"messaging_product\":\"whatsapp\",\"recipient_type\":\"individual\",\"to\":\"918866489099\",\"type\":\"template\",\"template\":{\"name\":\"dos_0001\",\"language\":{\"code\":\"en\"},\"components\":[{\"type\":\"body\",\"parameters\":[{\"",
+          "{\"messaging_product\":\"whatsapp\",\"recipient_type\":\"individual\",\"to\":\"919898537354\",\"type\":\"template\",\"template\":{\"name\":\"dos_0001\",\"language\":{\"code\":\"en\"},\"components\":[{\"type\":\"body\",\"parameters\":[{\""
+        ],
+        "wa_response": [
+          "{\"error\":{\"message\":\"Unsupported post request. Object with ID '222008427653601' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph A",
+          "{\"error\":{\"message\":\"Unsupported post request. Object with ID '222008427653601' does not exist, cannot be loaded due to missing permissions, or does not support this operation. Please read the Graph A",
+          "{\"messaging_product\":\"whatsapp\",\"contacts\":[{\"input\":\"919898537354\",\"wa_id\":\"919898537354\"}],\"messages\":[{\"id\":\"wamid.HBgMOTE5ODk4NTM3MzU0FQIAERgSQjJBRjEyQUIyQTkzMTAxQjgzAA==\",\"message_status\":\"accept"
+        ],
+        "wamid": [
+          "wamid.HBgMOTE4ODY2NDg5MDk5FQIAERgSNkFBOEM1MDdDODUyNjE3RTI1AA==",
+          "wamid.HBgMOTE5ODk4NTM3MzU0FQIAERgSRjIzQURBRjk2RENEQ0RGRjM3AA==",
+          ""
+        ],
+        "mobile_no": [
+          "919510352639",
+          "",
+          "919924182710"
+        ],
+        "date_time": [
+          "Jan  2 2024  8:46PM",
+          "Jan  2 2024  9:24PM",
+          "Jan  3 2024  4:41PM"
+        ],
+        "id": [
+          "2D024D3F-0E7A-4BAC-B5D5-7DE09EDF6CCD",
+          "EF9D8F7C-3B52-42AB-83A6-10436BDDEC65",
+          "F1590659-7D9A-478C-A798-EA0F868F11D3"
+        ]
+      }
+    },
+    "dbo.wa_payment_submit_inquiry": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "mobile_no": "nvarchar(50)",
+        "amount": "float",
+        "account_no": "nvarchar(50)",
+        "transaction_rec": "nvarchar(-1)",
+        "remark": "nvarchar(-1)",
+        "status": "int",
+        "date_time": "datetime",
+        "person_id": "uniqueidentifier"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.wallet_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "amount": "float",
+        "date_time": "datetime",
+        "wallet_type_id": "int"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.wallet_trans_type_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "int",
+        "trans_type_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.wallet_transactions": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "date_time": "datetime",
+        "op_balance": "float",
+        "trans_amount": "float",
+        "trans_type": "int",
+        "rec_pay": "varchar(1)",
+        "cl_balance": "float",
+        "remark": "nvarchar(500)",
+        "wallet_type_id": "int"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.wallet_type_master": {
+      "rowCount": 0,
+      "columns": {
+        "id": "int",
+        "wallet_type_name": "nvarchar(50)",
+        "status": "int",
+        "remark": "nvarchar(500)",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    },
+    "dbo.whatsapp_component_type_master": {
+      "rowCount": 3,
+      "columns": {
+        "id": "int",
+        "component_type_name": "nvarchar(50)",
+        "remark": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "component_type_name": [
+          "body",
+          "footer",
+          "header"
+        ],
+        "remark": [
+          ""
+        ],
+        "id": [
+          "2",
+          "1",
+          "3"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.whatsapp_messages": {
+      "rowCount": 104,
+      "columns": {
+        "id": "uniqueidentifier",
+        "date_time": "datetime",
+        "is_broadcast": "int",
+        "from_mobile_no": "nvarchar(50)",
+        "from_name": "nvarchar(50)",
+        "to_mobile_no": "nvarchar(50)",
+        "to_name": "nvarchar(50)",
+        "msg_type": "nvarchar(50)",
+        "msg_text": "nvarchar(-1)",
+        "loc_latitude": "nvarchar(50)",
+        "loc_longitude": "nvarchar(50)",
+        "loc_name": "nvarchar(150)",
+        "loc_url": "nvarchar(150)",
+        "interactive_type": "nvarchar(50)",
+        "list_reply_id": "nvarchar(50)",
+        "list_reply_title": "nvarchar(50)",
+        "list_reply_description": "nvarchar(-1)",
+        "image_mime_type": "nvarchar(100)",
+        "image_sha256": "nvarchar(100)",
+        "image_id": "nvarchar(100)",
+        "image_url": "nvarchar(100)",
+        "document_filename": "nvarchar(100)",
+        "document_mime_type": "nvarchar(100)",
+        "document_sha256": "nvarchar(100)",
+        "document_id": "nvarchar(100)",
+        "document_url": "nvarchar(100)",
+        "video_mime_type": "nvarchar(100)",
+        "video_sha256": "nvarchar(100)",
+        "video_id": "nvarchar(100)",
+        "video_url": "nvarchar(100)"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "date_time": [
+          "Jan  5 2024  8:01PM",
+          "Jan  5 2024  7:57PM",
+          "Mar  6 2024  6:08PM"
+        ],
+        "from_mobile_no": [
+          "9558046979",
+          "9924182710",
+          "8866489099"
+        ],
+        "from_name": [
+          "Rahul Panchal",
+          "Hiren Panchal",
+          "drx"
+        ],
+        "to_mobile_no": [
+          "8866489099",
+          "9510352639",
+          "9898537354"
+        ],
+        "to_name": [
+          "Jitendra Prajapti",
+          "Hiren Panchal",
+          "Rahul Panchal"
+        ],
+        "msg_type": [
+          "image",
+          "video",
+          "text"
+        ],
+        "msg_text": [
+          "Bol sujal",
+          "Test Message",
+          "Hello testing message"
+        ],
+        "loc_latitude": [
+          ""
+        ]
+      }
+    },
+    "dbo.whatsapp_parameter_type_master": {
+      "rowCount": 4,
+      "columns": {
+        "id": "int",
+        "parameter_type_name": "nvarchar(50)",
+        "remark": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "parameter_type_name": [
+          "text",
+          "image",
+          "video"
+        ],
+        "remark": [
+          ""
+        ],
+        "id": [
+          "2",
+          "3",
+          "4"
+        ],
+        "status": [
+          "1"
+        ]
+      }
+    },
+    "dbo.whatsapp_setup": {
+      "rowCount": 1,
+      "columns": {
+        "id": "uniqueidentifier",
+        "name": "nvarchar(50)",
+        "phone_number_id": "nvarchar(50)",
+        "whatsapp_business_account_id": "nvarchar(50)",
+        "status": "nchar(10)"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "name": [
+          "Prashi Solution"
+        ],
+        "phone_number_id": [
+          "189439994249275"
+        ],
+        "whatsapp_business_account_id": [
+          "192131560645775"
+        ],
+        "status": [
+          "1         "
+        ],
+        "id": [
+          "AE4E805D-E740-4F05-BEEF-7F4DEED90EDC"
+        ]
+      }
+    },
+    "dbo.whatsapp_template_master": {
+      "rowCount": 1,
+      "columns": {
+        "id": "uniqueidentifier",
+        "template_name": "nvarchar(50)",
+        "template_code": "nvarchar(50)",
+        "remark": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ],
+      "samples": {
+        "template_name": [
+          "add_inquiry"
+        ],
+        "template_code": [
+          "ps_0001"
+        ],
+        "status": [
+          "1"
+        ],
+        "id": [
+          "111048FE-EB90-4B6D-AE6B-A3751D78F1E5"
+        ]
+      }
+    },
+    "dbo.whatsapp_template_parameters": {
+      "rowCount": 0,
+      "columns": {
+        "id": "uniqueidentifier",
+        "template_id": "uniqueidentifier",
+        "component_type": "int",
+        "parameter_type": "int",
+        "remark": "nvarchar(500)",
+        "status": "int",
+        "insert_by": "uniqueidentifier",
+        "insert_datetime": "datetime",
+        "update_by": "uniqueidentifier",
+        "update_datetime": "datetime"
+      },
+      "pk": [
+        "id"
+      ]
+    }
+  },
+  "fks": [],
+  "schemas": [
+    "dbo"
+  ]
+}

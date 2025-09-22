@@ -1,7 +1,7 @@
 # src/core/prompt_sql.py
 from __future__ import annotations
 
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from src.core.settings import get_settings
 
@@ -22,10 +22,18 @@ Hard rules:
 - Use obvious foreign key relationships when joining tables.
 - Do not reference tables or columns that are not present in the provided schema snippet.
 - If multiple interpretations exist, choose the most likely based on column names and relationships.
+
+Contact-style guidance (when the question mentions contact/phone/mobile/whatsapp/email/number/name):
+- Prefer human-facing fields (FirstName, LastName, FullName, Name, Phone, PhoneNumber, Mobile, MobileNo, Email, EmailAddress) over IDs.
+- If both FirstName and LastName exist, build a Name as LTRIM(RTRIM(CONCAT(FirstName,' ',LastName))).
+- When the same entity type exists across multiple relevant tables, combine results using UNION ALL.
+- When combining tables, return a consistent set of columns (e.g., Name, Phone, Email) and add a SourceTable column (string literal of the table name).
+- Use CAST to NVARCHAR where needed to align types across the UNION.
+- For counts, sum the counts from the relevant tables (e.g., SELECT SUM(cnt) ... UNION ALL ...).
 """
 
 # -----------------------------
-# Default few-shots (edit to your domain)
+# Default few-shots (generic + contact-aware)
 # -----------------------------
 _DEFAULT_FEWSHOTS: List[Tuple[str, str]] = [
     (
@@ -49,11 +57,50 @@ _DEFAULT_FEWSHOTS: List[Tuple[str, str]] = [
         "GROUP BY c.City "
         "ORDER BY avg_amount DESC;",
     ),
+
+    # --- Contact-style examples (multi-table, Name/Phone/Email preferred) ---
+
+    # Multi-table contact LIST via UNION ALL
+    (
+        "Show up to 100 contacts (name, phone, email) from customers and leads",
+        "SELECT TOP 100 * FROM (\n"
+        "  SELECT TOP 100\n"
+        "    LTRIM(RTRIM(CONCAT(c.FirstName,' ',c.LastName))) AS Name,\n"
+        "    CAST(c.PhoneNumber AS NVARCHAR(200)) AS Phone,\n"
+        "    CAST(c.Email AS NVARCHAR(200)) AS Email,\n"
+        "    CAST('dbo.Customers' AS NVARCHAR(128)) AS SourceTable\n"
+        "  FROM dbo.Customers c\n"
+        "  UNION ALL\n"
+        "  SELECT TOP 100\n"
+        "    CAST(l.FullName AS NVARCHAR(200)) AS Name,\n"
+        "    CAST(l.MobileNo AS NVARCHAR(200)) AS Phone,\n"
+        "    CAST(l.EmailAddress AS NVARCHAR(200)) AS Email,\n"
+        "    CAST('dbo.Leads' AS NVARCHAR(128)) AS SourceTable\n"
+        "  FROM dbo.Leads l\n"
+        ") u;"
+    ),
+
+    # Multi-table contact COUNT (sum over tables)
+    (
+        "How many contacts do we have across customers and leads?",
+        "SELECT SUM(cnt) AS TotalContacts FROM (\n"
+        "  SELECT COUNT(1) AS cnt FROM dbo.Customers c "
+        "  WHERE c.PhoneNumber IS NOT NULL OR c.Email IS NOT NULL OR c.FirstName IS NOT NULL OR c.LastName IS NOT NULL\n"
+        "  UNION ALL\n"
+        "  SELECT COUNT(1) AS cnt FROM dbo.Leads l "
+        "  WHERE l.MobileNo IS NOT NULL OR l.EmailAddress IS NOT NULL OR l.FullName IS NOT NULL\n"
+        ") x;"
+    ),
 ]
 
 # -----------------------------
 # Helpers
 # -----------------------------
+_CONTACT_TRIGGERS = {
+    "contact", "contacts", "phone", "mobile", "mobile no", "mobile number",
+    "phone no", "phone number", "whatsapp", "email", "e-mail", "mail",
+    "number", "numbers", "name", "full name", "firstname", "lastname"
+}
 
 def _format_fewshots(
     shots: Optional[Sequence[Tuple[str, str]]],
@@ -69,7 +116,6 @@ def _format_fewshots(
             parts.append(f"Q: {q}\nA: {a}")
     return "\n\n".join(parts)
 
-
 def _trim_schema(schema_text: str, max_chars: Optional[int]) -> str:
     if not schema_text:
         return ""
@@ -77,11 +123,13 @@ def _trim_schema(schema_text: str, max_chars: Optional[int]) -> str:
         return schema_text[:max_chars] + "\n-- (schema truncated) --"
     return schema_text
 
+def _looks_like_contact_question(q: str) -> bool:
+    ql = (q or "").lower()
+    return any(t in ql for t in _CONTACT_TRIGGERS)
 
 # -----------------------------
 # Public API
 # -----------------------------
-
 def build_prompt(
     question: str,
     schema_snippet: str,
@@ -115,6 +163,19 @@ def build_prompt(
 
     shots_block = _format_fewshots(use_shots, enable=_settings.ENABLE_FEWSHOTS)
 
+    # Derive small, targeted guidance from the question (keeps prompt compact)
+    derived_extra = ""
+    if _looks_like_contact_question(q):
+        derived_extra = (
+            "When answering this question, prefer Name/Phone/Email columns over IDs. "
+            "If the requested fields exist in multiple relevant tables from the schema snippet, "
+            "combine them using UNION ALL and add a SourceTable column with the table name. "
+            "Use CAST to align text types in the UNION. For counts, sum counts over relevant tables."
+        )
+
+    # Merge caller-provided extra_instructions after derived hints
+    merged_extra = "\n".join([x for x in [derived_extra, (extra_instructions or "").strip()] if x]).strip()
+
     prompt_parts: List[str] = [
         system,
         "",
@@ -123,8 +184,8 @@ def build_prompt(
         "",
     ]
 
-    if extra_instructions:
-        prompt_parts.extend(["Additional constraints:", extra_instructions.strip(), ""])
+    if merged_extra:
+        prompt_parts.extend(["Additional constraints:", merged_extra, ""])
 
     if shots_block:
         prompt_parts.extend([shots_block, ""])
@@ -133,26 +194,24 @@ def build_prompt(
 
     return "\n".join(prompt_parts)
 
-
 # Convenience default that uses the built-in few-shots
 def build_default_prompt(question: str, schema_snippet: str) -> str:
     return build_prompt(question, schema_snippet, fewshots=_DEFAULT_FEWSHOTS)
 
-
 # if __name__ == "__main__":
 #     # quick self-check
-#     demo_schema = """TABLE dbo.Banks:
+#     demo_schema = \"\"\"TABLE dbo.Banks:
 #   - BankId (int)
 #   - Name (nvarchar(200))
 #   - STDCode (varchar(10))
-
+#
 # TABLE dbo.Branches:
 #   - BranchId (int)
 #   - BankId (int)
 #   - City (nvarchar(100))
-
+#
 # Relationships:
 #   dbo.Branches -> dbo.Banks
-# """
+# \"\"\"
 #     demo = build_default_prompt("Count banks with STD code 079", demo_schema)
 #     print(demo)

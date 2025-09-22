@@ -1,24 +1,43 @@
 # src/main.py
-from src.utils.pydantic_bridge import apply_pydantic_v1_bridge
-apply_pydantic_v1_bridge()
+from __future__ import annotations
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Body, Query, BackgroundTasks
-# ...
-
-import os, shutil, re, uuid, json, base64, mimetypes, importlib, io, difflib
-from typing import List, Optional, Dict, Any, Tuple
+# ---------- stdlib ----------
+import os
+import io
+import re
+import json
+import uuid
+import shutil
+import base64
+import difflib
+import importlib
+import mimetypes
+from pathlib import Path
 from datetime import datetime
 from time import perf_counter
-from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Body, Query, BackgroundTasks
+# ---------- third-party ----------
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form, Body, Query, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+# ---------- app imports ----------
 import logging
 from src.routes.quick_chats import router as quick_chats_router
 from src.routes.quickchat_legacy import router as quickchat_legacy_router
+
+# --- app/core wiring (ADD THESE) ---
+from src.core.settings import get_settings
+from src.core.catalog_cache import get_catalog, set_catalog
+from src.core.catalog_builder import build_catalog
+try:
+    # present in your updated src/core/db.py; fall back gracefully if not
+    from src.core.db import test_connection  # type: ignore
+except Exception:  # keeps Pylance happy even if import fails during editing
+    test_connection = None  # type: ignore
 
 # =========================================================
 # Robust .env loader so GEMINI_API_KEY in src/.env is seen
@@ -152,6 +171,41 @@ rag_pipeline = RAGPipeline()
 plot_pipeline = PlotGenerationPipeline()
 
 app = FastAPI(title="SecureDocAI Backend", version="1.5.0")  # version bump
+
+
+# ➕ Ensure DB + Catalog are ready at startup
+settings = get_settings()
+
+@app.on_event("startup")
+def _startup_catalog_and_db():
+    # DB probe
+    try:
+        if callable(test_connection):
+            tc = test_connection() or {}
+            if not tc.get("ok", True):
+                logger.warning(f"⚠️  DB connectivity issue: {tc.get('error')}")
+            else:
+                logger.info(f"✅ DB connected · database={tc.get('database')}")
+        else:
+            logger.info("ℹ️  DB test not available (test_connection missing).")
+    except Exception as e:
+        logger.warning(f"⚠️  DB connectivity probe failed: {e}")
+
+    # Catalog load/build
+    try:
+        cat = get_catalog()  # loads from cache/disk; raises if missing
+        logger.info(f"✅ Catalog ready · tables={len((cat.get('tables') or {}))}")
+    except FileNotFoundError:
+        logger.info("ℹ️  Catalog not found. Building once…")
+        try:
+            cat = build_catalog()
+            set_catalog(cat, persist=True)
+            logger.info(f"✅ Catalog built & saved · tables={len((cat.get('tables') or {}))}")
+        except Exception as e:
+            logger.exception(f"❌ Catalog build failed: {e}")
+    except Exception as e:
+        logger.warning(f"⚠️  Catalog load failed: {e}")
+
 
 # -------- CORS (friendlier for dev) --------
 _frontend_origins = os.getenv("FRONTEND_ORIGINS")
@@ -1633,19 +1687,35 @@ async def ask_question(request: AskRequest = Body(...)):
 async def health():
     return {"status": "ok"}
 
-# Gemini key health (useful to debug API-only flow)
 @app.get("/api/health/gemini")
 async def health_gemini():
     k = _get_gemini_key()
     return {"ok": bool(k), "has_key": bool(k), "uses": "GEMINI_API_KEY or GOOGLE_API_KEY"}
 
-# Ollama health placeholder (feature flag only)
-ENABLE_OLLAMA = (os.getenv("ENABLE_OLLAMA", "").lower() in ("1", "true", "yes"))
+# ➕ DB health
+@app.get("/api/health/db")
+async def health_db():
+    try:
+        if callable(test_connection):
+            res = test_connection() or {}
+            return {"ok": bool(res.get("ok", False)), **res}
+        return {"ok": False, "error": "test_connection not available"}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
-@app.get("/api/health/ollama")
-async def ollama_health():
-    ok = bool(ENABLE_OLLAMA)
-    return {"ok": ok, "enabled": ENABLE_OLLAMA, "note": "Set ENABLE_OLLAMA=true to enable local vision routes."}
+# ➕ Catalog health
+@app.get("/api/health/catalog")
+async def health_catalog():
+    try:
+        cat = get_catalog()
+        return {
+            "ok": True,
+            "tables": len((cat.get("tables") or {})),
+            "schemas": cat.get("schemas") or [],
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
 
 # ==========================================
 # === Generic chat message + images (save) ==

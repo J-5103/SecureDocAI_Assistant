@@ -9,77 +9,148 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from src.core.settings import get_settings
 
+# Try both core/services builder locations so you don't have to refactor imports
+try:
+    from src.core.catalog_builder import build_catalog  # must return dict
+except Exception:  # pragma: no cover
+    from src.services.catalog_builder import build_catalog  # type: ignore
+
+# Engine to introspect live DB when (re)building
+try:
+    from src.core.db import get_engine
+except Exception:  # pragma: no cover
+    from src.app.db import get_engine  # type: ignore
+
 _settings = get_settings()
 
 # In-memory cache: (timestamp, catalog_dict)
 _CACHE: Optional[Tuple[float, Dict[str, Any]]] = None
 _LOCK = threading.RLock()
+_BUILDING = False  # prevent thundering herd
 
 
 def _now() -> float:
     return time.time()
 
 
-def _ttl() -> int:
-    """TTL for catalog cache (seconds)."""
+def _ttl(default_secs: int = 1200) -> int:
+    """TTL for catalog cache (seconds). Enforce sensible minimum."""
     try:
-        return max(30, int(_settings.CATALOG_TTL_SECS or 1200))
+        val = int(getattr(_settings, "CATALOG_TTL_SECS", default_secs) or default_secs)
+        return max(30, val)
     except Exception:
-        return 1200
+        return default_secs
 
 
 def _catalog_path() -> Path:
-    return Path(_settings.CATALOG_PATH).expanduser().resolve()
+    # Prefer resolved path helpers if available on settings, else fall back to CATALOG_PATH
+    resolved = getattr(_settings, "CATALOG_PATH_RESOLVED", None)
+    if resolved:
+        return Path(str(resolved)).expanduser().resolve()
+    return Path(getattr(_settings, "CATALOG_PATH", "./data/catalog.json")).expanduser().resolve()
 
 
-def _load_from_disk() -> Dict[str, Any]:
-    """Load catalog JSON from disk; raise if missing/invalid."""
-    p = _catalog_path()
+def _read_json(p: Path) -> Optional[Dict[str, Any]]:
+    if not p.exists() or p.stat().st_size == 0:
+        return None
     with p.open("r", encoding="utf-8") as f:
-        return json.load(f)
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return None
 
 
-def _save_to_disk(catalog: Dict[str, Any]) -> Path:
-    """Save catalog JSON to disk atomically (write temp then replace)."""
-    p = _catalog_path()
+def _write_json(p: Path, data: Dict[str, Any]) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     tmp = p.with_suffix(p.suffix + ".tmp")
     with tmp.open("w", encoding="utf-8") as f:
-        json.dump(catalog, f, ensure_ascii=False, indent=2)
+        json.dump(data, f, ensure_ascii=False, indent=2)
     tmp.replace(p)
-    return p
 
 
-def _is_stale(ts: float) -> bool:
-    return (_now() - ts) > _ttl()
+def _is_stale(ts: float, ttl: int) -> bool:
+    return (_now() - ts) > ttl
 
 
-def get_catalog(*, force: bool = False) -> Dict[str, Any]:
+def _build_and_store() -> Dict[str, Any]:
     """
-    Return the catalog dict from memory, reloading from disk when:
-      - force=True, or
-      - cache is empty, or
-      - cache TTL expired.
+    Build catalog from live DB and persist to disk.
+    This is the ONLY place we call the builder + write file.
+    """
+    eng = get_engine()
+    data = build_catalog(eng)  # <- must return a dict: {"tables": {...}} or similar
+    if not isinstance(data, dict) or not data:
+        raise RuntimeError("Catalog builder returned empty or non-dict data.")
+    _write_json(_catalog_path(), data)
+    return data
+
+
+def get_catalog(
+    *,
+    force: bool = False,
+    allow_build: bool = True,
+    ttl_secs: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Return the catalog dict from memory; reload from disk if force/expired.
+    If file is missing/invalid and allow_build=True, auto-build from DB and save.
 
     Raises:
-        FileNotFoundError if the catalog file doesn't exist yet.
-        json.JSONDecodeError for malformed files.
+        FileNotFoundError if missing and allow_build=False.
+        RuntimeError if builder failed.
     """
-    global _CACHE
+    global _CACHE, _BUILDING
+    ttl = int(ttl_secs if ttl_secs is not None else _ttl())
+
     with _LOCK:
-        if not force and _CACHE is not None and not _is_stale(_CACHE[0]):
+        # serve from memory if fresh
+        if not force and _CACHE is not None and not _is_stale(_CACHE[0], ttl):
             return _CACHE[1]
 
-        data = _load_from_disk()  # may raise (good -> caller can decide to rebuild)
-        _CACHE = (_now(), data)
-        return data
+        # try disk
+        disk = _read_json(_catalog_path())
+        if disk and not force:
+            _CACHE = (_now(), disk)
+            return disk
+
+        # disk missing/invalid or force requested
+        if not allow_build:
+            # behave like old code: surface FNFE for callers that want to handle rebuild
+            raise FileNotFoundError(str(_catalog_path()))
+
+        # avoid concurrent rebuilds
+        if _BUILDING:
+            # Wait briefly for the other thread to finish (simple backoff)
+            for _ in range(50):
+                time.sleep(0.05)
+                if _CACHE is not None:
+                    return _CACHE[1]
+            # if still no cache, fall through and try to build anyway
+
+        _BUILDING = True
+        try:
+            fresh = _build_and_store()
+            _CACHE = (_now(), fresh)
+            return fresh
+        finally:
+            _BUILDING = False
 
 
-def refresh_catalog() -> Dict[str, Any]:
+def refresh_catalog(*, force_rebuild: bool = False) -> Dict[str, Any]:
     """
-    Force refresh from disk and return fresh catalog.
+    Reload from disk; if force_rebuild=True or file missing/invalid, rebuild from DB.
     """
-    return get_catalog(force=True)
+    if force_rebuild:
+        fresh = _build_and_store()
+        with _LOCK:
+            global _CACHE
+            _CACHE = (_now(), fresh)
+        return fresh
+
+    try:
+        return get_catalog(force=True, allow_build=False)
+    except FileNotFoundError:
+        return get_catalog(force=True, allow_build=True)
 
 
 def set_catalog(catalog: Dict[str, Any], *, persist: bool = False) -> Dict[str, Any]:
@@ -90,7 +161,7 @@ def set_catalog(catalog: Dict[str, Any], *, persist: bool = False) -> Dict[str, 
     global _CACHE
     with _LOCK:
         if persist:
-            _save_to_disk(catalog)
+            _write_json(_catalog_path(), catalog)
         _CACHE = (_now(), catalog)
         return catalog
 
@@ -113,10 +184,12 @@ def ttl_remaining() -> float:
 
 def list_tables() -> List[str]:
     """
-    Return list of table names like 'dbo.Banks' from the cached catalog.
+    Return list of table names like 'dbo.Banks' (auto-builds if missing).
     """
     cat = get_catalog()
-    return sorted((cat.get("tables") or {}).keys())
+    # Accept both shapes: {"tables": {...}} or flat {"<table>": {...}}
+    tables = cat.get("tables") if isinstance(cat.get("tables"), dict) else cat
+    return sorted((tables or {}).keys())
 
 
 def get_table_info(table: str) -> Optional[Dict[str, Any]]:
@@ -126,7 +199,8 @@ def get_table_info(table: str) -> Optional[Dict[str, Any]]:
     if not table:
         return None
     cat = get_catalog()
-    tables: Dict[str, Any] = cat.get("tables") or {}
+    tables: Dict[str, Any] = cat.get("tables") if isinstance(cat.get("tables"), dict) else cat
+    tables = tables or {}
 
     # direct hit
     if table in tables:
@@ -153,9 +227,9 @@ def tables_used_in_question_hint(question: str, top_k: int = 6) -> List[str]:
     if not toks:
         return []
 
-    tables = list_tables()
+    names = list_tables()
     scored: List[Tuple[int, str]] = []
-    for full in tables:
+    for full in names:
         base = full.split(".", 1)[-1].lower()
         score = 0
         # table name hit
@@ -163,8 +237,13 @@ def tables_used_in_question_hint(question: str, top_k: int = 6) -> List[str]:
             score += 3
         # column hits
         info = get_table_info(full) or {}
-        cols = (info.get("columns") or {}).keys()
-        score += sum(1 for c in cols if c.lower() in toks)
+        cols = (info.get("columns") or {})
+        # accept either list[{"name":..}] or dict{name: {...}}
+        if isinstance(cols, dict):
+            col_names = cols.keys()
+        else:
+            col_names = [c.get("name") for c in cols if isinstance(c, dict)]
+        score += sum(1 for c in col_names if isinstance(c, str) and c.lower() in toks)
         if score > 0:
             scored.append((score, full))
     scored.sort(key=lambda x: (-x[0], x[1]))
@@ -177,9 +256,11 @@ def tables_used_in_question_hint(question: str, top_k: int = 6) -> List[str]:
 if __name__ == "__main__":
     try:
         cat = get_catalog()
-        print(f"Loaded catalog with {len(cat.get('tables', {}))} tables.")
-        print("Sample tables:", list_tables()[:10])
+        tables = list_tables()
+        print(f"Loaded catalog with {len(tables)} tables.")
+        print("Sample tables:", tables[:10])
         print("TTL remaining (s):", round(ttl_remaining(), 1))
-    except FileNotFoundError:
-        print(f"Catalog not found at: {_catalog_path()}")
-        print("Run: python -m src.core.catalog_builder")
+    except Exception as e:
+        print(f"Catalog load/build failed at: {_catalog_path()}")
+        print(f"Error: {type(e).__name__}: {e}")
+        print("Tip: ensure DATABASE_URL is set and reachable.")
