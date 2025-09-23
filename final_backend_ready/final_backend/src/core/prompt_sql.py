@@ -18,18 +18,18 @@ Hard rules:
 - Use schema-qualified names such as dbo.Table.
 - Prefer explicit column lists over SELECT *.
 - If no limit is provided, cap rows using TOP {ROW_LIMIT}.
-- Use SQL that is accepted by Microsoft SQL Server.
+- Use SQL that is accepted by Microsoft SQL Server (ANSI-compliant where possible).
 - Use obvious foreign key relationships when joining tables.
 - Do not reference tables or columns that are not present in the provided schema snippet.
 - If multiple interpretations exist, choose the most likely based on column names and relationships.
 
 Contact-style guidance (when the question mentions contact/phone/mobile/whatsapp/email/number/name):
 - Prefer human-facing fields (FirstName, LastName, FullName, Name, Phone, PhoneNumber, Mobile, MobileNo, Email, EmailAddress) over IDs.
-- If both FirstName and LastName exist, build a Name as LTRIM(RTRIM(CONCAT(FirstName,' ',LastName))).
+- If both FirstName and LastName exist, build Name as LTRIM(RTRIM(CONCAT(FirstName,' ',LastName))).
 - When the same entity type exists across multiple relevant tables, combine results using UNION ALL.
 - When combining tables, return a consistent set of columns (e.g., Name, Phone, Email) and add a SourceTable column (string literal of the table name).
-- Use CAST to NVARCHAR where needed to align types across the UNION.
-- For counts, sum the counts from the relevant tables (e.g., SELECT SUM(cnt) ... UNION ALL ...).
+- Use CAST to NVARCHAR to align types across the UNION.
+- For counts, sum counts over the relevant tables (e.g., SELECT SUM(cnt) ... UNION ALL ...).
 """
 
 # -----------------------------
@@ -59,7 +59,6 @@ _DEFAULT_FEWSHOTS: List[Tuple[str, str]] = [
     ),
 
     # --- Contact-style examples (multi-table, Name/Phone/Email preferred) ---
-
     # Multi-table contact LIST via UNION ALL
     (
         "Show up to 100 contacts (name, phone, email) from customers and leads",
@@ -77,19 +76,18 @@ _DEFAULT_FEWSHOTS: List[Tuple[str, str]] = [
         "    CAST(l.EmailAddress AS NVARCHAR(200)) AS Email,\n"
         "    CAST('dbo.Leads' AS NVARCHAR(128)) AS SourceTable\n"
         "  FROM dbo.Leads l\n"
-        ") u;"
+        ") u;",
     ),
-
     # Multi-table contact COUNT (sum over tables)
     (
         "How many contacts do we have across customers and leads?",
         "SELECT SUM(cnt) AS TotalContacts FROM (\n"
-        "  SELECT COUNT(1) AS cnt FROM dbo.Customers c "
+        "  SELECT COUNT(1) AS cnt FROM dbo.Customers c\n"
         "  WHERE c.PhoneNumber IS NOT NULL OR c.Email IS NOT NULL OR c.FirstName IS NOT NULL OR c.LastName IS NOT NULL\n"
         "  UNION ALL\n"
-        "  SELECT COUNT(1) AS cnt FROM dbo.Leads l "
+        "  SELECT COUNT(1) AS cnt FROM dbo.Leads l\n"
         "  WHERE l.MobileNo IS NOT NULL OR l.EmailAddress IS NOT NULL OR l.FullName IS NOT NULL\n"
-        ") x;"
+        ") x;",
     ),
 ]
 
@@ -163,7 +161,7 @@ def build_prompt(
 
     shots_block = _format_fewshots(use_shots, enable=_settings.ENABLE_FEWSHOTS)
 
-    # Derive small, targeted guidance from the question (keeps prompt compact)
+    # Derived guidance for contact-style questions (adds minimal, targeted hints)
     derived_extra = ""
     if _looks_like_contact_question(q):
         derived_extra = (
@@ -197,21 +195,3 @@ def build_prompt(
 # Convenience default that uses the built-in few-shots
 def build_default_prompt(question: str, schema_snippet: str) -> str:
     return build_prompt(question, schema_snippet, fewshots=_DEFAULT_FEWSHOTS)
-
-# if __name__ == "__main__":
-#     # quick self-check
-#     demo_schema = \"\"\"TABLE dbo.Banks:
-#   - BankId (int)
-#   - Name (nvarchar(200))
-#   - STDCode (varchar(10))
-#
-# TABLE dbo.Branches:
-#   - BranchId (int)
-#   - BankId (int)
-#   - City (nvarchar(100))
-#
-# Relationships:
-#   dbo.Branches -> dbo.Banks
-# \"\"\"
-#     demo = build_default_prompt("Count banks with STD code 079", demo_schema)
-#     print(demo)

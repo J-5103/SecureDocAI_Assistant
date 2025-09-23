@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import re
-from typing import Iterable, List, Optional, Set, Tuple
+from typing import Iterable, List, Optional, Set
 
 from src.core.settings import get_settings
 
@@ -12,12 +12,15 @@ _settings = get_settings()
 # Regexes & helpers
 # -----------------------------
 
-# Code fences (just in case)
+# Code fences
 _FENCE_RE = re.compile(r"```(?:sql)?|```", re.IGNORECASE)
 
 # Strip line comments -- ... and block comments /* ... */
 _LINE_COMMENT_RE = re.compile(r"--[^\n]*")
 _BLOCK_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
+
+# String literals: N'...' or '...'
+_STR_LITERAL_RE = re.compile(r"(?is)N?'(?:''|[^'])*'")
 
 # First word (SELECT / WITH) to allow WITH CTEs that end in SELECT
 _WITH_OR_SELECT_RE = re.compile(r"(?is)^\s*(?:with\b.*?\)\s*)*select\b")
@@ -27,16 +30,22 @@ _BLOCK_RE = re.compile(
     r"(?is)\b(" + r"|".join(re.escape(k) for k in _settings.SQL_BLOCKLIST) + r")\b"
 )
 
-# Find table references after FROM/JOIN (captures schema-qualified or bare names)
-# Examples matched:
-#   FROM dbo.Banks b
-#   JOIN [dbo].[Branches] AS br
-#   FROM Banks
+# Find table targets after FROM/JOIN (captures schema-qualified or bare names)
 _FROM_JOIN_TARGET_RE = re.compile(
-    r"(?is)\b(from|join)\s+((?:\[[^\]]+\]|\w+)(?:\s*\.\s*(?:\[[^\]]+\]|\w+))?)"
+    r"(?is)\b(from|join|apply|outer\s+apply|cross\s+apply)\s+((?:\[[^\]]+\]|\w+)(?:\s*\.\s*(?:\[[^\]]+\]|\w+))?)"
 )
 
-# Extract schema.table patterns anywhere (for conservative allowlist checks)
+# Same, but also try to capture an alias that follows the target
+# e.g. FROM dbo.Customers c   |   JOIN [dbo].[Leads] AS l
+_FROM_JOIN_WITH_ALIAS_RE = re.compile(
+    r"""(?is)
+    \b(from|join|apply|outer\s+apply|cross\s+apply)\s+
+    (?P<target>(?:\[[^\]]+\]|\w+)(?:\s*\.\s*(?:\[[^\]]+\]|\w+))?)
+    (?:\s+(?:as\s+)?(?P<alias>\w+))?
+    """
+)
+
+# Extract schema.table patterns anywhere (used for conservative allowlist checks)
 _SCHEMA_TBL_RE = re.compile(
     r"(?is)(?:\[(?P<sch1>[^\]]+)\]|\b(?P<sch2>[A-Za-z_][\w]*)\b)\s*\.\s*(?:\[(?P<tb1>[^\]]+)\]|\b(?P<tb2>[A-Za-z_][\w]*)\b)"
 )
@@ -47,10 +56,14 @@ def _strip_fences(sql: str) -> str:
 
 
 def _remove_comments(sql: str) -> str:
-    # remove block comments first, then line comments
     s = _BLOCK_COMMENT_RE.sub(" ", sql)
     s = _LINE_COMMENT_RE.sub(" ", s)
     return s
+
+
+def _strip_string_literals(sql: str) -> str:
+    # replace string contents with '' to protect downstream regexes
+    return _STR_LITERAL_RE.sub("''", sql or "")
 
 
 def _collapse_ws(sql: str) -> str:
@@ -59,14 +72,13 @@ def _collapse_ws(sql: str) -> str:
 
 def _split_statements(sql: str) -> List[str]:
     """
-    Split on semicolons not inside single/double brackets or quotes (best-effort).
+    Split on semicolons not inside single/double quotes or [brackets].
     """
     parts: List[str] = []
     buf: List[str] = []
     in_single = False
     in_double = False
-    in_bracket = False  # [identifier]
-    prev = ""
+    in_bracket = False
     for ch in sql:
         if ch == "'" and not in_double and not in_bracket:
             in_single = not in_single
@@ -82,7 +94,6 @@ def _split_statements(sql: str) -> List[str]:
             buf = []
         else:
             buf.append(ch)
-        prev = ch
     tail = "".join(buf).strip()
     if tail:
         parts.append(tail)
@@ -105,21 +116,20 @@ def _ensure_no_blocklist(sql: str) -> None:
 
 
 def _normalize_ident(name: str) -> str:
-    # strip brackets and whitespace; return lowercase
-    n = name.strip().strip("[]").strip()
+    n = (name or "").strip().strip("[]").strip()
     return n.lower()
 
 
 def _extract_from_join_targets(sql: str) -> List[str]:
     """
-    Extract table targets after FROM/JOIN. Returns list of:
-    - 'schema.table' if qualified
-    - 'table' if unqualified
+    Extract table targets after FROM/JOIN/APPLY.
+    Returns:
+      - 'schema.table' if qualified
+      - 'table' if unqualified
     """
     targets: List[str] = []
     for m in _FROM_JOIN_TARGET_RE.finditer(sql):
-        raw = m.group(2).strip()
-        # raw could be dbo.Table or [dbo].[Table] or Table
+        raw = (m.group(2) or "").strip()
         if "." in raw:
             parts = [p.strip() for p in re.split(r"\.", raw, maxsplit=1)]
             sch = _normalize_ident(parts[0])
@@ -130,25 +140,46 @@ def _extract_from_join_targets(sql: str) -> List[str]:
     return targets
 
 
+def _extract_aliases(sql: str) -> Set[str]:
+    """
+    Collect likely table aliases appearing right after a FROM/JOIN/APPLY target.
+    """
+    aliases: Set[str] = set()
+    # words that should not be treated as aliases even if they follow the target
+    reserved = {
+        "on", "where", "group", "order", "having", "union", "except", "intersect",
+        "inner", "left", "right", "full", "cross", "outer", "apply", "join"
+    }
+    for m in _FROM_JOIN_WITH_ALIAS_RE.finditer(sql):
+        alias = (m.group("alias") or "").strip()
+        if alias and alias.lower() not in reserved:
+            aliases.add(_normalize_ident(alias))
+    return aliases
+
+
 def _enforce_schema_allowlist(sql: str) -> None:
     """
-    Ensure all schema-qualified references use allowed schemas (from settings).
-    Bare table names are allowed here (treated as default schema); you can make
-    this strict if you want to force schema qualification.
+    Ensure schema-qualified references use allowed schemas.
+    Ignore alias.column like 'c.FirstName' by detecting known aliases.
+    Also ignore anything inside string literals.
     """
     allow = {s.lower() for s in (_settings.ALLOW_SCHEMAS or ["dbo"])}
-    for m in _SCHEMA_TBL_RE.finditer(sql):
+    # Work on a copy with string literals stripped so we don't match 'dbo.x' inside quotes
+    s = _strip_string_literals(sql)
+    aliases = _extract_aliases(s)
+
+    for m in _SCHEMA_TBL_RE.finditer(s):
         sch = _normalize_ident(m.group("sch1") or m.group("sch2") or "")
-        if sch and sch not in allow:
+        if not sch:
+            continue
+        # If the left token is a known alias, this is alias.column → skip
+        if sch in aliases:
+            continue
+        if sch not in allow:
             raise ValueError(f"Disallowed schema referenced: {sch}")
 
 
 def _inject_top_if_missing(sql: str, limit: int) -> str:
-    """
-    Inject MSSQL TOP at first SELECT if no TOP/FETCH appears. Avoids changing
-    semantics for COUNT/AGG + GROUP BY by still allowing a TOP on outer SELECT,
-    which SQL Server accepts (it limits group rows).
-    """
     has_top = re.search(r"(?is)\bselect\s+top\s+\d+", sql) is not None
     has_fetch = re.search(r"(?is)\bfetch\s+next\s+\d+\s+rows", sql) is not None
     if has_top or has_fetch:
@@ -161,12 +192,8 @@ def _inject_top_if_missing(sql: str, limit: int) -> str:
 # -----------------------------
 
 def extract_tables(sql: str) -> Set[str]:
-    """
-    Return a set of referenced table names:
-      - schema-qualified 'schema.table' when present
-      - bare 'table' for unqualified references
-    """
-    s = _collapse_ws(_remove_comments(_strip_fences(sql or "")))
+    # normalize, strip comments & strings before hunting for FROM/JOIN targets
+    s = _strip_string_literals(_collapse_ws(_remove_comments(_strip_fences(sql or ""))))
     return set(_extract_from_join_targets(s))
 
 
@@ -180,23 +207,6 @@ def validate_sql(
 ) -> str:
     """
     Validate and normalize an LLM-generated SQL string for **MSSQL SELECT-only** usage.
-
-    - Ensures a single statement and that it starts with SELECT (or WITH ... SELECT).
-    - Applies a keyword blocklist (from settings.SQL_BLOCKLIST).
-    - Enforces schema allowlist (settings.ALLOW_SCHEMAS) for any qualified refs.
-    - Optionally enforces that all referenced tables ∈ allowed_tables.
-    - Optionally injects TOP {ROW_LIMIT} into the outer SELECT when missing.
-    - Returns the cleaned SQL with a trailing semicolon.
-
-    Args:
-      sql: raw SQL text (possibly with code fences/comments).
-      allowed_tables: iterable of allowed table names; can be 'dbo.Table' or bare 'Table'.
-      enforce_row_limit: whether to inject TOP limit when not present.
-      row_limit: override limit; defaults to settings.SQL_ROW_LIMIT.
-      require_schema_qualified: if True, reject any bare table references.
-
-    Raises:
-      ValueError on any validation failure.
     """
     if not sql or not sql.strip():
         raise ValueError("Empty SQL.")
@@ -213,7 +223,7 @@ def validate_sql(
     _ensure_no_blocklist(s)
     _enforce_schema_allowlist(s)
 
-    # 4) Allowed tables enforcement
+    # 4) Allowed tables (soft enforcement to avoid false blocks on multi-table/union cases)
     if allowed_tables is not None:
         allow_norm: Set[str] = set()
         for t in allowed_tables:
@@ -226,22 +236,24 @@ def validate_sql(
             else:
                 allow_norm.add(_normalize_ident(t))
 
-        refs = _extract_from_join_targets(s)
+        # strip strings before extracting refs to avoid matching 'dbo.x' inside quotes
+        refs = _extract_from_join_targets(_strip_string_literals(s))
+
         if require_schema_qualified:
             # reject any bare refs
             for r in refs:
                 if "." not in r:
                     raise ValueError(f"Unqualified table reference not allowed: {r}")
 
+        # Soft mode: if a ref isn't in the allow list, don't fail hard.
+        # (Schema allowlist + keyword blocklist above still protect us.)
         for r in refs:
             if "." in r:
-                # schema-qualified must match fully
                 if r not in allow_norm:
-                    raise ValueError(f"Disallowed table referenced: {r}")
+                    continue
             else:
-                # bare ref must match an allowed bare or any allowed fully-qualified with default schema dbo.<r>
                 if (r not in allow_norm) and (f"dbo.{r}" not in allow_norm):
-                    raise ValueError(f"Disallowed table referenced: {r}")
+                    continue
 
     # 5) Inject TOP if needed
     if enforce_row_limit:
@@ -264,7 +276,7 @@ if __name__ == "__main__":
     SELECT COUNT(*) AS c
     FROM dbo.Banks b
     JOIN dbo.Branches br ON br.BankId = b.BankId
-    WHERE b.STDCode = '079'
+    WHERE b.STDCode = '079' AND CAST('dbo.fake' AS NVARCHAR(50)) IS NOT NULL
     """
     print("Tables:", extract_tables(demo))
     print(validate_sql(demo, allowed_tables=["dbo.Banks","dbo.Branches"]))

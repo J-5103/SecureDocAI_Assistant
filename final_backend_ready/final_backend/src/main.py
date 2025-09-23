@@ -1683,9 +1683,27 @@ async def ask_question(request: AskRequest = Body(...)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 # ---------- health ----------
+# ---------- health ----------
+from typing import Optional  # (already imported above; safe to keep)
+
 @app.get("/api/health")
-async def health():
-    return {"status": "ok"}
+async def health(db: Optional[int] = Query(None)):
+    """
+    Basic health. If called with ?db=1 it will also include DB probe info
+    so the FE fallback `GET /api/health?db=1` works as expected.
+    """
+    payload = {"status": "ok"}
+    if db:
+        try:
+            if callable(test_connection):
+                res = test_connection() or {}
+                payload["db"] = {"ok": bool(res.get("ok", False)), **res}
+            else:
+                payload["db"] = {"ok": False, "error": "test_connection not available"}
+        except Exception as e:
+            payload["db"] = {"ok": False, "error": str(e)}
+    return payload
+
 
 @app.get("/api/health/gemini")
 async def health_gemini():
@@ -1702,6 +1720,18 @@ async def health_db():
         return {"ok": False, "error": "test_connection not available"}
     except Exception as e:
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+# ➕ Exact path used by quickchat.js first (then it falls back to /api/health?db=1)
+@app.get("/api/db/ping")
+async def db_ping():
+    try:
+        if callable(test_connection):
+            res = test_connection() or {}
+            return {"ok": bool(res.get("ok", False)), **res}
+        return {"ok": False, "error": "test_connection not available"}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
 
 # ➕ Catalog health
 @app.get("/api/health/catalog")

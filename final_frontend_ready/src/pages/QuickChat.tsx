@@ -1,30 +1,20 @@
 // src/pages/QuickChat.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Plus, Search, Clock, ArrowLeft, Trash2, Edit2, Check, X } from "lucide-react";
-
+import { Plus, Search, Clock, ArrowLeft, Edit2, Check, X , Trash2 } from "lucide-react";
 import MessageList, { type ChatMessage } from "@/components/messagelist";
-
 import {
   listQuickChats as _listQuickChats,
   getQuickChatMessages as _getQuickChatMessages,
   createQuickChat as _createQuickChat,
-  sendQuickChatMessage as _sendQuickChatMessage,
+  // NOTE: we won't use _sendQuickChatMessage to avoid losing clientMsgId
   deleteQuickChat as _deleteQuickChat,
   renameQuickChat as _renameQuickChat,
 } from "@/api/quickchat";
 
-// ---------- types ----------
-type ChatSummary = {
-  id: string;
-  title: string;
-  createdAt: string;
-  lastMessageAt?: string;
-  isDeleted?: boolean;
-};
+type ChatSummary = { id: string; title: string; createdAt: string; lastMessageAt?: string };
 type LocState = { seedPrompt?: string };
 
-// ---------- helpers ----------
 const timeAgo = (iso: string) => {
   const t = new Date(iso).getTime();
   if (Number.isNaN(t)) return "";
@@ -34,191 +24,110 @@ const timeAgo = (iso: string) => {
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return new Date(iso).toLocaleString();
 };
-const DEFAULT_GREETING =
-  "Hello! I’m ready to help you for your queries.\n\nI can run data queries if you start with `sql:` or ask a question about your tables.";
 
-// normalize create-id: supports string | {id} | {chatId}
+const DEFAULT_GREETING = "Hello! I’m ready to help you for your queries.";
+
+// ---------- API wrappers (server is source of truth) ----------
 const extractId = (res: any): string => {
   if (!res) throw new Error("Empty response");
   if (typeof res === "string") return res;
   if (res?.id) return String(res.id);
   if (res?.chatId) return String(res.chatId);
-  throw new Error("Unable to read new chat id from response");
+  throw new Error("Unable to read chat id");
 };
 
-// ---- API wrappers ----------------------------------------------------------
 async function createQuickChatSafe(title?: string) {
   try {
     const raw = await _createQuickChat?.(title);
     return extractId(raw);
-  } catch (err: any) {
-    const status = err?.response?.status;
-    if (status === 404 || err?.code === "ERR_BAD_REQUEST") {
-      const body: any = title ? { title } : {};
-      const res = await fetch("/api/quick-chats", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(`Create failed (${res.status}): ${txt || res.statusText}`);
-      }
-      const data = await res.json();
-      return extractId(data);
-    }
-    throw err;
+  } catch {
+    const body: any = title ? { title } : {};
+    const res = await fetch("/api/quick-chats", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`Create failed (${res.status})`);
+    const data = await res.json();
+    return extractId(data);
   }
 }
-async function listQuickChatsSafe() {
+
+async function listQuickChatsSafe(): Promise<ChatSummary[]> {
   try {
     const data = (await _listQuickChats?.()) as any;
-    return (Array.isArray(data) ? data : data?.items) as ChatSummary[] | undefined;
-  } catch (err: any) {
-    if (err?.response?.status === 404) {
-      const r = await fetch("/api/quick-chats", { method: "GET" });
-      if (!r.ok) throw new Error(`List failed (${r.status})`);
-      const data = await r.json();
-      return (data?.items ?? data) as ChatSummary[];
-    }
-    throw err;
+    return (Array.isArray(data) ? data : data?.items) ?? [];
+  } catch {
+    const r = await fetch("/api/quick-chats");
+    if (!r.ok) throw new Error(`List failed (${r.status})`);
+    const data = await r.json();
+    return (data?.items ?? data) as ChatSummary[];
   }
 }
-async function getQuickChatMessagesSafe(id: string) {
+
+async function getQuickChatMessagesSafe(id: string): Promise<ChatMessage[]> {
   try {
     const data = (await _getQuickChatMessages?.(id)) as any;
-    return (Array.isArray(data) ? data : data?.items) as ChatMessage[] | undefined;
-  } catch (err: any) {
-    if (err?.response?.status === 404) {
-      const r = await fetch(`/api/quick-chats/${id}/messages`);
-      if (!r.ok) throw new Error(`Messages failed (${r.status})`);
-      const data = await r.json();
-      return (data?.items ?? data) as ChatMessage[];
-    }
-    throw err;
+    return (Array.isArray(data) ? data : data?.items) ?? [];
+  } catch {
+    const r = await fetch(`/api/quick-chats/${id}/messages`);
+    if (!r.ok) throw new Error(`Messages failed (${r.status})`);
+    const data = await r.json();
+    return (data?.items ?? data) as ChatMessage[];
   }
 }
-async function sendQuickChatMessageSafe(id: string, text: string) {
-  try {
-    const data = (await _sendQuickChatMessage?.(id, text)) as any;
-    return typeof data === "string" ? data : data?.reply ?? "";
-  } catch (err: any) {
-    if (err?.response?.status === 404) {
-      const r = await fetch(`/api/quick-chats/${id}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
-      if (!r.ok) {
-        const t = await r.text().catch(() => "");
-        throw new Error(`Send failed (${r.status}): ${t || r.statusText}`);
-      }
-      const data = await r.json();
-      return typeof data === "string" ? data : data?.reply ?? "";
-    }
-    throw err;
-  }
+
+// IMPORTANT: always use fetch so clientMsgId reaches backend
+async function sendQuickChatMessageSafe(id: string, text: string, clientMsgId: string) {
+  const r = await fetch(`/api/quick-chats/${id}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, clientMsgId }),
+  });
+  if (!r.ok) throw new Error(`Send failed (${r.status})`);
+  const data = await r.json();
+  return typeof data === "string" ? data : data?.reply ?? "";
 }
+
 async function deleteQuickChatSafe(id: string) {
   try {
     return await _deleteQuickChat?.(id);
-  } catch (err: any) {
-    if (err?.response?.status === 404) {
-      const r = await fetch(`/api/quick-chats/${id}`, { method: "DELETE" });
-      if (!r.ok) throw new Error(`Delete failed (${r.status})`);
-      return;
-    }
-    throw err;
+  } catch {
+    const r = await fetch(`/api/quick-chats/${id}`, { method: "DELETE" });
+    if (!r.ok) throw new Error(`Delete failed (${r.status})`);
   }
 }
+
 async function renameQuickChatSafe(id: string, title: string) {
   try {
     return await _renameQuickChat?.(id, title);
-  } catch (err: any) {
-    if (err?.response?.status === 404) {
-      const r = await fetch(`/api/quick-chats/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title }),
-      });
-      if (!r.ok) {
-        const t = await r.text().catch(() => "");
-        throw new Error(`Rename failed (${r.status}): ${t || r.statusText}`);
-      }
-      return true;
-    }
-    throw err;
+  } catch {
+    const r = await fetch(`/api/quick-chats/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    });
+    if (!r.ok) throw new Error(`Rename failed (${r.status})`);
   }
 }
 
-// ---------- client-side index persistence (list only; messages come from server) ----------
-const LS_PREFIX_IDX = "qc_index_v1";
-type ChatIndex = Record<string, ChatSummary>;
-const loadIndex = (): ChatIndex => {
-  try {
-    const raw = localStorage.getItem(LS_PREFIX_IDX);
-    return raw ? (JSON.parse(raw) as ChatIndex) : {};
-  } catch {
-    return {};
-  }
-};
-const saveIndex = (idx: ChatIndex) => {
-  try {
-    localStorage.setItem(LS_PREFIX_IDX, JSON.stringify(idx));
-  } catch {}
-};
-const upsertIndex = (chat: ChatSummary) => {
-  const idx = loadIndex();
-  const prev = idx[chat.id] || {};
-  idx[chat.id] = { ...prev, ...chat, isDeleted: false };
-  saveIndex(idx);
-};
-const markDeletedIndex = (id: string) => {
-  const idx = loadIndex();
-  if (idx[id]) {
-    idx[id].isDeleted = true;
-    saveIndex(idx);
-  }
-};
-const removeIndexHard = (id: string) => {
-  const idx = loadIndex();
-  delete idx[id];
-  saveIndex(idx);
-};
-const mergeChats = (server: ChatSummary[] = []): ChatSummary[] => {
-  const localIdx = loadIndex();
-  const map = new Map<string, ChatSummary>();
-  Object.values(localIdx).forEach((c) => {
-    if (!c.isDeleted) map.set(c.id, c);
-  });
-  server.forEach((c) => {
-    const prev = map.get(c.id);
-    map.set(c.id, { ...prev, ...c, isDeleted: false });
-  });
-  const arr = [...map.values()].filter((c) => !c.isDeleted);
-  arr.sort((a, b) => {
-    const atA = new Date(a.lastMessageAt || a.createdAt).getTime();
-    const atB = new Date(b.lastMessageAt || b.createdAt).getTime();
-    return atB - atA;
-  });
-  return arr;
-};
+const newClientId = () =>
+  (crypto?.randomUUID?.() ?? `cm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
 
-// strongly-typed message creator (TEMP ids – not persisted)
-const makeTempId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-const tempUser = (text: string): ChatMessage => ({
-  id: makeTempId("temp_u"),
-  text,
-  sender: "user",
-  at: new Date().toISOString(),
-});
-const tempThinking = (): ChatMessage => ({
-  id: makeTempId("temp_th"),
-  text: "Thinking…",
-  sender: "ai",
-  at: new Date().toISOString(),
-  thinking: true,
-});
+// Red trash emoji-style icon (matches the screenshot)
+const RedTrashEmoji: React.FC<{ className?: string }> = ({ className = "" }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+    {/* lid */}
+    <path d="M9 6h6l.8 2H8.2L9 6Z" fill="#fff" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+    {/* top bar */}
+    <path d="M4.5 8h15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    {/* bin */}
+    <rect x="6" y="8.5" width="12" height="11" rx="2" fill="#fff" stroke="currentColor" strokeWidth="1.5"/>
+    {/* two vertical bars */}
+    <path d="M10 11v6.5M14 11v6.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+);
+
 
 // -----------------------------------------------------------------------------
 
@@ -239,23 +148,23 @@ const QuickChat: React.FC = () => {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
 
+  const threadRef = useRef<HTMLDivElement>(null);
+  const pollRef = useRef<number | null>(null);
+
   // ===== initial load =====
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         setLoading(true);
-        const serverList = (await listQuickChatsSafe()) ?? [];
-        const mergedList = mergeChats(serverList);
+        const serverList = await listQuickChatsSafe();
         if (!alive) return;
+        setChats(serverList);
 
-        mergedList.forEach(upsertIndex);
-        setChats(mergedList);
-
-        if (mergedList[0]) {
-          const firstId = mergedList[0].id;
-          setActiveChatId(firstId);
-          const serverMsgs = (await getQuickChatMessagesSafe(firstId)) ?? [];
+        if (serverList[0]) {
+          const id = serverList[0].id;
+          setActiveChatId(id);
+          const serverMsgs = await getQuickChatMessagesSafe(id);
           if (!alive) return;
           setMessages(serverMsgs);
         }
@@ -268,10 +177,11 @@ const QuickChat: React.FC = () => {
     })();
     return () => {
       alive = false;
+      if (pollRef.current) window.clearInterval(pollRef.current);
     };
   }, []);
 
-  // ===== optional seed prompt: create chat then (optionally) you can auto-send it =====
+  // ===== handle seed prompt (optional) =====
   useEffect(() => {
     if (!seedPrompt) return;
     let alive = true;
@@ -279,20 +189,16 @@ const QuickChat: React.FC = () => {
       try {
         setLoading(true);
         const newId = await createQuickChatSafe(seedPrompt);
+        if (!alive) return;
         const createdAt = new Date().toISOString();
-        const newChat: ChatSummary = { id: newId, title: seedPrompt.slice(0, 64), createdAt };
-        upsertIndex(newChat);
-
-        if (!alive) return;
-        setChats((prev) => mergeChats([newChat, ...prev]));
+        setChats((prev) => [{ id: newId, title: seedPrompt.slice(0, 64), createdAt }, ...prev]);
         setActiveChatId(newId);
-
-        // Load server messages (should contain the greeting)
-        const serverMsgs = (await getQuickChatMessagesSafe(newId)) ?? [];
+        // optimistic user line
+        setMessages([{ id: `u_seed_${Date.now()}`, text: seedPrompt, sender: "user", at: createdAt }]);
+        // sync from server once created
+        const synced = await getQuickChatMessagesSafe(newId);
         if (!alive) return;
-        setMessages(serverMsgs);
-        // If you want to immediately ask the seed prompt, uncomment:
-        // await sendMessage(seedPrompt);
+        setMessages(synced);
       } catch (e) {
         if (alive) setError("Failed to start a new quick chat.");
         console.error(e);
@@ -304,6 +210,12 @@ const QuickChat: React.FC = () => {
       alive = false;
     };
   }, [seedPrompt]);
+
+  // ===== autoscroll thread =====
+  useEffect(() => {
+    const el = threadRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, [messages]);
 
   // ===== derived =====
   const filtered = useMemo(() => {
@@ -324,7 +236,7 @@ const QuickChat: React.FC = () => {
     try {
       setLoading(true);
       setActiveChatId(id);
-      const serverMsgs = (await getQuickChatMessagesSafe(id)) ?? [];
+      const serverMsgs = await getQuickChatMessagesSafe(id);
       setMessages(serverMsgs);
       setEditingTitle(false);
     } catch (e) {
@@ -340,26 +252,14 @@ const QuickChat: React.FC = () => {
       setLoading(true);
       const newId = await createQuickChatSafe();
       const now = new Date().toISOString();
-      const newChat: ChatSummary = { id: newId, title: "New quick chat", createdAt: now };
-
-      upsertIndex(newChat);
-      setChats((prev) => mergeChats([newChat, ...prev]));
+      setChats((prev) => [{ id: newId, title: "New quick chat", createdAt: now }, ...prev]);
       setActiveChatId(newId);
-
-      // Load server messages to display the server-side greeting (avoids duplicates later)
-      const serverMsgs = (await getQuickChatMessagesSafe(newId)) ?? [
-        { id: "greet_local", text: DEFAULT_GREETING, sender: "ai", at: now },
-      ];
+      const serverMsgs = await getQuickChatMessagesSafe(newId);
       setMessages(serverMsgs);
-
       setComposer("");
       setEditingTitle(false);
     } catch (e: any) {
-      const msg =
-        (e?.message as string) ||
-        (e?.response?.statusText as string) ||
-        "Failed to create a new quick chat.";
-      setError(msg);
+      setError(e?.message || "Failed to create a new quick chat.");
       console.error(e);
     } finally {
       setLoading(false);
@@ -371,24 +271,66 @@ const QuickChat: React.FC = () => {
     if (!window.confirm("Delete this chat permanently?")) return;
     try {
       setLoading(true);
-      markDeletedIndex(id);
       await deleteQuickChatSafe(id);
-
-      const remaining = mergeChats(chats.filter((c) => c.id !== id));
-      setChats(remaining);
-
+      setChats((prev) => prev.filter((c) => c.id !== id));
       if (activeChatId === id) {
-        const next = remaining[0]?.id ?? null;
+        const next = chats.filter((c) => c.id !== id)[0]?.id ?? null;
         setActiveChatId(next);
-        setMessages(next ? (await getQuickChatMessagesSafe(next)) ?? [] : []);
+        setMessages(next ? await getQuickChatMessagesSafe(next) : []);
       }
-      removeIndexHard(id);
     } catch (e) {
       setError("Failed to delete chat.");
       console.error(e);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Merge helper: keep optimistic user visible until server echoes the same clientMsgId
+  const mergeOptimisticUser = (
+    serverMsgs: ChatMessage[],
+    optimisticUser: ChatMessage,
+    clientMsgId: string
+  ): ChatMessage[] => {
+    // if server already has this user turn (by clientMsgId), just return server list
+    const hasTurn = serverMsgs.some(
+      // @ts-ignore: backend returns clientMsgId on user messages
+      (m: any) => m.sender === "user" && m.clientMsgId === clientMsgId
+    );
+    if (hasTurn) return serverMsgs;
+
+    // otherwise, append optimistic user at the right place (end)
+    const merged = [...serverMsgs, optimisticUser];
+    return merged;
+  };
+
+  const pollUntilAnswered = (chatId: string, clientMsgId: string, optimisticUser: ChatMessage) => {
+    if (pollRef.current) window.clearInterval(pollRef.current);
+    pollRef.current = window.setInterval(async () => {
+      try {
+        const serverMsgs = await getQuickChatMessagesSafe(chatId);
+
+        // keep optimistic user until server echoes it
+        const nextMsgs = mergeOptimisticUser(serverMsgs, optimisticUser, clientMsgId);
+        setMessages(nextMsgs);
+
+        // if server already has this user, check AI after it
+        const uIdx = nextMsgs.findIndex(
+          (m: any) => m.sender === "user" && (m as any).clientMsgId === clientMsgId
+        );
+        if (uIdx >= 0) {
+          const ai = nextMsgs.slice(uIdx + 1).find((m) => m.sender === "ai") as any;
+          if (ai && !ai.thinking) {
+            // done, final answer present
+            if (pollRef.current) window.clearInterval(pollRef.current);
+            pollRef.current = null;
+            setLoading(false);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }, 700);
   };
 
   const sendMessage = async (text: string) => {
@@ -400,52 +342,40 @@ const QuickChat: React.FC = () => {
     try {
       let chatId = activeChatId;
       if (!chatId) {
-        // Create chat on the server and load its greeting to stay in sync
         chatId = await createQuickChatSafe();
-        const createdAt = new Date().toISOString();
-        const newChat: ChatSummary = { id: chatId, title: "New quick chat", createdAt };
-        upsertIndex(newChat);
+        const now = new Date().toISOString();
+        setChats((prev) => [{ id: chatId!, title: "New quick chat", createdAt: now }, ...prev]);
         setActiveChatId(chatId);
-        setChats((prev) => mergeChats([newChat, ...prev]));
-        const srv0 = (await getQuickChatMessagesSafe(chatId)) ?? [];
-        setMessages(srv0);
+        const serverMsgs = await getQuickChatMessagesSafe(chatId);
+        setMessages(serverMsgs);
       }
 
-      // Show temp user + temp thinking (NOT saved to localStorage)
-      const u = tempUser(t);
-      const th = tempThinking();
-      setMessages((prev) => [...prev, u, th]);
-      setComposer("");
+      // optimistic user message (stays visible while we poll)
+      const clientMsgId = newClientId();
+      const optimisticUser: ChatMessage = {
+        id: `u_${clientMsgId}`,
+        text: t,
+        sender: "user",
+        at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, optimisticUser]);
 
-      // bump list timestamp so the chat rises
-      upsertIndex({
-        id: chatId!,
-        title: chats.find((c) => c.id === chatId)?.title || "New quick chat",
-        createdAt: chats.find((c) => c.id === chatId)?.createdAt || new Date().toISOString(),
-        lastMessageAt: new Date().toISOString(),
-      });
-      setChats((prev) => mergeChats(prev));
+      // start polling before POST returns, so we can catch the backend "🧠 Thinking…" asap
+      pollUntilAnswered(chatId!, clientMsgId, optimisticUser);
 
-      // Call backend
-      await sendQuickChatMessageSafe(chatId!, t);
+      // POST with clientMsgId so backend can dedupe and link the turn
+      await sendQuickChatMessageSafe(chatId!, t, clientMsgId);
 
-      // After backend replies, reload the canonical messages so IDs match server state
-      const serverMsgs = (await getQuickChatMessagesSafe(chatId!)) ?? [];
-      setMessages(serverMsgs);
-
-      // bump again after reply
-      upsertIndex({
-        id: chatId!,
-        title: chats.find((c) => c.id === chatId)?.title || "New quick chat",
-        createdAt: chats.find((c) => c.id === chatId)?.createdAt || new Date().toISOString(),
-        lastMessageAt: new Date().toISOString(),
-      });
-      setChats((prev) => mergeChats(prev));
+      // one last sync (if polling already finished this is a no-op)
+      const finalMsgs = await getQuickChatMessagesSafe(chatId!);
+      setMessages(finalMsgs);
+      setLoading(false);
     } catch (e) {
       setError("Failed to send message.");
       console.error(e);
-    } finally {
       setLoading(false);
+    } finally {
+      setComposer("");
     }
   };
 
@@ -456,22 +386,18 @@ const QuickChat: React.FC = () => {
     setTitleDraft(current);
     setEditingTitle(true);
   };
+
   const cancelRename = () => {
     setEditingTitle(false);
     setTitleDraft("");
   };
+
   const saveRename = async () => {
     const t = (titleDraft || "").trim();
     if (!activeChatId || !t) return cancelRename();
     try {
       setLoading(true);
       setChats((prev) => prev.map((c) => (c.id === activeChatId ? { ...c, title: t } : c)));
-      upsertIndex({
-        id: activeChatId,
-        title: t,
-        createdAt: chats.find((c) => c.id === activeChatId)?.createdAt || new Date().toISOString(),
-        lastMessageAt: chats.find((c) => c.id === activeChatId)?.lastMessageAt,
-      });
       await renameQuickChatSafe(activeChatId, t);
     } catch (e) {
       setError("Failed to rename chat.");
@@ -482,7 +408,6 @@ const QuickChat: React.FC = () => {
     }
   };
 
-  // ===== render =====
   return (
     <div className="h-screen">
       <div className="container mx-auto p-4 h-full">
@@ -518,12 +443,16 @@ const QuickChat: React.FC = () => {
             </div>
 
             <div className="overflow-auto divide-y divide-border">
-              {filtered.length === 0 ? (
-                <div className="p-4 text-sm text-muted-foreground">
-                  {chats.length ? "No chats match your search." : "No chats yet — start one!"}
-                </div>
-              ) : (
-                filtered.map((c) => (
+              {(() => {
+                const list = filtered;
+                if (!list.length) {
+                  return (
+                    <div className="p-4 text-sm text-muted-foreground">
+                      {chats.length ? "No chats match your search." : "No chats yet — start one!"}
+                    </div>
+                  );
+                }
+                return list.map((c) => (
                   <button
                     key={c.id}
                     onClick={() => selectChat(c.id)}
@@ -543,8 +472,8 @@ const QuickChat: React.FC = () => {
                         new Date(c.lastMessageAt || c.createdAt).toLocaleString()}
                     </div>
                   </button>
-                ))
-              )}
+                ));
+              })()}
             </div>
           </aside>
 
@@ -552,11 +481,14 @@ const QuickChat: React.FC = () => {
           <section className="col-span-12 md:col-span-8 lg:col-span-9 bg-card border border-border rounded-2xl grid grid-rows-[auto_1fr_auto] overflow-hidden">
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <button onClick={() => navigate(-1)} className="p-2 rounded-lg bg-muted hover:bg-muted/70" title="Back">
+                <button
+                  onClick={() => navigate(-1)}
+                  className="p-2 rounded-lg bg-muted hover:bg-muted/70"
+                  title="Back"
+                >
                   <ArrowLeft className="w-4 h-4" />
                 </button>
 
-                {/* Title / Rename */}
                 {!editingTitle ? (
                   <div className="flex items-center gap-2">
                     <h3
@@ -599,30 +531,31 @@ const QuickChat: React.FC = () => {
                   </div>
                 )}
               </div>
-
-              <div className="flex items-center gap-2">
+              <div className="flex items-center">
                 {activeChatId && (
                   <button
                     onClick={() => removeChat(activeChatId)}
-                    className="p-2 rounded-lg bg-muted hover:bg-muted/70 text-red-600 disabled:opacity-60"
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
                     title="Delete chat"
+                    aria-label="Delete chat"
                     disabled={loading}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-5 h-5" />
                   </button>
                 )}
-                {loading && <span className="text-xs text-muted-foreground animate-pulse">thinking…</span>}
               </div>
             </div>
 
-            {/* Thread */}
-            <MessageList
-              messages={messages}
-              emptyHint="No messages yet. Ask your first question below."
-              errorText={error}
-            />
+            <div ref={threadRef} className="overflow-auto px-5 py-4">
+              <MessageList messages={messages} />
+              {!messages.length && (
+                <div className="text-sm text-muted-foreground mt-2">
+                  No messages yet. Ask your first question below.
+                </div>
+              )}
+              {error && <div className="text-xs text-red-600 mt-2">{error}</div>}
+            </div>
 
-            {/* Composer */}
             <div className="px-4 py-3 border-t border-border">
               <form
                 onSubmit={(e) => {
@@ -641,7 +574,7 @@ const QuickChat: React.FC = () => {
                       if (composer.trim() && !loading) sendMessage(composer);
                     }
                   }}
-                  placeholder="Ask anything… e.g., Count banks with STD code 079"
+                  placeholder="Ask anything… about your database..."
                   className="flex-1 px-4 py-3 rounded-lg bg-muted text-foreground border border-border focus:outline-none focus:ring-2 focus:ring-accent"
                   aria-label="Message input"
                 />

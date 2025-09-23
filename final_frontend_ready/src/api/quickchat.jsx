@@ -134,6 +134,22 @@ async function tryOrFallback(mainFn, fallbackFn) {
   }
 }
 
+// ---------- helpers for replies (do NOT strip trace/model) ----------
+function shapeReply(data) {
+  // Normalize different backend shapes into a single object for the UI.
+  const reply =
+    typeof data === "string"
+      ? data
+      : data?.reply ?? data?.message ?? data?.text ?? "";
+
+  return {
+    reply,                                   // string the UI can render
+    modelUsed: data?.model_used ?? data?.modelUsed ?? null,
+    trace: data?.trace ?? null,              // { mode, sql, sample_sql?, latency_ms, ... }
+    raw: data ?? null,                       // keep full payload for debugging if needed
+  };
+}
+
 // -------------------- MOCKS (optional) --------------------
 const mockChats = [
   { id: "c2", title: "Banks with STD code 079", createdAt: "2025-09-17T09:00:00Z" },
@@ -297,12 +313,12 @@ export const renameQuickChat = async (chatId, title) => {
  * Send a user message so the backend can run Text-to-SQL.
  * Preferred route:  POST /api/quick-chats/:chatId/messages  { text }
  * Legacy fallback:  POST /api/quickchat/:chatId             { text }
- * Returns the reply string.
+ * Returns: { reply, modelUsed, trace, raw }
  */
 export const sendQuickChatMessage = async (chatId, text) => {
-  if (!chatId) return "";
+  if (!chatId) return { reply: "" };
   const t = String(text ?? "").trim();
-  if (!t) return "";
+  if (!t) return { reply: "" };
 
   if (LOCAL_MOCK) {
     await new Promise((r) => setTimeout(r, 250));
@@ -313,7 +329,7 @@ export const sendQuickChatMessage = async (chatId, text) => {
       sender: "ai",
       at,
     });
-    return "Mock reply";
+    return { reply: "Mock reply", modelUsed: "mock", trace: { mode: "mock" }, raw: null };
   }
 
   const id = encodeURIComponent(chatId);
@@ -325,9 +341,7 @@ export const sendQuickChatMessage = async (chatId, text) => {
     async () => await postJSON(`/api/quickchat/${id}`, { text: t })
   );
 
-  return typeof data === "string"
-    ? data
-    : data?.reply ?? data?.message ?? data?.text ?? "";
+  return shapeReply(data);
 };
 
 /** Delete a quick chat */
