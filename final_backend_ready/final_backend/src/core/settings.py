@@ -90,7 +90,7 @@ class Settings:
 
     # --- LLM (Ollama) for Text-to-SQL ---
     OLLAMA_URL: str = _normalize_url(os.getenv("OLLAMA_URL") or "http://192.168.0.88:11434")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5-7b-sql:latest")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5vl-gpu:latest")
     ENABLE_FEWSHOTS: bool = _get_bool(os.getenv("ENABLE_FEWSHOTS"), default=True)
 
     # --- Schema/Catalog cache ---

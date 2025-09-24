@@ -513,7 +513,7 @@ export const ChatInterface = ({
   // ---- UI ----
   return (
     <div
-      className={`flex flex-col h-full bg-white`}
+      className={`relative flex flex-col h-screen overflow-hidden bg-white`}
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
@@ -527,7 +527,7 @@ export const ChatInterface = ({
       )}
 
       {/* messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => {
           const isAI = message.sender === "ai";
 
@@ -557,7 +557,7 @@ export const ChatInterface = ({
               </div>
 
               <div
-                className={`max-w-[70%] p-4 rounded-lg shadow-soft break-words ${
+                className={`max-w-[70%] p-4 rounded-lg shadow-soft break-words overflow-hidden ${
                   isAI ? "bg-blue-50 border border-blue-200" : "bg-gray-100 text-gray-800"
                 }`}
               >
@@ -580,15 +580,50 @@ export const ChatInterface = ({
                 )}
 
                 {isAI ? (
-                  <div className="whitespace-pre-wrap">
+                  <div
+                    className="whitespace-pre-wrap break-words [word-break:break-word] overflow-hidden"
+                    style={{ overflowWrap: "anywhere" }}
+                  >
                     <ReactMarkdown
                       components={{
                         img: (props: any) => (
                           <img
                             {...props}
                             loading="lazy"
-                            className={`w-full max-w-[1100px] h-auto object-contain rounded border my-2 bg-white ${props?.className || ""}`}
+                            className={`w-full max-w-full h-auto object-contain rounded border my-2 bg-white ${props?.className || ""}`}
                           />
+                        ),
+                        pre: ({ children }) => (
+                          <pre className="max-w-full overflow-x-auto rounded bg-gray-50 p-3 text-sm leading-6">
+                            {children}
+                          </pre>
+                        ),
+                        code: ({ inline, ...props }: any) =>
+                          inline ? (
+                            <code
+                              className="break-words [word-break:break-word] px-1 py-0.5 rounded bg-gray-100 text-[90%]"
+                              {...props}
+                            />
+                          ) : (
+                            <code className="break-words [word-break:break-word]" {...props} />
+                          ),
+                        table: ({ children }) => (
+                          <table className="w-full table-fixed border-collapse my-2">{children}</table>
+                        ),
+                        thead: ({ children }) => <thead className="bg-gray-100">{children}</thead>,
+                        tr: ({ children }) => <tr className="[&>*]:align-top border-b">{children}</tr>,
+                        th: ({ children }) => (
+                          <th className="border px-2 py-1 text-left font-semibold break-words [word-break:break-word]">
+                            {children}
+                          </th>
+                        ),
+                        td: ({ children }) => (
+                          <td className="border px-2 py-1 break-words [word-break:break-word] break-all min-w-0">
+                            {children}
+                          </td>
+                        ),
+                        p: ({ children }) => (
+                          <p className="whitespace-pre-wrap break-words [word-break:break-word]">{children}</p>
                         ),
                       }}
                     >
@@ -596,7 +631,9 @@ export const ChatInterface = ({
                     </ReactMarkdown>
                   </div>
                 ) : (
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.text}</p>
+                  <p className="whitespace-pre-wrap break-words [word-break:break-word] text-sm leading-relaxed">
+                    {message.text}
+                  </p>
                 )}
 
                 <p className={`text-xs mt-2 ${isAI ? "text-blue-600" : "text-gray-600"}`}>
@@ -628,7 +665,7 @@ export const ChatInterface = ({
       </div>
 
       {/* controls */}
-      <div className="p-4 border-t border-gray-200 bg-white">
+      <div className="shrink-0 p-4 border-t border-gray-200 bg-white">
         {/* row 1: select + Export */}
         <div className="flex items-center gap-2 mb-2">
           <select

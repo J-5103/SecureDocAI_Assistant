@@ -683,7 +683,7 @@ Rules:
         Robust Ollama caller:
         - Vision models (/ images provided) -> /api/chat
         - Text models -> /api/generate (fallbacks to /api/chat if needed)
-        - Maps 'minicpm-hybrid' -> 'qwen2.5-7b-sql:latest'
+        - Maps 'minicpm-hybrid' -> 'qwen2.5vl-gpu:latest'
         - Reads GPU/CTX from env; retries with smaller ctx and fallback model
         - Logs full Ollama error body
         """
@@ -695,7 +695,7 @@ Rules:
             base = base.rsplit("/api/", 1)[0]
 
         # ---- Model resolution ----------------------------------------------
-        requested = (getattr(self.rag, "model_name", None) or os.getenv("OLLAMA_MODEL") or "qwen2.5-7b-sql:latest").strip()
+        requested = (getattr(self.rag, "model_name", None) or os.getenv("OLLAMA_MODEL") or "qwen2.5vl-gpu:latest").strip()
         if "minicpm-hybrid" in requested.lower():
             requested = "qwen2.5-7b-sql:latest"
         fallback = (os.getenv("OLLAMA_MODEL_FALLBACK") or "llama3.1:8b").strip()

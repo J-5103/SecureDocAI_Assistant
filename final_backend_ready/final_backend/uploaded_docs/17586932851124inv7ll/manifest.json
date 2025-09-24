@@ -1,0 +1,14 @@
+{
+  "chat_id": "17586932851124inv7ll",
+  "docs": [
+    {
+      "doc_id": "bank_name-0b187a2f",
+      "file_name": "Bank Name.pdf",
+      "ext": ".pdf",
+      "size": 23170189,
+      "stored_path": "uploaded_docs/17586932851124inv7ll/bank_name-0b187a2f.pdf",
+      "vector_dir": "vectorstores/17586932851124inv7ll/bank_name-0b187a2f",
+      "created_at": "2025-09-24T05:54:45.360139Z"
+    }
+  ]
+}

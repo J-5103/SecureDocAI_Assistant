@@ -1,0 +1,23 @@
+{
+  "chat_id": "1758717898619pcruogi",
+  "docs": [
+    {
+      "doc_id": "wave_praposal-b7050270",
+      "file_name": "Wave_Praposal.pdf",
+      "ext": ".pdf",
+      "size": 1083328,
+      "stored_path": "uploaded_docs/1758717898619pcruogi/wave_praposal-b7050270.pdf",
+      "vector_dir": "vectorstores/1758717898619pcruogi/wave_praposal-b7050270",
+      "created_at": "2025-09-24T12:44:58.855704Z"
+    },
+    {
+      "doc_id": "erp_praposal_hexagon_infosoft-9e6304e8",
+      "file_name": "ERP_Praposal_Hexagon_Infosoft.pdf",
+      "ext": ".pdf",
+      "size": 1080804,
+      "stored_path": "uploaded_docs/1758717898619pcruogi/erp_praposal_hexagon_infosoft-9e6304e8.pdf",
+      "vector_dir": "vectorstores/1758717898619pcruogi/erp_praposal_hexagon_infosoft-9e6304e8",
+      "created_at": "2025-09-24T12:45:00.961153Z"
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "chat_id": "1758705529580xsk1n32",
+  "docs": [
+    {
+      "doc_id": "machine_learning_basic_notes-9d2c5be2",
+      "file_name": "Machine Learning Basic Notes \ud83d\udcdd.pdf",
+      "ext": ".pdf",
+      "size": 55301337,
+      "stored_path": "uploaded_docs/1758705529580xsk1n32/machine_learning_basic_notes-9d2c5be2.pdf",
+      "vector_dir": "vectorstores/1758705529580xsk1n32/machine_learning_basic_notes-9d2c5be2",
+      "created_at": "2025-09-24T09:18:50.470744Z"
+    },
+    {
+      "doc_id": "machine_learning_handwritten_notes-472ef617",
+      "file_name": "Machine Learning Handwritten Notes \ud83d\udcdd .pdf",
+      "ext": ".pdf",
+      "size": 56136375,
+      "stored_path": "uploaded_docs/1758705529580xsk1n32/machine_learning_handwritten_notes-472ef617.pdf",
+      "vector_dir": "vectorstores/1758705529580xsk1n32/machine_learning_handwritten_notes-472ef617",
+      "created_at": "2025-09-24T09:22:18.164075Z"
+    },
+    {
+      "doc_id": "decision_tree_notes-6d82a6e2",
+      "file_name": "Decision Tree Notes \ud83d\udcdd .pdf",
+      "ext": ".pdf",
+      "size": 4394612,
+      "stored_path": "uploaded_docs/1758705529580xsk1n32/decision_tree_notes-6d82a6e2.pdf",
+      "vector_dir": "vectorstores/1758705529580xsk1n32/decision_tree_notes-6d82a6e2",
+      "created_at": "2025-09-24T09:24:29.400596Z"
+    },
+    {
+      "doc_id": "support_vector_machine-986c283b",
+      "file_name": "Support Vector Machine .pdf",
+      "ext": ".pdf",
+      "size": 8984120,
+      "stored_path": "uploaded_docs/1758705529580xsk1n32/support_vector_machine-986c283b.pdf",
+      "vector_dir": "vectorstores/1758705529580xsk1n32/support_vector_machine-986c283b",
+      "created_at": "2025-09-24T09:24:29.675979Z"
+    },
+    {
+      "doc_id": "sql_notes_arif_alam-01d1c958",
+      "file_name": "SQL Notes ( Arif Alam ).pdf",
+      "ext": ".pdf",
+      "size": 1425506,
+      "stored_path": "uploaded_docs/1758705529580xsk1n32/sql_notes_arif_alam-01d1c958.pdf",
+      "vector_dir": "vectorstores/1758705529580xsk1n32/sql_notes_arif_alam-01d1c958",
+      "created_at": "2025-09-24T09:24:30.575315Z"
+    }
+  ]
+}
