@@ -697,7 +697,7 @@ Rules:
         # ---- Model resolution ----------------------------------------------
         requested = (getattr(self.rag, "model_name", None) or os.getenv("OLLAMA_MODEL") or "qwen2.5vl-gpu:latest").strip()
         if "minicpm-hybrid" in requested.lower():
-            requested = "qwen2.5-7b-sql:latest"
+            requested = "qwen2.5vl-gpu:latest" 
         fallback = (os.getenv("OLLAMA_MODEL_FALLBACK") or "llama3.1:8b").strip()
 
         # ---- Options / limits ----------------------------------------------

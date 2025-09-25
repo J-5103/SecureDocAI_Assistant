@@ -45,7 +45,7 @@ def _build_mssql_url_from_parts() -> str:
 
     host = os.getenv("DB_HOST", "dev-data.crmemperor.com")
     port = os.getenv("DB_PORT", "1433")
-    name = os.getenv("DB_NAME", "CRM_00001")
+    name = os.getenv("DB_NAME", "CRM_00000")
     user = os.getenv("DB_USER", "dhruv")
     pwd = os.getenv("DB_PASSWORD", "5GN0QHvn2dXMphk")
 

@@ -1,7 +1,7 @@
 {
   "generatedAt": "2025-09-22T06:51:38Z",
   "db": {
-    "name": "CRM_00001",
+    "name": "CRM_00000",
     "version": "Microsoft SQL Server 2022 (RTM-GDR) (KB5065221) - 16.0.1150.1 (X64) \n\tAug 13 2025 16:27:21 \n\tCopyright (C) 2022 Microsoft Corporation\n\tDeveloper Edition (64-bit) on Windows 10 Pro 10.0 <X64> (Build 26100: )\n",
     "family": "mssql"
   },

@@ -7,6 +7,7 @@ import json
 import base64
 import re
 import logging
+from contextlib import nullcontext as _nullcontext
 
 # --- Smart PDF/Image extraction ---
 import fitz  # PyMuPDF
@@ -16,6 +17,19 @@ import pandas as pd
 import docx  # python-docx
 import requests
 
+
+print("RAGPipeline module loaded from:", __file__)
+
+
+# --- Deterministic bank name matching (for count/list queries) ---
+_BANK_WORDS: Tuple[str, ...] = (
+    "bank",
+    "bank ltd",
+    "co-operative bank",
+    "cooperative bank",
+    "sahakari bank",
+    "nagrik sahakari bank",
+)
 # Optional torch (don't crash if it's not installed)
 try:
     import torch  # type: ignore
@@ -23,6 +37,17 @@ try:
 except Exception:
     torch = None  # type: ignore
     _TORCH_AVAILABLE = False
+
+# Optional HuggingFace TrOCR (GPU preferred)
+_TROCR_AVAILABLE = False
+try:
+    from transformers import TrOCRProcessor, VisionEncoderDecoderModel  # type: ignore
+    _TROCR_AVAILABLE = True
+except Exception:
+    TrOCRProcessor = None  # type: ignore
+    VisionEncoderDecoderModel = None  # type: ignore
+    _TROCR_AVAILABLE = False
+
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
@@ -46,12 +71,24 @@ DEFAULT_K = 8
 CHUNK_SIZE = 900
 CHUNK_OVERLAP = 150
 
-# --- VLM settings (env-overridable) ---
-VLM_MODEL = os.environ.get("VLM_MODEL", "qwen2.5-vl:latest")  # or llava, qwen2.5-vl-gpu, etc.
-PDF_RENDER_DPI = int(os.environ.get("PDF_RENDER_DPI", "280"))
+# ===================== Model & Pipeline Defaults =====================
+# Text LLM (GPU) for text-based docs
+TEXT_LLM_MODEL = os.environ.get("TEXT_LLM_MODEL", "qwen2.5vl-gpu:latest")
+# Vision LLM (GPU) for vision/scanned docs (Ollama tag)
+VLM_MODEL = os.environ.get("VLM_MODEL", "qwen2.5vl-gpu:latest")
+# TrOCR model id (printed best for typed scans; for handwriting use '-handwritten')
+TROCR_MODEL_ID = os.environ.get("TROCR_MODEL_ID", "microsoft/trocr-large-printed")
+
+# Render/vision config
+PDF_RENDER_DPI = int(os.environ.get("PDF_RENDER_DPI", "200"))
 VLM_TILE_PX = int(os.environ.get("VLM_TILE_PX", "1024"))
 VLM_TILE_OVERLAP = float(os.environ.get("VLM_TILE_OVERLAP", "0.15"))
 VLM_MIN_TEXT_CHARS = int(os.environ.get("VLM_MIN_TEXT_CHARS", "80"))
+
+# Control flags
+USE_TROCR = os.environ.get("USE_TROCR", "1") not in ("0", "false", "False")
+AUTO_VLM_ON_LOW_TEXT = os.environ.get("AUTO_VLM_ON_LOW_TEXT", "1") not in ("0", "false", "False")
+
 
 
 class RAGPipeline:
@@ -62,14 +99,16 @@ class RAGPipeline:
       - Text LLM for grounded answers + Vision route for images/low-text PDFs
       - Strict, structured summary mode
     """
-
+    
     def __init__(
         self,
         vector_store_path: str = "vectorstores",
         ollama_url: str = "http://192.168.0.88:11434",
-        model_name: str = "qwen2.5:7b-instruct",          # text LLM
-        vlm_model_name: str = VLM_MODEL,                  # vision model
-        request_timeout: int = 2000,
+        model_name: str = "qwen2.5vl-gpu:latest",                  # text LLM (GPU)
+        vlm_model_name: str ="qwen2.5vl-gpu:latest",                   # vision model (GPU)
+       # vision model
+        request_timeout: int = 120, 
+    
         # --- accuracy/perf toggles ---
         ocr_fallback: bool = False,              # OCR disabled (OCR-less path)
         vlm_transcribe_on_lowtext: bool = True,  # VLM to transcribe when text layer is short
@@ -78,9 +117,9 @@ class RAGPipeline:
         reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2",
         verify_pass: bool = False,
         # --- routing thresholds ---
-        min_context_chars_for_text: int = 120,
-        pdf_low_text_chars_probe: int = 80,
-        auto_vlm_pages: int = 4,
+        min_context_chars_for_text: int = 140,
+        pdf_low_text_chars_probe: int = 100,
+        auto_vlm_pages: int = 2,
     ):
         device = "cuda" if (_TORCH_AVAILABLE and torch.cuda.is_available()) else "cpu"  # type: ignore[attr-defined]
         print(f"Initializing RAGPipeline with device: {device}")
@@ -116,6 +155,58 @@ class RAGPipeline:
                 print("⚠️ Reranker load failed, falling back to vanilla similarity:", e)
                 self.use_reranker = False
 
+        # ---- TrOCR (lazy init) ----
+        self._trocr_processor = None
+        self._trocr_model = None
+        self._trocr_device = device
+        if USE_TROCR and _TROCR_AVAILABLE:
+            try:
+                self._init_trocr()
+                print(f"✅ TrOCR ready: {TROCR_MODEL_ID} on {self._trocr_device}")
+            except Exception as e:
+                print("⚠️ TrOCR init failed:", e)
+        else:
+            print("ℹ️ TrOCR disabled (set USE_TROCR=1 and ensure transformers installed).")
+
+        print("TEXT LLM:", self.model_name, " | VLM:", self.vlm_model_name)
+
+    # -------------------- TrOCR helpers --------------------
+    def _init_trocr(self):
+        if self._trocr_processor and self._trocr_model:
+            return
+        try:
+            # prefer fast image processor/tokenizer if available
+            self._trocr_processor = TrOCRProcessor.from_pretrained(TROCR_MODEL_ID, use_fast=True)  # type: ignore
+        except TypeError:
+            # older transformers that don't accept `use_fast`
+            self._trocr_processor = TrOCRProcessor.from_pretrained(TROCR_MODEL_ID)
+
+        self._trocr_model = VisionEncoderDecoderModel.from_pretrained(TROCR_MODEL_ID)
+
+        if _TORCH_AVAILABLE and torch.cuda.is_available():
+            self._trocr_model = self._trocr_model.to("cuda")
+            self._trocr_device = "cuda"
+        else:
+            self._trocr_device = "cpu"
+        self._trocr_model.eval()
+
+    def _trocr_ocr_image(self, pil_img: Image.Image, max_new_tokens: int = 256) -> str:
+        if not (USE_TROCR and _TROCR_AVAILABLE and self._trocr_model and self._trocr_processor):
+            return ""
+        img = ImageOps.autocontrast(pil_img.convert("RGB"))
+        pixel_values = self._trocr_processor(images=img, return_tensors="pt").pixel_values
+        if _TORCH_AVAILABLE:
+            pixel_values = pixel_values.to(self._trocr_device)  # type: ignore
+        with (torch.no_grad() if _TORCH_AVAILABLE else _nullcontext()):
+            generated_ids = self._trocr_model.generate(
+                pixel_values,
+                max_new_tokens=max_new_tokens,
+                num_beams=2,
+                early_stopping=True,
+            )
+        text = self._trocr_processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        return text.strip()
+
     # -------------------- path utils --------------------
 
     def _chat_folder(self, chat_id: str) -> str:
@@ -147,31 +238,54 @@ class RAGPipeline:
                 out[name] = p
         return out
 
+    # --- helper to normalize names coming from the UI / filesystem
+    def _normalize_name(self, s: str) -> str:
+        s = os.path.splitext(s)[0]
+        s = s.strip().lower()
+        s = re.sub(r"[\s\-_\.]+", " ", s)   # unify separators
+        s = re.sub(r"\s+", " ", s)
+        return s
+
     def _match_doc_folder(self, chat_id: str, requested: str) -> Optional[str]:
         """
-        Map a requested filename/id (maybe with extension/spaces/case) to an existing
-        vectorstore folder. Tries exact, casefold, startswith, contains.
+        Robust mapping of a UI-selected name to an existing vectorstore folder.
+        Handles case, spaces, hyphens/underscores, extensions, and fuzzy fallback.
         """
-        req_base = os.path.splitext(requested)[0]
-        req_cf = req_base.casefold()
-        all_folders = self._list_doc_folders(chat_id)
+        from difflib import SequenceMatcher
 
-        # exact folder name
-        if req_base in all_folders:
-            return all_folders[req_base]
-        # case-insensitive equal
-        for k, p in all_folders.items():
-            if k.casefold() == req_cf:
+        all_folders = self._list_doc_folders(chat_id)
+        if not all_folders:
+            return None
+
+        reqn = self._normalize_name(requested)
+        norm_map = {self._normalize_name(k): p for k, p in all_folders.items()}
+
+        # exact normalized
+        if reqn in norm_map:
+            return norm_map[reqn]
+
+        # begins-with / contains
+        for nk, p in norm_map.items():
+            if nk.startswith(reqn) or reqn.startswith(nk):
                 return p
-        # startswith
-        for k, p in all_folders.items():
-            if k.casefold().startswith(req_cf):
+        for nk, p in norm_map.items():
+            if reqn in nk or nk in reqn:
                 return p
-        # contains
-        for k, p in all_folders.items():
-            if req_cf in k.casefold():
-                return p
+
+        # fuzzy fallback
+        best_p, best_score = None, 0.0
+        for nk, p in norm_map.items():
+            score = SequenceMatcher(None, reqn, nk).ratio()
+            if score > best_score:
+                best_p, best_score = p, score
+        if best_score >= 0.72:
+            print(f"ℹ️ Fuzzy matched '{requested}' → '{best_p}' (score {best_score:.2f})")
+            return best_p
+
+        print(f"⚠️ Could not resolve selected doc: '{requested}' (normalized='{reqn}')")
+        print(f"   Available docs: {list(all_folders.keys())}")
         return None
+
 
     # -------------------- small helpers --------------------
 
@@ -433,22 +547,21 @@ class RAGPipeline:
                 doc = fitz.open(file_path)
                 for i, page in enumerate(doc):
                     page_text = (page.get_text() or "").strip()
-                    if len(page_text) >= self.vlm_transcribe_min_chars:
+                    # If PDF has a usable text layer -> use it (TEXT path)
+                    if len(page_text) >= VLM_MIN_TEXT_CHARS:
                         safe_text = self.sanitize_text(page_text)
                         documents.append(
                             Document(page_content=safe_text, metadata={"source": filename, "page": i + 1})
                         )
-                        continue
-
-                    # Image-based page or too little text → VLM transcription (tiling)
-                    pix_img = self._pdf_page_as_pil(page, dpi=PDF_RENDER_DPI)
-                    vlm_txt = (self._vlm_transcribe_two_pass(pix_img) or "").strip()
-
-                    if vlm_txt:
-                        safe_text = self.sanitize_text(vlm_txt)
-                        documents.append(
-                            Document(page_content=safe_text, metadata={"source": filename, "page": i + 1})
-                        )
+                    else:
+                        # Vision/scanned page -> render + TrOCR (VISION path)
+                        pil_img = self._pdf_page_as_pil(page, dpi=PDF_RENDER_DPI)
+                        ocr_text = self._trocr_ocr_image(pil_img) if USE_TROCR else ""
+                        if ocr_text.strip():
+                            safe_text = self.sanitize_text(ocr_text)
+                            documents.append(
+                                Document(page_content=safe_text, metadata={"source": filename, "page": i + 1})
+                            )
                 doc.close()
 
             elif lower.endswith((".docx", ".doc")):
@@ -477,14 +590,17 @@ class RAGPipeline:
                     documents.append(Document(page_content=safe_text, metadata={"source": filename}))
 
             elif lower.endswith((".png", ".jpg", ".jpeg", ".webp")):
+                # Vision images -> TrOCR (VISION path)
                 im = Image.open(file_path).convert("RGB")
-                text = (self._vlm_transcribe_two_pass(im) or "").strip()
-                if text:
-                    safe_text = self.sanitize_text(text)
+                ocr_text = self._trocr_ocr_image(im) if USE_TROCR else ""
+                if ocr_text.strip():
+                    safe_text = self.sanitize_text(ocr_text)
                     documents.append(Document(page_content=safe_text, metadata={"source": filename}))
 
             else:
                 raise ValueError(f"Unsupported file type: {file_path}")
+
+# (rest unchanged)
 
         except Exception as e:
             print(f"❌ Error reading {filename}: {e}")
@@ -628,11 +744,18 @@ class RAGPipeline:
             return ""
 
     def _expanded_query(self, question: str) -> str:
+        intent = self._parse_intent(question)
         expander = SynonymExpander()
         syn = expander.find_similar_words(question)
         llm_terms = self._expand_query_llm(question)
-        combo = f"{question} {syn} {llm_terms}".strip()
+        add: List[str] = []
+        if intent.get("startswith"):
+            add.append(f"starts with {intent['startswith']}")
+        if intent.get("location"):
+            add += [intent["location"], f"{intent['location']} district", "list of banks"]
+        combo = f"{question} {syn} {llm_terms} {' '.join(add)}".strip()
         return re.sub(r"\s+", " ", combo)
+
 
     def _topk_from_vs(self, vs, query: str, k: int) -> List[Tuple[Document, float]]:
         return vs.similarity_search_with_score(query, k=max(1, k))
@@ -646,6 +769,64 @@ class RAGPipeline:
         scores = self._reranker.predict(texts)  # higher better
         ranked = sorted(zip(scores, [d for d, _ in pairs]), key=lambda t: t[0], reverse=True)
         return [d for _, d in ranked[:final_k]]
+    
+    # ---------- INTENT + DETERMINISTIC FILTERS (NEW) ----------
+
+    
+    def _parse_intent(self, q: str) -> Dict[str, Any]:
+        ql = (q or "").lower()
+        intent = {
+            "wants_count": any(w in ql for w in ["how many", "kitne", "count", "no. of", "number of"]),
+            "startswith": None,
+            "location": None,
+        }
+        # "which is start from M" / "start with P"
+        m = re.search(r"(start\s+(?:with|from)\s+)([a-z])", ql)
+        if m:
+            intent["startswith"] = m.group(2).upper()
+
+        # "in Ahmedabad District" / "at <place>" / "in <city>"
+        m2 = re.search(r"\b(?:in|at)\s+([a-z][a-z\s\-]+?)(?:\s+district|\s+city|\s+state|$)", ql)
+        if m2:
+            intent["location"] = m2.group(1).strip().title()
+
+        return intent
+
+    def _candidate_lines_from_context(self, ctx: str) -> List[str]:
+        # Context aise aata hai: "1. ....\n2. ...." -> lines nikalo
+        raw = [re.sub(r"^\s*\d+\.\s*", "", ln).strip() for ln in ctx.splitlines()]
+        lines = []
+        for ln in raw:
+            if not ln:
+                continue
+            # Chunks ke andar multiple lines ho sakti; split further
+            for seg in re.split(r"[•\-\u2022]|\\n", ln):
+                s = seg.strip()
+                if s:
+                    lines.append(s)
+        return lines
+
+    def _filter_banks(self, lines: List[str], startswith: Optional[str], location: Optional[str]) -> List[str]:
+        out = []
+        for ln in lines:
+            lnl = ln.lower()
+            if not any(w in lnl for w in _BANK_WORDS):
+                continue
+            if startswith and not re.match(rf"^{re.escape(startswith)}", ln.strip(), flags=re.IGNORECASE):
+                continue
+            if location and (location.lower() not in lnl):
+                continue
+            # cleanup tail punctuation
+            clean = re.sub(r"\s*[,:;.\-–—]+$", "", ln).strip()
+            out.append(clean)
+        # unique, preserve order
+        seen = set(); uniq = []
+        for x in out:
+            k = x.casefold()
+            if k in seen: continue
+            seen.add(k); uniq.append(x)
+        return uniq
+
 
     def get_context_from_single_doc(
         self,
@@ -695,20 +876,29 @@ class RAGPipeline:
         expanded_query = self._expanded_query(question)
 
         # --- resolve selected folders robustly ---
+        # --- resolve selected folders robustly (use ALL that resolve) ---
         if document_names:
             target_folders: List[str] = []
+            unresolved: List[str] = []
             for name in document_names:
                 match = self._match_doc_folder(chat_id, name)
                 if match:
                     target_folders.append(match)
                 else:
-                    print(f"⚠️ Could not resolve selected doc: {name}")
+                    unresolved.append(name)
+
+            print(f"🧩 UI selected: {document_names}")
+            print(f"✅ Resolved to folders: {target_folders}")
+            if unresolved:
+                print(f"⚠️ Unresolved selections (no vectorstore found): {unresolved}")
+
             if not target_folders:
                 return "", [], question_type
         else:
             target_folders = list(self._list_doc_folders(chat_id).values())
             if not target_folders:
                 return "", [], question_type
+
 
         # --- retrieve per-doc, then rerank globally ---
         global_pairs: List[Tuple[Document, float, str]] = []
@@ -973,44 +1163,44 @@ class RAGPipeline:
             print("Auto VLM failed:", e)
             return None
 
-    def answer_question(
-        self,
-        question: str,
-        chat_id: str,
-        document_id: Optional[str] = None,
-        combine_docs: Optional[List[str]] = None,
-        images: Optional[List[str]] = None,
-    ) -> str:
+    def answer_question(self, question: str, chat_id: str,
+                    document_id: Optional[str] = None,
+                    combine_docs: Optional[List[str]] = None,
+                    images: Optional[List[str]] = None) -> str:
         try:
             qtype = self.detect_question_type(question)
-            _paraphrase_note = (
-                "\n\n*Note:* I derive answers using relevant information even when your question "
-                "is phrased differently from the document text."
-            )
+            note = ("\n\n*Note:* I derive answers using relevant information even when your question "
+                    "is phrased differently from the document text.")
 
-            # 0) Vision route (explicit images)
+            # 0) If explicit images → VLM (with TrOCR OCR hint)
             if images and len(images) > 0:
-                print(f"🖼️ Using VLM route with {len(images)} image(s)")
+                ocr_hints = []
+                if USE_TROCR and _TROCR_AVAILABLE:
+                    try:
+                        for p in images:
+                            with Image.open(p) as im:
+                                ocr_hints.append(self._trocr_ocr_image(im) or "")
+                    except Exception:
+                        pass
+                hint_text = "\n".join([h for h in ocr_hints if h])
                 vlm_prompt = (
-                    "You are a strict OCR-free document QA model. "
-                    "Use ONLY the provided image(s). "
-                    "Interpret the user's intent semantically — the wording may be different from the text. "
-                    "Locate all information relevant to the intent and answer concisely. "
+                    "You are a strict document QA model. Use ONLY the provided image(s). "
                     "If the answer is not clearly visible, reply exactly: \"I don't know\".\n\n"
+                    f"OCR_HINT (may be partial):\n{hint_text[:4000]}\n\n"
                     f"Question: {question}"
                 )
                 vlm_answer = self.ask_vlm(vlm_prompt, images)
                 if vlm_answer.strip():
                     ans = vlm_answer.strip()
                     if ans != "I don't know":
-                        ans += _paraphrase_note
+                        ans += note
                     return ans
 
-            # Summary path first (VLM-first)
+            # 1) Summary path (unchanged)
             if qtype == "summary":
                 return self.summarize_document(question, chat_id, document_id, combine_docs)
 
-            # 1) Text RAG
+            # 2) TEXT RAG first (GPU text LLM) — primary for text-based docs
             context, used_docs = self.get_context(
                 question=question,
                 chat_id=chat_id,
@@ -1019,7 +1209,7 @@ class RAGPipeline:
                 k=DEFAULT_K,
             )
 
-            # 2) If context is weak or selected PDF looks scanned → auto VLM
+            # 3) If context weak OR scanned PDF (low text) → VLM fallback
             need_auto_vlm = (len(context.strip()) < self.min_context_chars_for_text)
             if not need_auto_vlm:
                 target_doc = document_id or (combine_docs[0] if combine_docs else None)
@@ -1028,45 +1218,73 @@ class RAGPipeline:
                     chars = self._probe_pdf_text_chars(src, probe_pages=3)
                     need_auto_vlm = chars < self.pdf_low_text_chars_probe
 
-            if need_auto_vlm:
-                print("ℹ️  Context weak/low-text PDF detected → trying VISION route…")
+            if need_auto_vlm and AUTO_VLM_ON_LOW_TEXT:
                 vlm_auto = self._auto_vlm_from_pdf(
                     question, chat_id, document_id or (combine_docs[0] if combine_docs else None)
                 )
                 if vlm_auto:
                     return vlm_auto
 
-            if not context:
-                return "Not found in the provided document."
+                if not context:
+                    return "Not found in the provided document."
 
-            # 3) Normal text answer (intent-aware)
+                # >>> DETERMINISTIC COUNT/LIST LOGIC (banks) <<<
+                intent = self._parse_intent(question)
+                if intent["wants_count"] or intent["startswith"] or intent["location"]:
+                    lines = self._candidate_lines_from_context(context)
+                    banks = self._filter_banks(lines, intent["startswith"], intent["location"])
+
+                    if intent["wants_count"]:
+                        if intent["location"]:
+                            loc = intent["location"]
+                            return f"{len(banks)} banks in {loc}" if banks else "I don't know"
+                        return f"{len(banks)} banks found" if banks else "I don't know"
+
+                    if intent["startswith"]:
+                        if not banks:
+                            return "I don't know"
+                        show = banks[:10]
+                        more = "" if len(banks) <= 10 else f"\n\n(+{len(banks)-10} more)"
+                        return "- " + "\n- ".join(show) + more
+
+            # 4) Grounded text answer via GPU text LLM
+            # 4) Grounded text answer via GPU text LLM (strict, context-only)
             prompt = (
-                "You are a helpful, grounded assistant. "
-                "Answer strictly and only from the provided context. "
-                "Interpret the question's intent semantically (paraphrases allowed); "
-                "do not require exact keyword matches. "
-                "If the answer is not present, reply exactly: \"I don't know\".\n\n"
-                f"Context from documents {used_docs}:\n{context}\n\n"
-                f"Question: {question}\nAnswer:"
+                "You are a STRICT retrieval QA model.\n"
+                "RULES:\n"
+                "1) Use ONLY the provided CONTEXT. Do NOT use outside knowledge.\n"
+                "2) If the answer is not FULLY supported by the CONTEXT, reply exactly: \"I don't know\".\n"
+                "3) Prefer copying exact numbers/names/phrases from CONTEXT.\n"
+                "4) If multiple candidates exist, list them all; do not invent.\n"
+                "5) Be concise.\n\n"
+                "QUESTION:\n"
+                f"{question}\n\n"
+                "=== CONTEXT START ===\n"
+                f"{context}\n"
+                "=== CONTEXT END ===\n\n"
+                "FINAL ANSWER ONLY (no preface/explanation):"
             )
+
             payload = {
-                "model": self.model_name,
+                "model": self.model_name,            # qwen2.5vl-gpu:latest for both text & vision (as you set)
                 "prompt": prompt,
                 "stream": False,
                 "keep_alive": "10m",
                 "options": {
-                    "temperature": 0.1,
-                    "num_predict": 400,
-                    "num_ctx": 3072,
-                    "top_p": 0.9,
+                    # very low creativity to avoid guesswork
+                    "temperature": 0.0,
+                    "top_p": 0.8,
                     "repeat_penalty": 1.05,
+                    # keep these generous if your chunks are big
+                    "num_ctx": 4096,
+                    "num_predict": 400,
+                    # optional: stop at double newline if your model tends to ramble
+                    # "stop": ["\n\n"]
                 },
             }
-            print(f"➡️  TEXT LLM: {self.model_name}")
-            response = requests.post(f"{self.ollama_url}/api/generate", json=payload, timeout=self.request_timeout)
-            response.raise_for_status()
-
-            answer = (response.json().get("response") or "").strip()
+            r = requests.post(f"{self.ollama_url}/api/generate", json=payload, timeout=self.request_timeout)
+            r.raise_for_status()
+            answer = (r.json().get("response") or "").strip()
             if not answer:
                 return "I don't know"
 
@@ -1074,9 +1292,9 @@ class RAGPipeline:
                 answer = self._verify_answer(question, context, answer).strip()
 
             if answer and answer != "I don't know":
-                answer += _paraphrase_note
-
+                answer += note
             return answer
+
 
         except requests.RequestException as e:
             print(f"❌ Error calling Ollama API: {e}")
